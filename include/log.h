@@ -1,0 +1,152 @@
+#pragma once
+#include "const.h"
+#include "singleton.hpp"
+#include"util.h"
+// 协程网络库的日志模块
+namespace Xten
+{
+    // 日志级别
+    struct LogLevel
+    {
+        enum Level
+        {
+            UNKNOW = 0,
+            DEBUG = 1,
+            INFO = 2,
+            WARN = 3,
+            ERROR = 4,
+            FATAL = 5,
+        };
+        static const char *ToString(const LogLevel::Level &level); // level转字符串
+        static LogLevel::Level ToLevel(const std::string &str);    // 字符串转level
+    };
+    // 日志事件 ---表示一条具体的日志
+    class Logger;
+    class LogEvent
+    {
+    public:
+        typedef std::shared_ptr<LogEvent> ptr;
+        LogEvent(std::shared_ptr<Logger> logger, LogLevel::Level level,  std::string file, uint32_t line,
+                 uint32_t elapse, uint32_t thread_id, uint32_t fiber_id, uint64_t time, std::string thread_name);
+        std::shared_ptr<Logger> GetLogger();
+        LogLevel::Level GetLevel();
+        std::string FileName();
+        uint32_t GetLine();
+        uint64_t GetElapse();
+        uint32_t GetThreaId();
+        uint32_t GetFiberId();
+         uint64_t GetTime();
+        std::string GetThreadName();
+        std::stringstream &GetSStream();   // 获取内容的流--用来保存日志内容
+        void format(const char *fmt, ...); // 格式化输入日志内容   format("log is %s",aaaaa);
+    private:
+        std::shared_ptr<Logger> _logger;      // 日志器
+        LogLevel::Level _level;   // 日志级别
+        std::string _file;        // 文件名
+        uint32_t _line;           // 文件行号
+        uint32_t _elapse;         // 程序启动依赖的耗时(毫秒)
+        uint32_t _thread_id;      // 线程id
+        uint32_t _fiber_id;       // 协程id
+        uint64_t _time;           // 日志时间(秒)
+        std::string _thread_name; // 线程名称
+        std::stringstream _ss;    // 日志的内容字段输出流
+    };
+    class Logsinker;
+    // 格式化器
+    class Formatter
+    {
+    public:
+        typedef std::shared_ptr<Formatter> ptr;
+        void format(std::ostream& out_stream,std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr ev);
+    private:
+    };
+    // 单例日志器管理类
+    class LoggerManager : public singleton<LoggerManager>
+    {
+        friend class singleton<LoggerManager>;
+
+    public:
+    private:
+    };
+    // 日志器---管理落地类
+    class Logger:public std::enable_shared_from_this<Logger>
+    {
+    public:
+        typedef std::shared_ptr<Logger> ptr;
+        Logger(const std::string & name="root");
+        void log(LogLevel::Level level,LogEvent::ptr);
+        void SetLevelLimit(LogLevel::Level);
+        LogLevel::Level GetLevelLimit();
+        void AddSinkers(const std::string & sink_name,std::shared_ptr<Logsinker> sinker);
+        void DelSinkers(const std::string & sink_name);
+        void ClearSinkers();
+        std::string GetName();
+        void info(LogEvent::ptr ev);
+        void debug(LogEvent::ptr ev);
+        void warn(LogEvent::ptr ev);
+        void error(LogEvent::ptr ev);
+        void fatal(LogEvent::ptr ev);
+        Formatter::ptr GetFormatter();
+        void SetFormatter(Formatter::ptr formatter);  //直接传入格式化器
+        void SetFormatter(const char* fmt_str); //传入格式化字符串 %d{xxx} %s %g ...
+        void SetRootLogger(Logger::ptr root_logger); //设置主logger
+     private:
+        std::string _name;  //日志名称
+        LogLevel::Level _level_limit; //limit日志级别
+        std::unordered_map<std::string,std::shared_ptr<Logsinker>> _sinkers; //所有的日志输出器及其名字
+        Formatter::ptr   _formatter;  //日志格式化器
+        Logger::ptr  _root_logger; //主日志器
+    };
+    // 日志器落地类
+    class Logsinker
+    {
+        friend class Logger;
+    public:
+        typedef std::shared_ptr<Logsinker> ptr;
+        Logsinker(LogLevel::Level level=LogLevel::DEBUG):_level_limit(level),_b_has_formatter(false){}
+        virtual void log(Logger::ptr logger, LogLevel::Level level,LogEvent::ptr ev)=0;
+        bool has_formatter(){return _b_has_formatter;}
+        Formatter::ptr GetFormatter()
+        {
+            return _formatter;
+        }
+        void SetFormatter(Formatter::ptr formatter){
+            _formatter=formatter;
+            _b_has_formatter=true;
+        }
+        LogLevel::Level GetLevelLimit(){
+            return _level_limit;
+        }
+        void SetLevelLimit(LogLevel::Level level)
+        {
+            _level_limit=level;
+        }
+    protected:
+        LogLevel::Level _level_limit; //每个sinks的日志级别
+        bool _b_has_formatter; //是否有格式化器
+        Formatter::ptr _formatter; //格式化器 --由所属的logger赋值 或者自定义
+    };
+    // 标准输出落地类
+    class StdoutLogsinker : public Logsinker
+    {
+        friend class Logger;
+    public:
+        typedef std::shared_ptr<StdoutLogsinker> ptr;
+        virtual void log(Logger::ptr logger, LogLevel::Level level,LogEvent::ptr ev);
+    };
+    // 文件输出落地类---单文件
+    class FileLogsinker : public Logsinker
+    {
+        friend class Logger;
+    public:
+        typedef std::shared_ptr<FileLogsinker> ptr;
+        FileLogsinker(const std::string& filename);
+        virtual void log(Logger::ptr logger, LogLevel::Level level,LogEvent::ptr ev);
+        bool reopen();
+    private:
+        std::string _log_filename;
+        std::ofstream _file_stream;
+        ino64_t _last_opentime;
+    };
+
+}
