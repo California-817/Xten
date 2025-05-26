@@ -1,5 +1,6 @@
 #pragma once
 #include "const.h"
+//Xten协程库的工具类模块
 namespace Xten
 {
     class FileUtil
