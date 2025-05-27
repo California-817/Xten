@@ -12,5 +12,8 @@
 #include<unordered_map>
 #include<cstdlib>
 #include<stdarg.h>
+#include<unistd.h>
 #include<chrono>
+#include<sys/stat.h>
+#include<cstring>
 #include<fstream>

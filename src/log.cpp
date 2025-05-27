@@ -6,10 +6,10 @@ namespace Xten
         switch (level)
         { // 定义宏函数来简化代码 #是用来转成字符串
 #define XX(LEV)                        \
-    \ 
+    \
             case LogLevel::Level::LEV: \
     return #LEV;                       \
-    \    
+    \
                 break;
             XX(INFO);
             XX(DEBUG);
@@ -140,6 +140,7 @@ namespace Xten
                 for (auto &sink : _sinkers)
                 {
                     sink.second->log(self, level, ev); // 每个sinks又有自己的日志级别
+                // std::cout<<"logger 的log调用"<<std::endl;
                 }
             }
             // 无落地对象 让主logger进行输出
@@ -243,6 +244,7 @@ namespace Xten
                 SetFormatter(logger->GetFormatter()); // 用所属的logger的formatter给sink的formatter赋值
             }
             // 让Formatter格式化器来进行格式化event形成字符串直接格式化到这个sink对应的流中 --标准输出流
+            // std::cout<<"stdout log调用"<<std::endl;
             _formatter->format(std::cout, logger, level, ev);
         }
     }
@@ -262,8 +264,22 @@ namespace Xten
                 // 还没初始化formatter
                 SetFormatter(logger->GetFormatter()); // 用所属的logger的formatter给sink的formatter赋值
             }
+            bool is_open = true;
             // 让Formatter格式化器来进行格式化event形成字符串直接格式化到这个sink对应的流中 --文件流
-            _formatter->format(_file_stream, logger, level, ev);
+            if (TimeUitl::NowTime_to_uint64() - _last_opentime > 3)
+            {
+                // 上次打开文件的时间比较长 重新打开文件防止文件被删除
+                is_open = reopen();
+                _last_opentime = TimeUitl::NowTime_to_uint64(); // 更新时间戳
+            }
+            if (is_open)
+            {
+                _formatter->format(_file_stream, logger, level, ev);
+            }
+            else
+            {
+                std::cout << "log file open failed" << std::endl;
+            }
         }
     }
     bool FileLogsinker::reopen()
@@ -455,6 +471,7 @@ namespace Xten
     Formatter::Formatter(const std::string &fmt_str)
         : _formatter_str(fmt_str), _b_error(false)
     {
+        init();
     }
     //  *  %m 消息
     //  *  %p 日志级别
@@ -634,5 +651,39 @@ namespace Xten
     {
         return _b_error;
     }
+    LoggerManager::LoggerManager()
+    { //构造函数默认生成一个主logger
+        _root_logger=std::make_shared<Logger>();
+        _root_logger->AddSinkers("stdout",std::make_shared<StdoutLogsinker>());
+        // std::cout<<"root 日志添加sinl=k" <<std::endl;
+        _loggers_map.insert(std::make_pair(_root_logger->GetName(),_root_logger));
+        init();
+    }
+    Logger::ptr LoggerManager::GetLogger(const std::string &name)
+    {
+        auto iter=_loggers_map.find(name);
+        if(iter==_loggers_map.end()){
+            //，没找到
+            return Logger::ptr();
+        }
+        return iter->second;
+    }
+    bool LoggerManager::SetLogger(const std::string &name, Logger::ptr logger)
+    {
+        if(GetLogger(name)){
+            //找到了同名logger
+            return false;
+        }
+        //无同名loggger
+        _loggers_map.insert(std::make_pair(_root_logger->GetName(),_root_logger));
+        return true;
+    }
+    Logger::ptr LoggerManager::GetRootLogger() // 获取root的logger
+    {
+        return _root_logger;
+    }
+    void LoggerManager::init()
+    {
 
+    }
 }

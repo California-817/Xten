@@ -1,3 +1,4 @@
+#pragma once
 #include "const.h"
 namespace Xten // 封装单例基类
 {
@@ -5,7 +6,7 @@ namespace Xten // 封装单例基类
     class singleton
     {
     public:
-        std::shared_ptr<T> &GetInstance()
+        static std::shared_ptr<T> &GetInstance()
         {
             static std::once_flag s_flag;
             std::call_once(s_flag, [&]()

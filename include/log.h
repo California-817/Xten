@@ -3,6 +3,37 @@
 #include "singleton.hpp"
 #include "util.h"
 // 协程网络库的日志模块
+// 用宏函数的方式来简化日志的使用
+//传入logger和level自动生成event并返回event的stringstream用于输入内容
+//LogEventWrap在这一行结束自动析构进行日志的log操作
+// \是宏续行符 表示宏替换之后当作一行去处理
+#define XTEN_LOG_LEVEL(logger,level) \
+        if(level>=logger->GetLevelLimit()) \
+              Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger,level,__FILE__,__LINE__,0, \
+                        1,1,time(nullptr),"main thread")).GetSStream() 
+
+#define XTEN_LOG_DEBUG(logger) XTEN_LOG_LEVEL(logger,Xten::LogLevel::DEBUG)  
+#define XTEN_LOG_INFO(logger) XTEN_LOG_LEVEL(logger,Xten::LogLevel::INFO)  
+#define XTEN_LOG_WARN(logger) XTEN_LOG_LEVEL(logger,Xten::LogLevel::WARN)  
+#define XTEN_LOG_ERROR(logger) XTEN_LOG_LEVEL(logger,Xten::LogLevel::ERROR)  
+#define XTEN_LOG_FATAL(logger) XTEN_LOG_LEVEL(logger,Xten::LogLevel::FATAL)  
+
+//格式化输出日志
+#define XTEN_LOG_FMT_LEVEL(logger,level,fmt,...) \
+        if(level>=logger->GetLevelLimit())  \
+                Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger,level,__FILE__,__LINE__,0, \
+                        1,1,time(nullptr),"main thread")).GetEvent()->format(fmt,__VA_ARGS__)
+
+#define XTEN_LOG_FMT_DEBUG(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::DEBUG,fmt,__VA_ARGS__)
+#define XTEN_LOG_FMT_INFO(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::INFO,fmt,__VA_ARGS__)
+#define XTEN_LOG_FMT_WARN(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::WARN,fmt,__VA_ARGS__)
+#define XTEN_LOG_FMT_ERROR(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::ERROR,fmt,__VA_ARGS__)
+#define XTEN_LOG_FMT_FATAL(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::FATAL,fmt,__VA_ARGS__)
+
+//获取root日志器
+#define XTEN_LOG_ROOT() Xten::LoggerManager::GetInstance()->GetRootLogger()
+//获取指定name的日志器
+#define XTEN_LOG_NAME(name) Xten::LoggerManager::GetInstance()->GetLogger()
 namespace Xten
 {
     // 日志级别
@@ -38,10 +69,10 @@ namespace Xten
         uint64_t GetTime();
         std::string GetThreadName();
         std::stringstream &GetSStream();   // 获取内容的流--用来保存日志内容
-        std::string GetContent(); //获取内容
+        std::string GetContent();          // 获取内容
         void format(const char *fmt, ...); // 格式化输入日志内容   format("log is %s",aaaaa);
     private:
-        std::shared_ptr<Logger> _logger; // 输出依靠的日志器
+        std::shared_ptr<Logger> _logger; // 输出依靠的日志器 ---有大用处
         LogLevel::Level _level;          // 日志级别
         std::string _file;               // 文件名
         uint32_t _line;                  // 文件行号
@@ -71,25 +102,26 @@ namespace Xten
     {
     public:
         typedef std::shared_ptr<Formatter> ptr;
-        Formatter(const std::string& fmt_str="%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n");
-        void init(); //初始化模板
-        void format(std::ostream &out_stream, std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr ev); //向流中输出
-        std::string format(std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr ev); //直接输出字符串
+        Formatter(const std::string &fmt_str = "%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n");
+        void init();                                                                                                    // 初始化模板
+        void format(std::ostream &out_stream, std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr ev); // 向流中输出
+        std::string format(std::shared_ptr<Logger> logger, LogLevel::Level level, LogEvent::ptr ev);                    // 直接输出字符串
         // 格式化items
         class FormatterItem // 基类
         {
         public:
             typedef std::shared_ptr<FormatterItem> ptr;
-            virtual void format(std::ostream& osm,std::shared_ptr<Logger> logger,LogLevel::Level lv,LogEvent::ptr ev)=0;
-            virtual ~FormatterItem(){} //基类析构函数最好为虚函数 
+            virtual void format(std::ostream &osm, std::shared_ptr<Logger> logger, LogLevel::Level lv, LogEvent::ptr ev) = 0;
+            virtual ~FormatterItem() {} // 基类析构函数最好为虚函数
         protected:
         };
         std::string getFormatterPattern();
         bool isError();
+
     private:
         std::string _formatter_str;             // 格式化字符串
         std::vector<FormatterItem::ptr> _items; // 格式化items 根据_formatter_str生成
-        bool _b_error; //解析格式是否有错
+        bool _b_error;                          // 解析格式是否有错
     };
 
     // 日志器---管理落地类
@@ -125,6 +157,7 @@ namespace Xten
     class Logsinker
     {
         friend class Logger;
+
     public:
         typedef std::shared_ptr<Logsinker> ptr;
         Logsinker(LogLevel::Level level = LogLevel::DEBUG) : _level_limit(level), _b_has_formatter(false) {}
@@ -147,7 +180,8 @@ namespace Xten
         {
             _level_limit = level;
         }
-        virtual ~Logsinker(){}
+        virtual ~Logsinker() {}
+
     protected:
         LogLevel::Level _level_limit; // 每个sinks的日志级别
         bool _b_has_formatter;        // 是否有格式化器
@@ -177,13 +211,42 @@ namespace Xten
         std::ofstream _file_stream; // 文件流
         ino64_t _last_opentime;     // 上次操作时间
     };
-    
+    // 用于封装event 保证在构造出event的这一行结束的时候会自动进行输出日志 --RAII的思想 临时遍历生命周期为一行 自动析构
+    class LogEventWrap
+    {
+    public:
+        LogEventWrap(LogEvent::ptr event) : _event(event) {}
+        ~LogEventWrap(){
+            // std::cout<<"wrap 析构"<<std::endl;
+            _event->GetLogger()->log(_event->GetLevel(),_event);
+        }
+        LogEvent::ptr GetEvent(){
+            return _event;
+        }
+        std::ostream& GetSStream(){
+            return _event->GetSStream();
+        }
+    private:
+        LogEvent::ptr _event;
+    };
     // 单例日志器管理类
     class LoggerManager : public singleton<LoggerManager>
     {
         friend class singleton<LoggerManager>;
 
     public:
+        Logger::ptr GetLogger(const std::string &name);
+        bool SetLogger(const std::string &name, Logger::ptr logger);
+        Logger::ptr GetRootLogger(); // 获取root的logger
+        void init();
+
     private:
+        LoggerManager();
+        LoggerManager(const LoggerManager &) = delete;
+        LoggerManager &operator=(const LoggerManager &) = delete;
+
+    private:
+        std::unordered_map<std::string, Logger::ptr> _loggers_map; // 管理所有logger的map
+        Logger::ptr _root_logger;                                  // 主logger日志器
     };
 }
