@@ -3,3 +3,4 @@
 #include"log.h"
 #include"singleton.hpp"
 #include"util.h"
+#include"config.h"

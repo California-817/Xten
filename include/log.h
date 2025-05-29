@@ -24,6 +24,7 @@
                 Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger,level,__FILE__,__LINE__,0, \
                         1,1,time(nullptr),"main thread")).GetEvent()->format(fmt,__VA_ARGS__)
 
+//__VA_ARGS__表示多个参数传递
 #define XTEN_LOG_FMT_DEBUG(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::DEBUG,fmt,__VA_ARGS__)
 #define XTEN_LOG_FMT_INFO(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::INFO,fmt,__VA_ARGS__)
 #define XTEN_LOG_FMT_WARN(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::WARN,fmt,__VA_ARGS__)
@@ -33,7 +34,13 @@
 //获取root日志器
 #define XTEN_LOG_ROOT() Xten::LoggerManager::GetInstance()->GetRootLogger()
 //获取指定name的日志器
-#define XTEN_LOG_NAME(name) Xten::LoggerManager::GetInstance()->GetLogger()
+#define XTEN_LOG_NAME(name) Xten::LoggerManager::GetInstance()->GetLogger(name)
+//设置指定name的日志器
+#define XTEN_LOG_SET(name,logger) Xten::LoggerManager::GetInstance()->SetLogger(name,logger)
+//删除指定name的日志器
+#define XTEN_LOG_DEL(name) Xten::LoggerManager::GetInstance()->DelLogger(name)
+//删除所有logger
+#define XTEN_LOG_CLEAR() Xten::LoggerManager::GetInstance()->ClearLogger()
 namespace Xten
 {
     // 日志级别
@@ -235,8 +242,10 @@ namespace Xten
         friend class singleton<LoggerManager>;
 
     public:
-        Logger::ptr GetLogger(const std::string &name);
-        bool SetLogger(const std::string &name, Logger::ptr logger);
+        Logger::ptr GetLogger(const std::string &name); // 获取logger 
+        bool SetLogger(const std::string &name, Logger::ptr logger);//手动设置
+        void DelLogger(const std::string &name); //删除指定logger
+        void ClearLogger(); //清除所有logger
         Logger::ptr GetRootLogger(); // 获取root的logger
         void init();
 

@@ -1,4 +1,5 @@
 #include "../include/log.h"
+#include"../include/config.h"
 namespace Xten
 {
     const char *LogLevel::ToString(const LogLevel::Level &level) // level转字符串
@@ -163,6 +164,12 @@ namespace Xten
     }
     void Logger::AddSinkers(const std::string &sink_name, Logsinker::ptr sinker)
     {
+        //1.添加一个sinker需要判断这个sinker是否有格式化器 没有的话用logger的格式化器
+        //保证每一个sink都有格式化器
+        if  (!sinker->has_formatter())
+        {
+            sinker->SetFormatter(_formatter);
+        }
         _sinkers.insert(std::make_pair(sink_name, sinker));
     }
     void Logger::DelSinkers(const std::string &sink_name)
@@ -211,10 +218,8 @@ namespace Xten
     {
         for (auto &sink : _sinkers)
         {
-            if (!sink.second->has_formatter())
-            { // sink没有格式化器
-                sink.second->SetFormatter(formatter);
-            }
+            // 覆盖sink本身的格式化器--即使已经有了格式化器
+            sink.second->SetFormatter(formatter);
         }
         _formatter = formatter;
     }
@@ -223,10 +228,8 @@ namespace Xten
         _formatter = std::make_shared<Formatter>(fmt_str);
         for (auto &sink : _sinkers)
         {
-            if (!sink.second->has_formatter())
-            { // sink没有格式化器
-                sink.second->SetFormatter(_formatter);
-            }
+             // 覆盖sink本身的格式化器--即使已经有了格式化器
+             sink.second->SetFormatter(_formatter);
         }
     }
     void Logger::SetRootLogger(Logger::ptr root_logger) // 设置主logger
@@ -675,7 +678,7 @@ namespace Xten
             return false;
         }
         //无同名loggger
-        _loggers_map.insert(std::make_pair(_root_logger->GetName(),_root_logger));
+        _loggers_map.insert(std::make_pair(name,std::move(logger)));
         return true;
     }
     Logger::ptr LoggerManager::GetRootLogger() // 获取root的logger
@@ -686,4 +689,14 @@ namespace Xten
     {
 
     }
+    void LoggerManager::ClearLogger() //清除所有logger
+    {
+        _loggers_map.clear();
+    }
+    void LoggerManager::DelLogger(const std::string &name) //删除指定logger
+    {
+        _loggers_map.erase(name);
+    }
+
+
 }
