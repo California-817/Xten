@@ -1,0 +1,11 @@
+2025-05-30 19:17:06	1	main thread	1	[INFO]	[system]	./test.cpp:8	system
+2025-05-30 19:18:31	1	main thread	1	[INFO]	[system]	./test.cpp:8	system
+system_file_2025-05-30 19:27:05	1	main thread	1	[INFO]	[system]	./test.cpp:8	system
+system_file_2025-05-30 19:27:08	1	main thread	1	[INFO]	[system]	./test.cpp:8	system
+system_file_2025-05-30 19:37:51	1	main thread	1	[INFO]	[system]	./test.cpp:8	system
+system_file_2025-05-30 19:41:00	1	main thread	1	[INFO]	[system]	./test.cpp:8	system
+system_file_2025-05-30 19:46:55	1	main thread	1	[INFO]	[system]	./test.cpp:8	system
+system_file_2025-05-30 19:47:38	1	main thread	1	[INFO]	[system]	./test.cpp:8	system
+system_file_2025-05-30 19:49:46	1	main thread	1	[INFO]	[system]	./test.cpp:8	system
+system_file_2025-05-30 19:53:42	1	main thread	1	[INFO]	[system]	./test.cpp:8	system
+system_file_2025-05-30 19:55:35	1	main thread	1	[INFO]	[system]	./test.cpp:8	system

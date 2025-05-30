@@ -1,17 +1,25 @@
 #include "../include/log.h"
-#include"../include/config.h"
+#include "../include/config.h"
+// 包含头文件后，编译器能“看到”模板声明和特化之间的关系
+// 这意味着：
+// 编译器在处理 log.cpp时，会先看到 LexicalCast 模板的原始声明。
+// 然后再看到你在 log.cpp 中提供的两个特化版本。
+// 因此，这两个特化版本会被视为对原始模板的合法特化。
+// 如果 log.cpp 没有包含 config.h，
+// 那么你写的特化将被视为一个新的类模板定义，而不是对已有模板的特化
+// ，这会导致链接错误或调用不到预期的特化版本。
 namespace Xten
 {
     const char *LogLevel::ToString(const LogLevel::Level &level) // level转字符串
     {
         switch (level)
         { // 定义宏函数来简化代码 #是用来转成字符串
-#define XX(LEV)                        \
-    \
-            case LogLevel::Level::LEV: \
-    return #LEV;                       \
-    \
-                break;
+#define XX(LEV)                \
+                               \
+    case LogLevel::Level::LEV: \
+        return #LEV;           \
+                               \
+        break;
             XX(INFO);
             XX(DEBUG);
             XX(WARN);
@@ -134,6 +142,7 @@ namespace Xten
     void Logger::log(LogLevel::Level level, LogEvent::ptr ev)
     {
         auto self = shared_from_this();
+        // std::cout<<_sinkers.size()<<std::endl;
         if (level >= _level_limit)
         { // 到达指定日志级别则输出
             if (!_sinkers.empty())
@@ -141,7 +150,8 @@ namespace Xten
                 for (auto &sink : _sinkers)
                 {
                     sink.second->log(self, level, ev); // 每个sinks又有自己的日志级别
-                // std::cout<<"logger 的log调用"<<std::endl;
+                    // std::cout<<sink.second->toYamlString();
+                    // std::cout<<"logger 的log调用"<<std::endl;
                 }
             }
             // 无落地对象 让主logger进行输出
@@ -164,12 +174,13 @@ namespace Xten
     }
     void Logger::AddSinkers(const std::string &sink_name, Logsinker::ptr sinker)
     {
-        //1.添加一个sinker需要判断这个sinker是否有格式化器 没有的话用logger的格式化器
-        //保证每一个sink都有格式化器
-        if  (!sinker->has_formatter())
+        // 1.添加一个sinker需要判断这个sinker是否有格式化器 没有的话用logger的格式化器
+        // 保证每一个sink都有格式化器
+        if (!sinker->has_formatter())
         {
             sinker->SetFormatter(_formatter);
         }
+        //如果 unordered_map 中的 key 已经存在，调用 insert 操作时将不会插入新的键值对
         _sinkers.insert(std::make_pair(sink_name, sinker));
     }
     void Logger::DelSinkers(const std::string &sink_name)
@@ -228,8 +239,8 @@ namespace Xten
         _formatter = std::make_shared<Formatter>(fmt_str);
         for (auto &sink : _sinkers)
         {
-             // 覆盖sink本身的格式化器--即使已经有了格式化器
-             sink.second->SetFormatter(_formatter);
+            // 覆盖sink本身的格式化器--即使已经有了格式化器
+            sink.second->SetFormatter(_formatter);
         }
     }
     void Logger::SetRootLogger(Logger::ptr root_logger) // 设置主logger
@@ -655,48 +666,426 @@ namespace Xten
         return _b_error;
     }
     LoggerManager::LoggerManager()
-    { //构造函数默认生成一个主logger
-        _root_logger=std::make_shared<Logger>();
-        _root_logger->AddSinkers("stdout",std::make_shared<StdoutLogsinker>());
+    { // 构造函数默认生成一个主logger
+        auto _root_logger = std::make_shared<Logger>();
+        _root_logger->AddSinkers("stdout", std::make_shared<StdoutLogsinker>());
         // std::cout<<"root 日志添加sinl=k" <<std::endl;
-        _loggers_map.insert(std::make_pair(_root_logger->GetName(),_root_logger));
+        _loggers_map.insert(std::make_pair(_root_logger->GetName(), _root_logger));
         init();
     }
     Logger::ptr LoggerManager::GetLogger(const std::string &name)
     {
-        auto iter=_loggers_map.find(name);
-        if(iter==_loggers_map.end()){
-            //，没找到
+        auto iter = _loggers_map.find(name);
+        if (iter == _loggers_map.end())
+        {
+            // 没找到
             return Logger::ptr();
         }
         return iter->second;
     }
     bool LoggerManager::SetLogger(const std::string &name, Logger::ptr logger)
-    {
-        if(GetLogger(name)){
-            //找到了同名logger
-            return false;
-        }
-        //无同名loggger
-        _loggers_map.insert(std::make_pair(name,std::move(logger)));
+    { // 如果有重复会进行覆盖
+        _loggers_map[name] = logger;
         return true;
     }
     Logger::ptr LoggerManager::GetRootLogger() // 获取root的logger
     {
-        return _root_logger;
+        return _loggers_map["root"];
     }
     void LoggerManager::init()
     {
-
     }
-    void LoggerManager::ClearLogger() //清除所有logger
+    void LoggerManager::ClearLogger() // 清除所有logger
     {
         _loggers_map.clear();
     }
-    void LoggerManager::DelLogger(const std::string &name) //删除指定logger
+    void LoggerManager::DelLogger(const std::string &name) // 删除指定logger
     {
         _loggers_map.erase(name);
     }
+    std::string Logger::toYamlString() // 将配置转化成yaml格式的string
+    {
+        YAML::Node node;
+        node["name"] = _name;
+        if (_level_limit != LogLevel::UNKNOW)
+        {
+            node["level"] = LogLevel::ToString(_level_limit);
+        }
+        if (_formatter)
+        {
+            node["formatter"] = _formatter->getFormatterPattern();
+        }
 
+        for (auto &i : _sinkers)
+        {
+            // std::cout<<"toYamlString"<<_sinkers.size()<<std::endl;
+            // std::cout<<"toYamlString"<<i.second->toYamlString()<<std::endl;
+            node["sinkers"].push_back(YAML::Load(i.second->toYamlString()));
+        }
+        std::stringstream ss;
+        ss << node;
+        return ss.str();
+    }
+    std::string StdoutLogsinker::toYamlString() // 将配置转化成yaml格式的string
+    {
+        YAML::Node node;
+        node["type"] = "StdoutLogSinker";
+        if (_level_limit != LogLevel::UNKNOW)
+        {
+            node["level"] = LogLevel::ToString(_level_limit);
+        }
+        if (_b_has_formatter && _formatter)
+        {
+            node["formatter"] = _formatter->getFormatterPattern();
+        }
+        std::stringstream ss;
+        ss << node;
+        return ss.str();
+    }
+    std::string FileLogsinker::toYamlString() // 将配置转化成yaml格式的string
+    {
+        YAML::Node node;
+        node["type"] = "FileLogSinker";
+        node["file"] = _log_filename;
+        if (_level_limit != LogLevel::UNKNOW)
+        {
+            node["level"] = LogLevel::ToString(_level_limit);
+        }
+        if (_b_has_formatter && _formatter)
+        {
+            node["formatter"] = _formatter->getFormatterPattern();
+        }
+        std::stringstream ss;
+        ss << node;
+        return ss.str();
+    }
+    std::string LoggerManager::toYamlString() // 将配置转化成yaml格式的string
+    {
+        YAML::Node node;
+        for (auto &i : _loggers_map)
+        {
+            node.push_back(YAML::Load(i.second->toYamlString()));
+        }
+        std::stringstream ss;
+        ss << node;
+        return ss.str();
+    }
+    // 定义log配置的特有的T用于配置日志模块的var
+    struct LogSinkerDefine
+    {
+        std::string _name;                               // 用于再logger的sinks中进行使用
+        LogLevel::Level _level_limit = LogLevel::UNKNOW; // limit日志级别
+        std::string _formatter;                          // 日志格式化器字符串---sink级别的
+        int _type = SinkType::STDOUT;                    // 日志器的类型
+        std::string _file;                               // 文件的话 文件名
+        bool operator==(const LogSinkerDefine &old) const
+        {
+            return _name == old._name &&
+                   _level_limit == old._level_limit &&
+                   _formatter == old._formatter &&
+                   _type == old._type &&
+                   _file == old._file;
+        }
+    };
+    struct LoggerDefine
+    {
+        std::string _name;                               // 日志名称
+        LogLevel::Level _level_limit = LogLevel::UNKNOW; // limit日志级别
+        std::vector<LogSinkerDefine> _sinkers;           // 所有的日志输出器
+        std::string _formatter;                          // 日志格式化器字符串---logger级别的
+        bool operator==(const LoggerDefine &old) const
+        {
+            return _name == old._name &&
+                   _level_limit == old._level_limit &&
+                   _sinkers == old._sinkers &&
+                   _formatter == old._formatter;
+        }
+        // 这个小于的重载用于在set中进行find操作时的<的规则 使find时是按照name进行查找 name一致则是同一个日志器
+        bool operator<(const LoggerDefine &old) const
+        {
+            return _name < old._name;
+        }
+    };
 
+    // 这些特化版本 只在 log.cpp 文件中可见，因为它们没有在头文件（如 log.h）中声明。
+    // 因此，只有在 log.cpp 编译时，编译器才知道这些特化版本的存在，并用于相关的类型转换。
+    // 其他源文件（例如 main.cpp 或 config_test.cpp）如果尝试对 LogDefine 做类似的LexicalCast 操作，
+    // 会因找不到特化版本而调用原始模板（如果有默认实现），或者直接报错（如果没有合适的匹配）。
+    // 特化类型转换的仿函数---LoggerDefine和LogSinkerDefine 全特化
+    template <>
+    class lexicalCast<std::string, LoggerDefine>
+    {
+        public:
+        // logs:
+        //  - name: root
+        //    level: info
+        //    appenders:
+        //        - type: FileLogAppender
+        //          name: fileout
+        //          file: /apps/logs/sylar/root.txt
+        //        - type: StdoutLogAppender
+        //          name: stdout
+        //  - name: system
+        //    level: info
+        //    appenders:
+        //        - type: FileLogAppender
+        //          file: /apps/logs/sylar/system.txt
+        //        - type: StdoutLogAppender
+        LoggerDefine operator()(const std::string &v)
+        {
+            YAML::Node n = YAML::Load(v);
+            LoggerDefine ld; // 要返回的日志配置类型
+            if (!n["name"].IsDefined())
+            { // logger的name
+                std::cout << "log config error: name is null, " << n
+                          << std::endl;
+                throw std::logic_error("log config name is null");
+            }
+            ld._name = n["name"].as<std::string>();
+            // logger的日志级别
+            ld._level_limit = LogLevel::ToLevel(n["level"].IsDefined() ? n["level"].as<std::string>() : "");
+            if (n["formatter"].IsDefined())
+            { // logger的格式化器
+                ld._formatter = n["formatter"].as<std::string>();
+            }
+            // logger的落地类
+            if (n["sinkers"].IsDefined())
+            {
+                // std::cout << "==" << ld.name << " = " << n["appenders"].size() << std::endl;
+                for (size_t x = 0; x < n["sinkers"].size(); ++x)
+                {
+                    auto a = n["sinkers"][x];
+                    if (!a["type"].IsDefined())
+                    {
+                        std::cout << "log config error: appender type is null, " << a
+                                  << std::endl;
+                        continue;
+                    }
+                    std::string type = a["type"].as<std::string>();
+                    LogSinkerDefine lsd; // 日志落地类的配置类型
+                    if (type == "FileLogAppender")
+                    {
+                        lsd._type = SinkType::FILE;
+                        if (!a["file"].IsDefined())
+                        {
+                            std::cout << "log config error: fileappender file is null, " << a
+                                      << std::endl;
+                            continue;
+                        }
+                        lsd._file = a["file"].as<std::string>();
+                        if (a["formatter"].IsDefined())
+                        {
+                            lsd._formatter = a["formatter"].as<std::string>();
+                        }
+                        if (a["name"].IsDefined())
+                        {
+                            lsd._name = a["name"].as<std::string>();
+                        }
+                        if (a["level"].IsDefined())
+                        {
+                            lsd._level_limit = LogLevel::ToLevel(a["level"].as<std::string>());
+                        }
+                    }
+                    else if (type == "StdoutLogAppender")
+                    {
+                        lsd._type = SinkType::STDOUT;
+                        if (a["formatter"].IsDefined())
+                        {
+                            lsd._formatter = a["formatter"].as<std::string>();
+                        }
+                        if (a["name"].IsDefined())
+                        {
+                            lsd._name = a["name"].as<std::string>();
+                        }
+                        if (a["level"].IsDefined())
+                        {
+                            lsd._level_limit = LogLevel::ToLevel(a["level"].as<std::string>());
+                        }
+                    }
+                    else
+                    {
+                        std::cout << "log config error: appender type is invalid, " << a
+                                  << std::endl;
+                        continue;
+                    }
+
+                    ld._sinkers.push_back(lsd);
+                }
+            }
+            return ld;
+        }
+    };
+    template <>
+    class lexicalCast<LoggerDefine, std::string>
+    {
+        public:
+        std::string operator()(const LoggerDefine &i)
+        {
+            YAML::Node n;
+            n["name"] = i._name;
+            if (i._level_limit != LogLevel::UNKNOW)
+            {
+                n["level"] = LogLevel::ToString(i._level_limit);
+            }
+            if (!i._formatter.empty())
+            {
+                n["formatter"] = i._formatter;
+            }
+            // 转每一个sinker
+            for (auto &a : i._sinkers)
+            {
+                YAML::Node na;
+                if (a._type == SinkType::FILE)
+                {
+                    na["type"] = "FileLogSinker";
+                    na["file"] = a._file;
+                }
+                else if (a._type == SinkType::STDOUT)
+                {
+                    na["type"] = "StdoutLogSinker";
+                }
+                if (a._level_limit != LogLevel::UNKNOW)
+                {
+                    na["level"] = LogLevel::ToString(a._level_limit);
+                }
+
+                if (!a._formatter.empty())
+                {
+                    na["formatter"] = a._formatter;
+                }
+                if (!a._name.empty())
+                {
+                    na["name"] = a._name;
+                }
+                n["sinkers"].push_back(na);
+            }
+            std::stringstream ss;
+            ss << n;
+            return ss.str();
+        }
+    };
+    //这个变量的存在用来保证config文件中的类静态成员变量要先于下面此文件全局变量访问时创建
+    //同一个编译单元（translation unit）内的全局变量初始化顺序是 按照它们在代码中的出现顺序进行的。
+    //也就是说，在一个 .cpp 文件中定义的所有全局变量和静态局部变量，
+    //其初始化顺序与它们在源文件中声明的位置一致。
+    struct ConfigInitializer {
+        ConfigInitializer() {
+            // 强制访问静态成员变量，触发其构造
+            (void)Config::_configvars_map;
+            (void)Config::_configfile_modifytimes;
+        }
+    };
+    static ConfigInitializer s_configInit; // 静态变量，构造早于 main
+    // 创建一个日志的Configvar到config模块中
+    // 这是动态库的一个全局变量
+    // 在程序启动后 main函数执行前 动态连接器加载动态库到可执行程序时 会对库中的全局变量和静态变量进行初始化工作
+    // 也就是说这个变量在main之前已经定义好了 并调用了LookUp内部也会对静态局部变量 ConfigVarMap 进行创建
+    // 其他文件没有使用extern ConfigVar<LoggerDefine>::ptr g_logs_defines 因此这个全局变量只在这个此文件可见
+    // 日志配置模块的创建地方
+    //日志模块的配置数据类型是 std::set<LoggerDefine>
+    Xten::ConfigVar<std::set<LoggerDefine>>::ptr g_logs_defines = Xten::Config::LookUp("logs", std::set<LoggerDefine>(), "logs config");
+    struct LogIniter
+    {
+        // 在构造函数中进行日志配置变更函数的创建
+        LogIniter()
+        {
+            // 每次重新读取配置文件都会触发setval 而setval判断值改变会进行触发变更回调函数的调用来更改配置实体
+            g_logs_defines->AddListener([](const std::set<LoggerDefine> &old_val, const std::set<LoggerDefine> &new_val)
+                                        {
+                
+                XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"on_logs_config_changed";
+                //先遍历新的值
+                for(auto& logdef:new_val)
+                {
+                    // std::cout<<logdef._sinkers.size()<<std::endl;
+                    //查找的依据是日志配置结构中的name
+                    auto iter=old_val.find(logdef);
+                    if(iter==old_val.end())
+                    { //说明没找到这个日志器 是新增加的日志器
+                        //最开始是logDefine是空 但是有日志器 需要进行覆盖
+                        //创建日志器并放入管理类
+                        Xten::Logger::ptr logger=std::make_shared<Logger>(logdef._name);
+                        logger->SetLevelLimit(logdef._level_limit);
+                        if(!logdef._formatter.empty()){
+                            //有一个默认的formatter 这个会覆盖所有sink的formatter
+                            logger->SetFormatter(logdef._formatter.c_str());
+                        }
+                        for(auto& sink:logdef._sinkers){
+                            //一个logger默认是没有sink的
+                            //根据加载的配置添加sink
+                            Xten::Logsinker::ptr p_sink; //基类sink指针
+                            switch(sink._type)
+                            {
+                            case SinkType::STDOUT:
+                                p_sink=std::make_shared<Xten::StdoutLogsinker>();
+                                    break;
+                            case SinkType::FILE:
+                                p_sink=std::make_shared<Xten::FileLogsinker>(sink._file);
+                                    break;
+                                    //....可扩展
+                            default:
+                                    break;
+                            }
+                            p_sink->SetLevelLimit(sink._level_limit);
+                            if(!sink._formatter.empty()){
+                                p_sink->SetFormatter(std::make_shared<Xten::Formatter>(sink._formatter.c_str())); //覆盖logger的formatter
+                            }
+                           logger->AddSinkers(sink._name,p_sink);
+                        }
+                        //将这个新配置日志器放入mgr 有的话也会覆盖
+                        Xten::LoggerManager::GetInstance()->SetLogger(logger->GetName(),logger);
+                    }else{
+                        //找到了 新的这个日志器和老的一样
+                        if(logdef==*iter){
+                            continue;
+                        }
+                        //同一个日志器进行了修改
+                        Xten::Logger::ptr logger=std::make_shared<Logger>(logdef._name);
+                        logger->SetLevelLimit(logdef._level_limit);
+                        if(!logdef._formatter.empty()){
+                            //有一个默认的formatter 这个会覆盖所有sink的formatter
+                            logger->SetFormatter(logdef._formatter.c_str());
+                        }
+                        for(auto& sink:logdef._sinkers){
+                            //一个logger默认是没有sink的
+                            //根据加载的配置添加sink
+                            Xten::Logsinker::ptr p_sink; //基类sink指针
+                            switch(sink._type)
+                            {
+                            case SinkType::STDOUT:
+                                p_sink=std::make_shared<Xten::StdoutLogsinker>();
+                                    break;
+                            case SinkType::FILE:
+                                p_sink=std::make_shared<Xten::FileLogsinker>(sink._file);
+                                    break;
+                                    //....可扩展
+                            default:
+                                    break;
+                            }
+                            p_sink->SetLevelLimit(sink._level_limit);
+                            if(!sink._formatter.empty()){
+                                p_sink->SetFormatter(std::make_shared<Xten::Formatter>(sink._formatter.c_str())); //覆盖logger的formatter
+                            }
+                           logger->AddSinkers(sink._name,p_sink);
+                        }
+                        //将这个新配置日志器放入mgr 有的话也会覆盖
+                        Xten::LoggerManager::GetInstance()->SetLogger(logger->GetName(),logger);                       
+                    }
+                    //遍历旧的值
+                    //确保在新的配置logs中删除的日志器不被遗漏
+                    for(auto& oldlog:old_val)
+                    {
+                        auto iter=new_val.find(oldlog);
+                        if(iter==new_val.end()){
+                            //没找到 说明需要进行删除
+                            XTEN_LOG_DEL(iter->_name);
+                        }
+                        //找到了不做处理 在上面已经进行处理
+                    }
+                    //更新完对logger进行输出
+                } });
+        }
+    };
+    // 这个库的静态局部变量在main函数之前创建 在构造函数中会进行变更回调函数的注册
+    static LogIniter __log__init;
 }

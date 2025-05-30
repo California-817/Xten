@@ -8,7 +8,7 @@
 //LogEventWrap在这一行结束自动析构进行日志的log操作
 // \是宏续行符 表示宏替换之后当作一行去处理
 #define XTEN_LOG_LEVEL(logger,level) \
-        if(level>=logger->GetLevelLimit()) \
+        if(level>=logger->GetLevelLimit()&&logger) \
               Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger,level,__FILE__,__LINE__,0, \
                         1,1,time(nullptr),"main thread")).GetSStream() 
 
@@ -20,7 +20,7 @@
 
 //格式化输出日志
 #define XTEN_LOG_FMT_LEVEL(logger,level,fmt,...) \
-        if(level>=logger->GetLevelLimit())  \
+        if(level>=logger->GetLevelLimit()&&logger)  \
                 Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger,level,__FILE__,__LINE__,0, \
                         1,1,time(nullptr),"main thread")).GetEvent()->format(fmt,__VA_ARGS__)
 
@@ -44,6 +44,11 @@
 namespace Xten
 {
     // 日志级别
+    enum SinkType
+    {
+        STDOUT=0,
+        FILE=1,
+    };
     struct LogLevel
     {
         enum Level
@@ -153,6 +158,7 @@ namespace Xten
         void SetFormatter(Formatter::ptr formatter); // 直接传入格式化器
         void SetFormatter(const char *fmt_str);      // 传入格式化字符串 %d{xxx} %s %g ...
         void SetRootLogger(Logger::ptr root_logger); // 设置主logger
+        std::string toYamlString(); //将配置转化成yaml格式的string
     private:
         std::string _name;                                                    // 日志名称
         LogLevel::Level _level_limit;                                         // limit日志级别
@@ -169,6 +175,7 @@ namespace Xten
         typedef std::shared_ptr<Logsinker> ptr;
         Logsinker(LogLevel::Level level = LogLevel::DEBUG) : _level_limit(level), _b_has_formatter(false) {}
         virtual void log(Logger::ptr logger, LogLevel::Level level, LogEvent::ptr ev) = 0;
+        virtual std::string toYamlString()=0; //将配置转化成yaml格式的string
         bool has_formatter() { return _b_has_formatter; }
         Formatter::ptr GetFormatter()
         {
@@ -202,6 +209,7 @@ namespace Xten
     public:
         typedef std::shared_ptr<StdoutLogsinker> ptr;
         virtual void log(Logger::ptr logger, LogLevel::Level level, LogEvent::ptr ev);
+        virtual std::string toYamlString() override; //将配置转化成yaml格式的string
     };
     // 文件输出落地类---单文件
     class FileLogsinker : public Logsinker
@@ -212,6 +220,7 @@ namespace Xten
         typedef std::shared_ptr<FileLogsinker> ptr;
         FileLogsinker(const std::string &filename);
         virtual void log(Logger::ptr logger, LogLevel::Level level, LogEvent::ptr ev);
+        virtual std::string toYamlString() override; //将配置转化成yaml格式的string
         bool reopen(); // 重新打开
     private:
         std::string _log_filename;  // 文件名 路径+name
@@ -240,13 +249,13 @@ namespace Xten
     class LoggerManager : public singleton<LoggerManager>
     {
         friend class singleton<LoggerManager>;
-
     public:
         Logger::ptr GetLogger(const std::string &name); // 获取logger 
         bool SetLogger(const std::string &name, Logger::ptr logger);//手动设置
         void DelLogger(const std::string &name); //删除指定logger
         void ClearLogger(); //清除所有logger
         Logger::ptr GetRootLogger(); // 获取root的logger
+        std::string toYamlString(); //将配置转化成yaml格式的string
         void init();
 
     private:
@@ -256,6 +265,6 @@ namespace Xten
 
     private:
         std::unordered_map<std::string, Logger::ptr> _loggers_map; // 管理所有logger的map
-        Logger::ptr _root_logger;                                  // 主logger日志器
+        // Logger::ptr _root_logger;                                  // 主logger日志器
     };
 }

@@ -1,0 +1,18 @@
+root_file_2025-05-30 19:41:00	1	main thread	1	[INFO]	[root]	/home/xxxten/Xten_fiber_netlib/Xten/src/config.cpp:169	LoadConfFile file=./logs.yml ok
+root_file_2025-05-30 19:41:00	1	main thread	1	[DEBUG]	[root]	./test.cpp:6	hello log
+root_file_2025-05-30 19:41:00	1	main thread	1	[DEBUG]	[root]	./test.cpp:7	hello fmt
+root_file_2025-05-30 19:46:55	1	main thread	1	[INFO]	[root]	/home/xxxten/Xten_fiber_netlib/Xten/src/config.cpp:170	LoadConfFile file=./logs.yml ok
+root_file_2025-05-30 19:46:55	1	main thread	1	[DEBUG]	[root]	./test.cpp:6	hello log
+root_file_2025-05-30 19:46:55	1	main thread	1	[DEBUG]	[root]	./test.cpp:7	hello fmt
+root_file_2025-05-30 19:47:38	1	main thread	1	[INFO]	[root]	/home/xxxten/Xten_fiber_netlib/Xten/src/config.cpp:170	LoadConfFile file=./logs.yml ok
+root_file_2025-05-30 19:47:38	1	main thread	1	[DEBUG]	[root]	./test.cpp:6	hello log
+root_file_2025-05-30 19:47:38	1	main thread	1	[DEBUG]	[root]	./test.cpp:7	hello fmt
+root_file_2025-05-30 19:49:46	1	main thread	1	[INFO]	[root]	/home/xxxten/Xten_fiber_netlib/Xten/src/config.cpp:170	LoadConfFile file=./logs.yml ok
+root_file_2025-05-30 19:49:46	1	main thread	1	[DEBUG]	[root]	./test.cpp:6	hello log
+root_file_2025-05-30 19:49:46	1	main thread	1	[DEBUG]	[root]	./test.cpp:7	hello fmt
+root_file_2025-05-30 19:53:42	1	main thread	1	[INFO]	[root]	/home/xxxten/Xten_fiber_netlib/Xten/src/config.cpp:170	LoadConfFile file=./logs.yml ok
+root_file_2025-05-30 19:53:42	1	main thread	1	[DEBUG]	[root]	./test.cpp:6	hello log
+root_file_2025-05-30 19:53:42	1	main thread	1	[DEBUG]	[root]	./test.cpp:7	hello fmt
+root_file_2025-05-30 19:55:35	1	main thread	1	[INFO]	[root]	/home/xxxten/Xten_fiber_netlib/Xten/src/config.cpp:170	LoadConfFile file=./logs.yml ok
+root_file_2025-05-30 19:55:35	1	main thread	1	[DEBUG]	[root]	./test.cpp:6	hello log
+root_file_2025-05-30 19:55:35	1	main thread	1	[DEBUG]	[root]	./test.cpp:7	hello fmt

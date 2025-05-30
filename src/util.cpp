@@ -41,19 +41,22 @@ namespace Xten
         }
         return ".";
     }
-    static int __lstat(const char* dirname){
-        //判断文件目录是否存在
+    static int __lstat(const char *dirname)
+    {
+        // 判断文件目录是否存在
         struct stat sta;
-        int ret=lstat(dirname,&sta);
+        int ret = lstat(dirname, &sta);
         return ret;
     }
-    static int __mkdir(const char* dirname){
-        //创建目录
-        if(access(dirname,F_OK)==0){
+    static int __mkdir(const char *dirname)
+    {
+        // 创建目录
+        if (access(dirname, F_OK) == 0)
+        {
             return 0;
         }
         return mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-    } 
+    }
     bool FileUtil::MakeDir(const std::string &dirname)
     {
         // 创建目录   /usr/local/log
@@ -64,7 +67,7 @@ namespace Xten
         char *path = strdup(dirname.c_str());
         char *ptr = strchr(path + 1, '/');
         do
-        { //递归创建多层目录
+        { // 递归创建多层目录
             for (; ptr; *ptr = '/', ptr = strchr(ptr + 1, '/'))
             {
                 *ptr = '\0';
@@ -87,6 +90,52 @@ namespace Xten
         free(path);
         return false;
     }
+    // 存储指定路径下符合后缀的文件名及其路径
+    void FileUtil::ListAllFile(std::vector<std::string> &files, const std::string &path, const std::string &subfix)
+    {
+        if (access(path.c_str(), 0) != 0)
+        {
+            return;
+        }
+        DIR *dir = opendir(path.c_str());
+        if (dir == nullptr)
+        {
+            return;
+        }
+        struct dirent *dp = nullptr;
+        while ((dp = readdir(dir)) != nullptr)
+        {
+            if (dp->d_type == DT_DIR)
+            {
+                if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, ".."))
+                {
+                    continue;
+                }
+                ListAllFile(files, path + "/" + dp->d_name, subfix);
+            }
+            else if (dp->d_type == DT_REG)
+            {
+                std::string filename(dp->d_name);
+                if (subfix.empty())
+                {
+                    files.push_back(path + "/" + filename);
+                }
+                else
+                {
+                    if (filename.size() < subfix.size())
+                    {
+                        continue;
+                    }
+                    if (filename.substr(filename.length() - subfix.size()) == subfix)
+                    {
+                        files.push_back(path + "/" + filename);
+                    }
+                }
+            }
+        }
+        closedir(dir);
+    }
+
     uint64_t TimeUitl::NowTime_to_uint64()
     {
         // 获取当前时间点

@@ -9,6 +9,7 @@ namespace Xten
         static bool OpenForWrite(std::ofstream& file_stream,const std::string& file_name,std::ios_base::openmode mode);
         static std::string DirName(const std::string & filename);
         static bool MakeDir(const std::string & dirname);
+        static void ListAllFile(std::vector<std::string>& files,const std::string& path,const std::string& subfix);
     };
     class TimeUitl
     {
