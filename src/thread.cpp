@@ -31,6 +31,7 @@ namespace Xten
     {
         if (_thread)
         {
+            //正在运行则阻塞  执行完则直接返回
             int rt = pthread_join(_thread, nullptr);
             if (rt)
             {
@@ -38,14 +39,16 @@ namespace Xten
                                           << " name=" << _name;
                 throw std::logic_error("pthread_join error");
             }
-            _thread = 0;
+            _thread = 0;  //用户join说明用户已经对执行玩的线程进行回收了 Thread析构就不会detach了
         }
     }
     Thread::~Thread()
     {
-        if (_thread)
-        {
-            pthread_detach(_thread); // 线程分离 让os管理
+        if (_thread) //调用detach一定是用户没有主动join 一旦用户join就不能detach
+        { //线程执行完后，如果没有被join，仍然可以调用 detach
+            //线程为执行完 调用detach让os管理
+            pthread_detach(_thread); // 线程分离 让os管理 而不是强制销毁线程 我的操作相当于std::thread析构之前添加detach
+            //std::thread的析构函数中 如果线程仍在执行中 析构会出错 1.detach分离  2.join等待线程执行完
         }
     }
     // 静态函数---用来获取当前线程的一些值（线程局部存储）

@@ -2,56 +2,60 @@
 #include "const.h"
 #include "singleton.hpp"
 #include "util.h"
+#include "mutex.h"
 // 协程网络库的日志模块
 // 用宏函数的方式来简化日志的使用
-//传入logger和level自动生成event并返回event的stringstream用于输入内容
-//LogEventWrap在这一行结束自动析构进行日志的log操作
+// 传入logger和level自动生成event并返回event的stringstream用于输入内容
+// LogEventWrap在这一行结束自动析构进行日志的log操作
 // \是宏续行符 表示宏替换之后当作一行去处理
-#define XTEN_LOG_LEVEL(logger,level) \
-        if(level>=logger->GetLevelLimit()&&logger) \
-              Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger,level,__FILE__,__LINE__,0, \
-                        1,1,time(nullptr),"main thread")).GetSStream() 
+#define XTEN_LOG_LEVEL(logger, level)                                                         \
+    if (level >= logger->GetLevelLimit() && logger)                                           \
+    Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger, level, __FILE__, __LINE__, 0, \
+                                                        1, 1, time(nullptr), "main thread"))  \
+        .GetSStream()
 
-#define XTEN_LOG_DEBUG(logger) XTEN_LOG_LEVEL(logger,Xten::LogLevel::DEBUG)  
-#define XTEN_LOG_INFO(logger) XTEN_LOG_LEVEL(logger,Xten::LogLevel::INFO)  
-#define XTEN_LOG_WARN(logger) XTEN_LOG_LEVEL(logger,Xten::LogLevel::WARN)  
-#define XTEN_LOG_ERROR(logger) XTEN_LOG_LEVEL(logger,Xten::LogLevel::ERROR)  
-#define XTEN_LOG_FATAL(logger) XTEN_LOG_LEVEL(logger,Xten::LogLevel::FATAL)  
+#define XTEN_LOG_DEBUG(logger) XTEN_LOG_LEVEL(logger, Xten::LogLevel::DEBUG)
+#define XTEN_LOG_INFO(logger) XTEN_LOG_LEVEL(logger, Xten::LogLevel::INFO)
+#define XTEN_LOG_WARN(logger) XTEN_LOG_LEVEL(logger, Xten::LogLevel::WARN)
+#define XTEN_LOG_ERROR(logger) XTEN_LOG_LEVEL(logger, Xten::LogLevel::ERROR)
+#define XTEN_LOG_FATAL(logger) XTEN_LOG_LEVEL(logger, Xten::LogLevel::FATAL)
 
-//格式化输出日志
-#define XTEN_LOG_FMT_LEVEL(logger,level,fmt,...) \
-        if(level>=logger->GetLevelLimit()&&logger)  \
-                Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger,level,__FILE__,__LINE__,0, \
-                        1,1,time(nullptr),"main thread")).GetEvent()->format(fmt,__VA_ARGS__)
+// 格式化输出日志
+#define XTEN_LOG_FMT_LEVEL(logger, level, fmt, ...)                                           \
+    if (level >= logger->GetLevelLimit() && logger)                                           \
+    Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger, level, __FILE__, __LINE__, 0, \
+                                                        1, 1, time(nullptr), "main thread"))  \
+        .GetEvent()                                                                           \
+        ->format(fmt, __VA_ARGS__)
 
 //__VA_ARGS__表示多个参数传递
-#define XTEN_LOG_FMT_DEBUG(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::DEBUG,fmt,__VA_ARGS__)
-#define XTEN_LOG_FMT_INFO(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::INFO,fmt,__VA_ARGS__)
-#define XTEN_LOG_FMT_WARN(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::WARN,fmt,__VA_ARGS__)
-#define XTEN_LOG_FMT_ERROR(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::ERROR,fmt,__VA_ARGS__)
-#define XTEN_LOG_FMT_FATAL(logger,fmt,...) XTEN_LOG_FMT_LEVEL(logger,Xten::LogLevel::FATAL,fmt,__VA_ARGS__)
+#define XTEN_LOG_FMT_DEBUG(logger, fmt, ...) XTEN_LOG_FMT_LEVEL(logger, Xten::LogLevel::DEBUG, fmt, __VA_ARGS__)
+#define XTEN_LOG_FMT_INFO(logger, fmt, ...) XTEN_LOG_FMT_LEVEL(logger, Xten::LogLevel::INFO, fmt, __VA_ARGS__)
+#define XTEN_LOG_FMT_WARN(logger, fmt, ...) XTEN_LOG_FMT_LEVEL(logger, Xten::LogLevel::WARN, fmt, __VA_ARGS__)
+#define XTEN_LOG_FMT_ERROR(logger, fmt, ...) XTEN_LOG_FMT_LEVEL(logger, Xten::LogLevel::ERROR, fmt, __VA_ARGS__)
+#define XTEN_LOG_FMT_FATAL(logger, fmt, ...) XTEN_LOG_FMT_LEVEL(logger, Xten::LogLevel::FATAL, fmt, __VA_ARGS__)
 
-//获取root日志器
+// 获取root日志器
 #define XTEN_LOG_ROOT() Xten::LoggerManager::GetInstance()->GetRootLogger()
-//获取系统日志器
+// 获取系统日志器
 #define XTEN_LOG_SYSTEM() Xten::LoggerManager::GetInstance()->GetLogger("system")
-//获取或设置指定name的日志器
+// 获取或设置指定name的日志器
 #define XTEN_LOG_NAME(name) Xten::LoggerManager::GetInstance()->GetAndSetLogger(name)
-//获取指定name的日志器
+// 获取指定name的日志器
 #define XTEN_LOG_GET(name) Xten::LoggerManager::GetInstance()->GetLogger(name)
-//设置指定name的日志器
-#define XTEN_LOG_SET(name,logger) Xten::LoggerManager::GetInstance()->SetLogger(name,logger)
-//删除指定name的日志器
+// 设置指定name的日志器
+#define XTEN_LOG_SET(name, logger) Xten::LoggerManager::GetInstance()->SetLogger(name, logger)
+// 删除指定name的日志器
 #define XTEN_LOG_DEL(name) Xten::LoggerManager::GetInstance()->DelLogger(name)
-//删除所有logger
+// 删除所有logger
 #define XTEN_LOG_CLEAR() Xten::LoggerManager::GetInstance()->ClearLogger()
 namespace Xten
 {
     // 日志级别
     enum SinkType
     {
-        STDOUT=0,
-        FILE=1,
+        STDOUT = 0,
+        FILE = 1,
     };
     struct LogLevel
     {
@@ -162,13 +166,14 @@ namespace Xten
         void SetFormatter(Formatter::ptr formatter); // 直接传入格式化器
         void SetFormatter(const char *fmt_str);      // 传入格式化字符串 %d{xxx} %s %g ...
         void SetRootLogger(Logger::ptr root_logger); // 设置主logger
-        std::string toYamlString(); //将配置转化成yaml格式的string
+        std::string toYamlString();                  // 将配置转化成yaml格式的string
     private:
         std::string _name;                                                    // 日志名称
         LogLevel::Level _level_limit;                                         // limit日志级别
         std::unordered_map<std::string, std::shared_ptr<Logsinker>> _sinkers; // 所有的日志输出器及其名字
         Formatter::ptr _formatter;                                            // 日志格式化器---logger级别的
         Logger::ptr _root_logger;                                             // 主日志器
+        SpinLock _mutex;                                                      // 一把锁（自旋锁） 能保证在多线程情况下logger使用的安全性
     };
     // 日志器落地类
     class Logsinker
@@ -179,7 +184,7 @@ namespace Xten
         typedef std::shared_ptr<Logsinker> ptr;
         Logsinker(LogLevel::Level level = LogLevel::DEBUG) : _level_limit(level), _b_has_formatter(false) {}
         virtual void log(Logger::ptr logger, LogLevel::Level level, LogEvent::ptr ev) = 0;
-        virtual std::string toYamlString()=0; //将配置转化成yaml格式的string
+        virtual std::string toYamlString() = 0; // 将配置转化成yaml格式的string
         bool has_formatter() { return _b_has_formatter; }
         Formatter::ptr GetFormatter()
         {
@@ -187,6 +192,7 @@ namespace Xten
         }
         void SetFormatter(Formatter::ptr formatter)
         {
+            SpinLock::Lock lock(_mutex); 
             _formatter = formatter;
             _b_has_formatter = true;
         }
@@ -196,14 +202,16 @@ namespace Xten
         }
         void SetLevelLimit(LogLevel::Level level)
         {
+            SpinLock::Lock lock(_mutex); //
             _level_limit = level;
         }
         virtual ~Logsinker() {}
 
     protected:
         LogLevel::Level _level_limit; // 每个sinks的日志级别
-        bool _b_has_formatter;        // 是否有格式化器
+        std::atomic<bool> _b_has_formatter;        // 是否有格式化器
         Formatter::ptr _formatter;    // 格式化器 --由所属的logger赋值 或者自定义
+        SpinLock _mutex;              // 自旋锁
     };
     // 标准输出落地类
     class StdoutLogsinker : public Logsinker
@@ -213,7 +221,7 @@ namespace Xten
     public:
         typedef std::shared_ptr<StdoutLogsinker> ptr;
         virtual void log(Logger::ptr logger, LogLevel::Level level, LogEvent::ptr ev);
-        virtual std::string toYamlString() override; //将配置转化成yaml格式的string
+        virtual std::string toYamlString() override; // 将配置转化成yaml格式的string
     };
     // 文件输出落地类---单文件
     class FileLogsinker : public Logsinker
@@ -224,8 +232,8 @@ namespace Xten
         typedef std::shared_ptr<FileLogsinker> ptr;
         FileLogsinker(const std::string &filename);
         virtual void log(Logger::ptr logger, LogLevel::Level level, LogEvent::ptr ev);
-        virtual std::string toYamlString() override; //将配置转化成yaml格式的string
-        bool reopen(); // 重新打开
+        virtual std::string toYamlString() override; // 将配置转化成yaml格式的string
+        bool reopen();                               // 重新打开
     private:
         std::string _log_filename;  // 文件名 路径+name
         std::ofstream _file_stream; // 文件流
@@ -236,16 +244,20 @@ namespace Xten
     {
     public:
         LogEventWrap(LogEvent::ptr event) : _event(event) {}
-        ~LogEventWrap(){
+        ~LogEventWrap()
+        {
             // std::cout<<"wrap 析构"<<std::endl;
-            _event->GetLogger()->log(_event->GetLevel(),_event);
+            _event->GetLogger()->log(_event->GetLevel(), _event);
         }
-        LogEvent::ptr GetEvent(){
+        LogEvent::ptr GetEvent()
+        {
             return _event;
         }
-        std::ostream& GetSStream(){
+        std::ostream &GetSStream()
+        {
             return _event->GetSStream();
         }
+
     private:
         LogEvent::ptr _event;
     };
@@ -253,14 +265,15 @@ namespace Xten
     class LoggerManager : public singleton<LoggerManager>
     {
         friend class singleton<LoggerManager>;
+
     public:
-        Logger::ptr GetLogger(const std::string &name); // 获取logger 
-        Logger::ptr GetAndSetLogger(const std::string &name);//获取logger 不存在则设置
-        bool SetLogger(const std::string &name, Logger::ptr logger);//手动设置
-        void DelLogger(const std::string &name); //删除指定logger
-        void ClearLogger(); //清除所有logger
-        Logger::ptr GetRootLogger(); // 获取root的logger
-        std::string toYamlString(); //将配置转化成yaml格式的string
+        Logger::ptr GetLogger(const std::string &name);              // 获取logger
+        Logger::ptr GetAndSetLogger(const std::string &name);        // 获取logger 不存在则设置
+        bool SetLogger(const std::string &name, Logger::ptr logger); // 手动设置
+        void DelLogger(const std::string &name);                     // 删除指定logger
+        void ClearLogger();                                          // 清除所有logger
+        Logger::ptr GetRootLogger();                                 // 获取root的logger
+        std::string toYamlString();                                  // 将配置转化成yaml格式的string
         void init();
 
     private:
@@ -271,5 +284,6 @@ namespace Xten
     private:
         std::unordered_map<std::string, Logger::ptr> _loggers_map; // 管理所有logger的map
         // Logger::ptr _root_logger;                                  // 主logger日志器
+        SpinLock _mutex;              // 自旋锁
     };
 }

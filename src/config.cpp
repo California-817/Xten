@@ -14,6 +14,10 @@ namespace Xten
         static std::unordered_map<std::string, uint64_t> _configfile_modifytimes;
         return _configfile_modifytimes;
     }
+    RWMutex &Config::GetMutex()// 获取锁
+    {
+        return _mutex;
+    }
 
     // // 查找指定name的配置项 不存在则创建并用val赋值 存在直接返回
     // template <class T> // 模板函数
@@ -76,6 +80,7 @@ namespace Xten
     // }
     typename ConfigVarBase::ptr Config::LookUpBase(const std::string &name) // 查找并返回基类指针
     {
+        RWMutex::ReadLock lock(GetMutex()); //加读锁
         auto& configvar_map = GetDatas(); // 获取到map  必须引用接收
         std::cout << &configvar_map << std::endl;
         // 1.先判断name是否存在

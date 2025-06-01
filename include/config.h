@@ -1,6 +1,7 @@
 #pragma once
 #include "const.h"
 #include "util.h"
+#include "mutex.h"
 #include "log.h"
 // 协程库的配置模块
 namespace Xten
@@ -301,6 +302,7 @@ namespace Xten
         {
             try
             {
+                RWMutex::ReadLock lock(_mutex); // 加读锁
                 return ToStr()(_val);
             }
             catch (std::exception &e)
@@ -331,26 +333,32 @@ namespace Xten
         }
         // 子类增加对子类特有成员的操作函数
         T GetValue()
-        { // 获取
+        {                                   // 获取
+            RWMutex::ReadLock lock(_mutex); // 加读锁
             return _val;
         }
         void SetValue(const T &val) // 设置value的配置值   并且发现值不一样的时候会调用变更函数进行配置实体的更改
         {
             // std::cout << "SetValue" <<ToStr()(val)<< std::endl;
-            if (_val == val)
             {
-                return;
+                RWMutex::ReadLock lock(_mutex); // 加读锁
+                if (_val == val)
+                {
+                    return;
+                }
+                // 不相等
+                for (auto &cb : _change_cbs)
+                {
+                    // std::cout << "走到调用变更函数" << std::endl;
+                    cb.second(_val, val); // 调用变更函数---在main函数之间就完成了注册
+                }
             }
-            // 不相等
-            for (auto &cb : _change_cbs)
-            {
-                // std::cout << "走到调用变更函数" << std::endl;
-                cb.second(_val, val); // 调用变更函数---在main函数之间就完成了注册
-            }
+            RWMutex::WriteLock lock(_mutex); // 加写锁
             _val = val;
         }
         uint64_t AddListener(on_change_cb cb) // 添加
         {
+            RWMutex::WriteLock lock(_mutex); // 加写锁
             // config<T>是相同类型不同对象 对应的这个cb_count只有一份 因为函数一个
             // config<T>是不同类型的不同对象 对应的这个cb_count有多份 因为类不同 函数不同
             static uint64_t cb_count = 0; // 第一次调用初始化 初始化一次 生命周期到程序结束
@@ -359,10 +367,13 @@ namespace Xten
         }
         void DelListener(uint64_t cb_key) // 删除
         {
+            RWMutex::WriteLock lock(_mutex); // 加写锁
             _change_cbs.erase(cb_key);
         }
         on_change_cb GetListener(uint64_t cb_key) // 获取
         {
+            RWMutex::ReadLock lock(_mutex); // 加读锁
+
             auto iter = _change_cbs.find(cb_key);
             if (iter == _change_cbs.end())
             {
@@ -372,15 +383,16 @@ namespace Xten
         }
         void ClearListener() // 清除所有回调
         {
+            RWMutex::WriteLock lock(_mutex); // 加写锁
             _change_cbs.clear();
         }
 
     private:
-        // lock锁 todo
-        T _val;                                            // 具体类型的配置值
+        RWMutex _mutex    ;                                 // lock锁 读写锁
+            T _val;                                        // 具体类型的配置值
         std::unordered_map<int, on_change_cb> _change_cbs; // 变更配置回调函数组
     };
-    // configvar的管理类
+    // configvar的管理类  非实例化的静态成员类
     class Config
     {
     public:
@@ -389,9 +401,10 @@ namespace Xten
         typedef std::unordered_map<std::string, uint64_t> ConfigFileModifyTimeMap;
         static ConfigVarMap _configvars_map;
         static std::unordered_map<std::string, uint64_t> _configfile_modifytimes;
+        static RWMutex _mutex; //静态成员变量
         static ConfigVarMap &GetDatas();                      // 获取到全局唯一的static类型的map结构
         static ConfigFileModifyTimeMap &GetFileModifyTimes(); // 存储配置文件的修改时间
-
+        static RWMutex &GetMutex(); // 获取锁
         //  预处理 编译 汇编 链接
         //  模板函数必须在编译期可见其实现，因为编译器要根据具体类型生成代码。
         //  如果只在 .h 中声明而在 .cpp 中定义，其他使用该模板的 .cpp 文件无法看到实现（在不同翻译单元），会导致 链接错误 或 编译失败
@@ -402,6 +415,7 @@ namespace Xten
         template <class T> // 模板函数
         static typename ConfigVar<T>::ptr LookUp(const std::string &name, const T &val, const std::string &desc)
         {
+            RWMutex::WriteLock lock(GetMutex()); //加写锁
             // 引用返回 + 引用接收 == 操作原始对象
             // 值接收 这个函数返回的是原变量 但是由于是值接收还会进行一次拷贝
             auto &configvar_map = GetDatas(); // 获取到map
@@ -440,6 +454,7 @@ namespace Xten
         template <class T>                                                // 模板函数
         static typename ConfigVar<T>::ptr LookUp(const std::string &name) // 仅查找
         {
+            RWMutex::ReadLock lock(GetMutex()); //加读锁
             // 引用返回 + 引用接收 == 操作原始对象
             auto &configvar_map = GetDatas(); // 获取到map
             // 1.先判断name是否存在

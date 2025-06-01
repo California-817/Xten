@@ -144,7 +144,8 @@ namespace Xten
         auto self = shared_from_this();
         // std::cout<<_sinkers.size()<<std::endl;
         if (level >= _level_limit)
-        { // 到达指定日志级别则输出
+        {                                // 到达指定日志级别则输出
+            SpinLock::Lock lock(_mutex); // 多线程同一logger输出安全性
             if (!_sinkers.empty())
             { // 这个logger有落地对象
                 for (auto &sink : _sinkers)
@@ -166,6 +167,7 @@ namespace Xten
     }
     void Logger::SetLevelLimit(LogLevel::Level lv)
     {
+        SpinLock::Lock lock(_mutex); // 多线程同一logger输出安全性
         _level_limit = lv;
     }
     LogLevel::Level Logger::GetLevelLimit()
@@ -174,17 +176,19 @@ namespace Xten
     }
     void Logger::AddSinkers(const std::string &sink_name, Logsinker::ptr sinker)
     {
+        SpinLock::Lock lock(_mutex); // 多线程同一logger输出安全性
         // 1.添加一个sinker需要判断这个sinker是否有格式化器 没有的话用logger的格式化器
         // 保证每一个sink都有格式化器
         if (!sinker->has_formatter())
         {
             sinker->SetFormatter(_formatter);
         }
-        //如果 unordered_map 中的 key 已经存在，调用 insert 操作时将不会插入新的键值对
+        // 如果 unordered_map 中的 key 已经存在，调用 insert 操作时将不会插入新的键值对
         _sinkers.insert(std::make_pair(sink_name, sinker));
     }
     void Logger::DelSinkers(const std::string &sink_name)
     {
+        SpinLock::Lock lock(_mutex); // 多线程同一logger输出安全性
         for (auto iter = _sinkers.begin(); iter != _sinkers.end(); iter++)
         {
             if (iter->first == sink_name)
@@ -195,6 +199,7 @@ namespace Xten
     }
     void Logger::ClearSinkers()
     {
+        SpinLock::Lock lock(_mutex); // 多线程同一logger输出安全性
         _sinkers.clear();
     }
     std::string Logger::GetName()
@@ -227,6 +232,8 @@ namespace Xten
     }
     void Logger::SetFormatter(Formatter::ptr formatter) // 直接传入格式化器
     {
+        SpinLock::Lock lock(_mutex); // 多线程同一logger输出安全性
+
         for (auto &sink : _sinkers)
         {
             // 覆盖sink本身的格式化器--即使已经有了格式化器
@@ -236,6 +243,7 @@ namespace Xten
     }
     void Logger::SetFormatter(const char *fmt_str) // 传入格式化字符串 %d{xxx} %s %g ...
     {
+
         _formatter = std::make_shared<Formatter>(fmt_str);
         for (auto &sink : _sinkers)
         {
@@ -257,6 +265,7 @@ namespace Xten
                 // 还没初始化formatter
                 SetFormatter(logger->GetFormatter()); // 用所属的logger的formatter给sink的formatter赋值
             }
+            SpinLock::Lock lock(_mutex); // 多线程同一logger输出安全性
             // 让Formatter格式化器来进行格式化event形成字符串直接格式化到这个sink对应的流中 --标准输出流
             // std::cout<<"stdout log调用"<<std::endl;
             _formatter->format(std::cout, logger, level, ev);
@@ -288,6 +297,7 @@ namespace Xten
             }
             if (is_open)
             {
+                SpinLock::Lock lock(_mutex); // 多线程同一logger输出安全性
                 _formatter->format(_file_stream, logger, level, ev);
             }
             else
@@ -298,6 +308,7 @@ namespace Xten
     }
     bool FileLogsinker::reopen()
     {
+        SpinLock::Lock lock(_mutex); // 多线程同一logger输出安全性
         if (_file_stream)
         {
             _file_stream.close();
@@ -678,6 +689,7 @@ namespace Xten
     }
     Logger::ptr LoggerManager::GetLogger(const std::string &name)
     {
+        SpinLock::Lock lock(_mutex); 
         auto iter = _loggers_map.find(name);
         if (iter == _loggers_map.end())
         {
@@ -688,6 +700,7 @@ namespace Xten
     }
     bool LoggerManager::SetLogger(const std::string &name, Logger::ptr logger)
     { // 如果有重复会进行覆盖
+        SpinLock::Lock lock(_mutex); 
         _loggers_map[name] = logger;
         return true;
     }
@@ -700,14 +713,19 @@ namespace Xten
     }
     void LoggerManager::ClearLogger() // 清除所有logger
     {
+        SpinLock::Lock lock(_mutex); 
+
         _loggers_map.clear();
     }
     void LoggerManager::DelLogger(const std::string &name) // 删除指定logger
     {
+        SpinLock::Lock lock(_mutex); 
+
         _loggers_map.erase(name);
     }
     std::string Logger::toYamlString() // 将配置转化成yaml格式的string
     {
+        SpinLock::Lock lock(_mutex); // 多线程同一logger输出安全性
         YAML::Node node;
         node["name"] = _name;
         if (_level_limit != LogLevel::UNKNOW)
@@ -731,6 +749,7 @@ namespace Xten
     }
     std::string StdoutLogsinker::toYamlString() // 将配置转化成yaml格式的string
     {
+        SpinLock::Lock lock(_mutex); 
         YAML::Node node;
         node["type"] = "StdoutLogSinker";
         if (_level_limit != LogLevel::UNKNOW)
@@ -747,6 +766,7 @@ namespace Xten
     }
     std::string FileLogsinker::toYamlString() // 将配置转化成yaml格式的string
     {
+        SpinLock::Lock lock(_mutex); 
         YAML::Node node;
         node["type"] = "FileLogSinker";
         node["file"] = _log_filename;
@@ -764,6 +784,7 @@ namespace Xten
     }
     std::string LoggerManager::toYamlString() // 将配置转化成yaml格式的string
     {
+        SpinLock::Lock lock(_mutex); 
         YAML::Node node;
         for (auto &i : _loggers_map)
         {
@@ -818,7 +839,7 @@ namespace Xten
     template <>
     class lexicalCast<std::string, LoggerDefine>
     {
-        public:
+    public:
         // logs:
         //  - name: root
         //    level: info
@@ -921,7 +942,7 @@ namespace Xten
     template <>
     class lexicalCast<LoggerDefine, std::string>
     {
-        public:
+    public:
         std::string operator()(const LoggerDefine &i)
         {
             YAML::Node n;
@@ -967,12 +988,14 @@ namespace Xten
             return ss.str();
         }
     };
-    //这个变量的存在用来保证config文件中的类静态成员变量要先于下面此文件全局变量访问时创建
-    //同一个编译单元（translation unit）内的全局变量初始化顺序是 按照它们在代码中的出现顺序进行的。
-    //也就是说，在一个 .cpp 文件中定义的所有全局变量和静态局部变量，
-    //其初始化顺序与它们在源文件中声明的位置一致。
-    struct ConfigInitializer {
-        ConfigInitializer() {
+    // 这个变量的存在用来保证config文件中的类静态成员变量要先于下面此文件全局变量访问时创建
+    // 同一个编译单元（translation unit）内的全局变量初始化顺序是 按照它们在代码中的出现顺序进行的。
+    // 也就是说，在一个 .cpp 文件中定义的所有全局变量和静态局部变量，
+    // 其初始化顺序与它们在源文件中声明的位置一致。
+    struct ConfigInitializer
+    {
+        ConfigInitializer()
+        {
             // 强制访问静态成员变量，触发其构造
             (void)Config::_configvars_map;
             (void)Config::_configfile_modifytimes;
@@ -985,7 +1008,7 @@ namespace Xten
     // 也就是说这个变量在main之前已经定义好了 并调用了LookUp内部也会对静态局部变量 ConfigVarMap 进行创建
     // 其他文件没有使用extern ConfigVar<LoggerDefine>::ptr g_logs_defines 因此这个全局变量只在这个此文件可见
     // 日志配置模块的创建地方
-    //日志模块的配置数据类型是 std::set<LoggerDefine>
+    // 日志模块的配置数据类型是 std::set<LoggerDefine>
     Xten::ConfigVar<std::set<LoggerDefine>>::ptr g_logs_defines = Xten::Config::LookUp("logs", std::set<LoggerDefine>(), "logs config");
     struct LogIniter
     {
@@ -1091,17 +1114,18 @@ namespace Xten
     };
     // 这个库的静态局部变量在main函数之前创建 在构造函数中会进行变更回调函数的注册
     static LogIniter __log__init;
-    Logger::ptr LoggerManager::GetAndSetLogger(const std::string &name)//获取logger 不存在则设置
+    Logger::ptr LoggerManager::GetAndSetLogger(const std::string &name) // 获取logger 不存在则设置
     {
-        auto iter=_loggers_map.find(name);
-        if(iter!=_loggers_map.end())
+        SpinLock::Lock lock(_mutex); 
+        auto iter = _loggers_map.find(name);
+        if (iter != _loggers_map.end())
         {
             return iter->second;
         }
-        //没找到设置
-        Logger::ptr new_logger=std::make_shared<Logger>(name);
-        new_logger->AddSinkers("stdout",std::make_shared<StdoutLogsinker>());
-        _loggers_map[name]=new_logger;
+        // 没找到设置
+        Logger::ptr new_logger = std::make_shared<Logger>(name);
+        new_logger->AddSinkers("stdout", std::make_shared<StdoutLogsinker>());
+        _loggers_map[name] = new_logger;
         return new_logger;
     }
 
