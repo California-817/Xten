@@ -666,11 +666,14 @@ namespace Xten
         return _b_error;
     }
     LoggerManager::LoggerManager()
-    { // 构造函数默认生成一个主logger
+    { // 构造函数默认生成一个主logger和一个system logger
         auto _root_logger = std::make_shared<Logger>();
+        auto system_logger = std::make_shared<Logger>("system");
         _root_logger->AddSinkers("stdout", std::make_shared<StdoutLogsinker>());
+        system_logger->AddSinkers("stdout", std::make_shared<StdoutLogsinker>());
         // std::cout<<"root 日志添加sinl=k" <<std::endl;
         _loggers_map.insert(std::make_pair(_root_logger->GetName(), _root_logger));
+        _loggers_map.insert(std::make_pair(system_logger->GetName(), system_logger));
         init();
     }
     Logger::ptr LoggerManager::GetLogger(const std::string &name)
@@ -1088,4 +1091,18 @@ namespace Xten
     };
     // 这个库的静态局部变量在main函数之前创建 在构造函数中会进行变更回调函数的注册
     static LogIniter __log__init;
+    Logger::ptr LoggerManager::GetAndSetLogger(const std::string &name)//获取logger 不存在则设置
+    {
+        auto iter=_loggers_map.find(name);
+        if(iter!=_loggers_map.end())
+        {
+            return iter->second;
+        }
+        //没找到设置
+        Logger::ptr new_logger=std::make_shared<Logger>(name);
+        new_logger->AddSinkers("stdout",std::make_shared<StdoutLogsinker>());
+        _loggers_map[name]=new_logger;
+        return new_logger;
+    }
+
 }

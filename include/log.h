@@ -33,8 +33,12 @@
 
 //获取root日志器
 #define XTEN_LOG_ROOT() Xten::LoggerManager::GetInstance()->GetRootLogger()
+//获取系统日志器
+#define XTEN_LOG_SYSTEM() Xten::LoggerManager::GetInstance()->GetLogger("system")
+//获取或设置指定name的日志器
+#define XTEN_LOG_NAME(name) Xten::LoggerManager::GetInstance()->GetAndSetLogger(name)
 //获取指定name的日志器
-#define XTEN_LOG_NAME(name) Xten::LoggerManager::GetInstance()->GetLogger(name)
+#define XTEN_LOG_GET(name) Xten::LoggerManager::GetInstance()->GetLogger(name)
 //设置指定name的日志器
 #define XTEN_LOG_SET(name,logger) Xten::LoggerManager::GetInstance()->SetLogger(name,logger)
 //删除指定name的日志器
@@ -251,6 +255,7 @@ namespace Xten
         friend class singleton<LoggerManager>;
     public:
         Logger::ptr GetLogger(const std::string &name); // 获取logger 
+        Logger::ptr GetAndSetLogger(const std::string &name);//获取logger 不存在则设置
         bool SetLogger(const std::string &name, Logger::ptr logger);//手动设置
         void DelLogger(const std::string &name); //删除指定logger
         void ClearLogger(); //清除所有logger

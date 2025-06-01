@@ -1,5 +1,6 @@
 #pragma once
 #include "const.h"
+#include<sys/syscall.h>
 //Xten协程库的工具类模块
 namespace Xten
 {
@@ -16,9 +17,15 @@ namespace Xten
     public:
         static uint64_t NowTime_to_uint64();
     };
+    class ThreadUtil
+    {
+        public:
+            static pid_t GetThreadId();
+    };
     class TypeUtil
     {
     public:
+    //这个TypeToName函数也是一个模板函数 不能在cpp文件中进行实现 因为其他文件使用 在编译期间要看到其实现
         template<class T>
         static std::string TypeToName()
         {

@@ -135,7 +135,10 @@ namespace Xten
         }
         closedir(dir);
     }
-
+     pid_t ThreadUtil::GetThreadId()
+    {
+        return syscall(SYS_gettid); //系统调用 syscall 获取当前线程的线程ID（TID），并将其返回。
+    }
     uint64_t TimeUitl::NowTime_to_uint64()
     {
         // 获取当前时间点
