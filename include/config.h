@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __XTEN_CONFIG_H__
+#define __XTEN_CONFIG_H__
 #include "const.h"
 #include "util.h"
 #include "mutex.h"
@@ -329,7 +330,7 @@ namespace Xten
         virtual std::string GetTypeName() override // 获取val的类型名称
         {
             // 获取类型名
-            return TypeUtil::TypeToName<T>();
+            return TypeUtil::TypeToName<T>(); //模板函数显示传入模板参数
         }
         // 子类增加对子类特有成员的操作函数
         T GetValue()
@@ -484,3 +485,4 @@ namespace Xten
         Config() = default; // 防止实例化
     };
 }
+#endif

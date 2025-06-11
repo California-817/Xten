@@ -149,5 +149,12 @@ namespace Xten
         uint64_t timestamp_uint64 = static_cast<uint64_t>(timestamp);
         return timestamp_uint64;
     }
+        void BackTraceUtil::backtrace()
+        {
 
+        }
+        void BackTraceUtil::backtraceTostring()
+        {
+            
+        }
 }

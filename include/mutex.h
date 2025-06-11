@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __XTEN_MUTEX_H__
+#define __XTEN_MUTEX_H__
 #include "const.h"
 #include "nocopyable.hpp"
 #include <pthread.h>
@@ -204,3 +205,4 @@ namespace Xten
     };
 
 }
+#endif

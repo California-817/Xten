@@ -2,10 +2,14 @@
 #include "../include/log.h"
 namespace Xten
 {
+    static Xten::Logger::ptr g_logger=XTEN_LOG_NAME("system");
     // 用静态局部变量(仅当前cpp文件可见)作为线程的局部存储变量
     static thread_local Thread *t_thread = nullptr; // 使用 thread_local 关键字确保每个线程都有自己独立的副本，互不干扰
     static thread_local std::string t_name = "UNKNOW";
-    Thread::Thread(std::function<void()> func, const std::string &name) : _func(func), _name(name)
+    Thread::Thread(std::function<void()> func, const std::string &name)
+    : _func(func)
+    ,_name(name)
+    ,_sem(0)
     {
         if (name.empty())
             _name = "UNKNOW";
@@ -13,11 +17,12 @@ namespace Xten
         int ret = pthread_create(&_thread, nullptr, &Thread::run, this);
         if (ret)
         { // 创建失败
-            XTEN_LOG_ERROR(XTEN_LOG_SYSTEM()) << "pthread_create thread fail, rt=" << ret
+            XTEN_LOG_ERROR(g_logger) << "pthread_create thread fail, rt=" << ret
                                               << " name=" << name;
             throw std::logic_error("pthread creat error");
         }
-        // 创建成功 确保子线程走到用户传入的函数再返回
+        // 创建成功 确保子线程走到用户传入的函数时再返回
+        _sem.wait();
     }
     pid_t Thread::getId() // 获取lwp的id
     {
@@ -35,7 +40,7 @@ namespace Xten
             int rt = pthread_join(_thread, nullptr);
             if (rt)
             {
-                XTEN_LOG_ERROR(XTEN_LOG_SYSTEM()) << "pthread_join thread fail, rt=" << rt
+                XTEN_LOG_ERROR(g_logger) << "pthread_join thread fail, rt=" << rt
                                           << " name=" << _name;
                 throw std::logic_error("pthread_join error");
             }
@@ -79,13 +84,12 @@ namespace Xten
         t_name = ts->_name;
         ts->_id=Xten::ThreadUtil::GetThreadId(); //获取tid
         pthread_setname_np(ts->_thread,ts->_name.substr(0,15).c_str()); //在系统层面为thread命名
-
-        //执行用户传入函数
         //通过 swap，将任务函数从对象中“提取”出来，确保即使对象被析构或修改，也不会影响到当前要执行的任务。
         //将线程执行的函数与线程对象分离
         std::function<void()> cb;
         cb.swap(ts->_func);
         //通过信号量让主线程的构造函数唤醒向下执行
+        ts->_sem.post(); //post后说明该线程一些工作处理完毕--让处于构造函数的主线程返回
         cb();
         return nullptr;
     }

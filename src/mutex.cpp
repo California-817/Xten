@@ -8,14 +8,16 @@ namespace Xten
             std::cout<<"init semaphore error"<<std::endl;
         }
     }
-    void Semaphore::wait() // 等待信号量
+    // 等待信号量
+    void Semaphore::wait() 
     {
         if (sem_wait(&_semaphore))
         {
             throw std::logic_error("wait semaphore error");
         }
     }
-    void Semaphore::post() // 释放信号量
+     // 释放信号量
+    void Semaphore::post()
     {
         if (sem_post(&_semaphore))
         {

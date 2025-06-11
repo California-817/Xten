@@ -1,8 +1,10 @@
-#pragma once
+#ifndef __XTEN_LOG_H__
+#define __XTEN_LOG_H__
 #include "const.h"
 #include "singleton.hpp"
 #include "util.h"
 #include "mutex.h"
+#include "thread.h"
 // 协程网络库的日志模块
 // 用宏函数的方式来简化日志的使用
 // 传入logger和level自动生成event并返回event的stringstream用于输入内容
@@ -11,7 +13,7 @@
 #define XTEN_LOG_LEVEL(logger, level)                                                         \
     if (level >= logger->GetLevelLimit() && logger)                                           \
     Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger, level, __FILE__, __LINE__, 0, \
-                                                        1, 1, time(nullptr), "main thread"))  \
+                        Xten::ThreadUtil::GetThreadId(), 1, time(nullptr), Xten::Thread::GetName()))  \
         .GetSStream()
 
 #define XTEN_LOG_DEBUG(logger) XTEN_LOG_LEVEL(logger, Xten::LogLevel::DEBUG)
@@ -24,7 +26,7 @@
 #define XTEN_LOG_FMT_LEVEL(logger, level, fmt, ...)                                           \
     if (level >= logger->GetLevelLimit() && logger)                                           \
     Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger, level, __FILE__, __LINE__, 0, \
-                                                        1, 1, time(nullptr), "main thread"))  \
+                    Xten::ThreadUtil::GetThreadId(), 1, time(nullptr), Xten::Thread::GetName()))  \
         .GetEvent()                                                                           \
         ->format(fmt, __VA_ARGS__)
 
@@ -37,18 +39,8 @@
 
 // 获取root日志器
 #define XTEN_LOG_ROOT() Xten::LoggerManager::GetInstance()->GetRootLogger()
-// 获取系统日志器
-#define XTEN_LOG_SYSTEM() Xten::LoggerManager::GetInstance()->GetLogger("system")
 // 获取或设置指定name的日志器
 #define XTEN_LOG_NAME(name) Xten::LoggerManager::GetInstance()->GetAndSetLogger(name)
-// 获取指定name的日志器
-#define XTEN_LOG_GET(name) Xten::LoggerManager::GetInstance()->GetLogger(name)
-// 设置指定name的日志器
-#define XTEN_LOG_SET(name, logger) Xten::LoggerManager::GetInstance()->SetLogger(name, logger)
-// 删除指定name的日志器
-#define XTEN_LOG_DEL(name) Xten::LoggerManager::GetInstance()->DelLogger(name)
-// 删除所有logger
-#define XTEN_LOG_CLEAR() Xten::LoggerManager::GetInstance()->ClearLogger()
 namespace Xten
 {
     // 日志级别
@@ -287,3 +279,5 @@ namespace Xten
         SpinLock _mutex;              // 自旋锁
     };
 }
+
+#endif

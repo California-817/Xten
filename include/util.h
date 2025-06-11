@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __XTEN_UTIL_H__
+#define __XTEN_UTIL_H__
 #include "const.h"
 #include<sys/syscall.h>
 //Xten协程库的工具类模块
@@ -11,6 +12,13 @@ namespace Xten
         static std::string DirName(const std::string & filename);
         static bool MakeDir(const std::string & dirname);
         static void ListAllFile(std::vector<std::string>& files,const std::string& path,const std::string& subfix);
+    };
+    class BackTraceUtil
+    {
+        public:
+        //查看到当前的整个函数调用链的栈帧情况---便于快速查找错误
+        void backtrace();
+        void backtraceTostring();
     };
     class TimeUitl
     {
@@ -27,7 +35,7 @@ namespace Xten
     public:
     //这个TypeToName函数也是一个模板函数 不能在cpp文件中进行实现 因为其他文件使用 在编译期间要看到其实现
         template<class T>
-        static std::string TypeToName()
+        static std::string TypeToName()  //TypeToName<T>()
         {
             //这里使用static的原因
             //首先要知道这是一个模板函数---一个类型是一个函数
@@ -38,3 +46,4 @@ namespace Xten
         }
     };
 }
+#endif

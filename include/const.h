@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __XTEN_CONST_H__
+#define __XTEN_CONST_H__ 
 //放一些全局的头文件和宏定义
 #include<iostream>
 #include<string>
@@ -26,3 +27,5 @@
 #include<cxxabi.h>
 #include<unordered_set>
 #include<dirent.h>
+
+#endif

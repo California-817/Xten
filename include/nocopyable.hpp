@@ -1,4 +1,5 @@
-#pragma once
+#ifndef __XTEN_NOCOPYABLE_H__
+#define __XTEN_NOCOPYABLE_H__
 //不可拷贝对象封装
 namespace Xten
 {   
@@ -14,3 +15,4 @@ namespace Xten
         ~NoCopyable()=default;
     };
 } 
+#endif

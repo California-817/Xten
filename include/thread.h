@@ -1,6 +1,8 @@
-#pragma once
+#ifndef __XTEN_THREAD_H__
+#define __XTEN_THREAD_H__
 #include "const.h"
 #include "nocopyable.hpp"
+#include"mutex.h"
 #include<pthread.h>
 #include<functional>
 // 封装线程模块
@@ -22,10 +24,11 @@ namespace Xten
     private:
         static void* run(void* args);// 线程的实际运行函数
     private:
+        Xten::Semaphore _sem; //信号量用于保证构造顺序
         pthread_t _thread; //线程创建后返回的tcb线程控制块在地址空间的地址
         pid_t _id; //线程的lwp的id
         std::function<void()> _func; //线程执行函数
         std::string _name; //线程name
-                            //信号量 todo 保证线程构造函数出来后 线程开始执行func了
     };
 }
+#endif
