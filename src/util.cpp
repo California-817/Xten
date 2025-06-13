@@ -1,6 +1,7 @@
 #include "../include/util.h"
 #include <execinfo.h>
 #include"log.h"
+#include"fiber.h"
 namespace Xten
 {
     static Xten::Logger::ptr g_logger=XTEN_LOG_NAME("system");
@@ -203,5 +204,9 @@ namespace Xten
             ss<<prefix<<bt[i]<<std::endl;
         }
         return ss.str();
+    }
+    int64_t FiberUtil::GetFiberId()
+    {
+        return Fiber::GetThis()->GetFiberId();
     }
 }

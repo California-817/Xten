@@ -26,7 +26,8 @@
 #define XTEN_LOG_FMT_LEVEL(logger, level, fmt, ...)                                           \
     if (level >= logger->GetLevelLimit() && logger)                                           \
     Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger, level, __FILE__, __LINE__, 0, \
-                    Xten::ThreadUtil::GetThreadId(), 1, time(nullptr), Xten::Thread::GetName()))  \
+                    Xten::ThreadUtil::GetThreadId(), (uint32_t)Xten::FiberUtil::GetFiberId(),       \
+                     time(nullptr), Xten::Thread::GetName()))  \
         .GetEvent()                                                                           \
         ->format(fmt, __VA_ARGS__)
 

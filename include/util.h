@@ -17,8 +17,8 @@ namespace Xten
     {
     public:
         // 查看到当前的整个函数调用链的栈帧情况---便于快速查找错误
-        void backtrace(std::vector<std::string> &bt, int depth, int skip);
-        std::string backtraceTostring(int depth, int skip = 2, const std::string &prefix = "     ");
+        static void backtrace(std::vector<std::string> &bt, int depth, int skip);
+        static std::string backtraceTostring(int depth, int skip = 2, const std::string &prefix = "     ");
     };
     class TimeUitl
     {
@@ -33,7 +33,7 @@ namespace Xten
     class FiberUtil
     {
     public:
-    
+        static int64_t GetFiberId();
     };
     class TypeUtil
     {
