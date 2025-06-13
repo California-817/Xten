@@ -160,7 +160,7 @@ namespace Xten
         }
         ~RWMutex()
         {
-            pthread_rwlock_unlock(&_rw_lock);
+            pthread_rwlock_destroy(&_rw_lock);
         }
 
     private:

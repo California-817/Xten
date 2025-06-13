@@ -7,7 +7,7 @@
 #define FIBER_FCONTEXT 1 // fcontext
 
 #ifndef FIBER_TYPE
-#define FIBER_TYPE FIBER_UCONTEXT // 默认使用boost库1.82.0的fcontext
+#define FIBER_TYPE FIBER_FCONTEXT // 默认使用boost库1.82.0的fcontext
 #endif
 #if FIBER_TYPE == FIBER_UCONTEXT
 #include <ucontext.h>
@@ -40,7 +40,7 @@ namespace Xten
         ~Fiber();
         // 切入协程
         void SwapIn();
-        void Sall();
+        void Call();
         // 切出协程
         void SwapOut();
         void Back();
@@ -49,11 +49,11 @@ namespace Xten
         // 切出状态为Ready
         void YieldToReady();
         // 重置协程
-        void Reset();
+        void Reset(std::function<void()> func);
         // 获取协程状态
         Fiber::Status GetStatus() const;
         // 获取协程id
-        size_t GetFiberId() const;
+        static size_t GetFiberId() ;
         // 协程的真正入口函数--非用户传入
 #if FIBER_TYPE==FIBER_UCONTEXT
         static void MainFunc();

@@ -13,7 +13,8 @@
 #define XTEN_LOG_LEVEL(logger, level)                                                         \
     if (level >= logger->GetLevelLimit() && logger)                                           \
     Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger, level, __FILE__, __LINE__, 0, \
-                        Xten::ThreadUtil::GetThreadId(), 1, time(nullptr), Xten::Thread::GetName()))  \
+                        Xten::ThreadUtil::GetThreadId(), (uint32_t)Xten::FiberUtil::GetFiberId(), \
+                         time(nullptr), Xten::Thread::GetName()))  \
         .GetSStream()
 
 #define XTEN_LOG_DEBUG(logger) XTEN_LOG_LEVEL(logger, Xten::LogLevel::DEBUG)
@@ -175,7 +176,7 @@ namespace Xten
 
     public:
         typedef std::shared_ptr<Logsinker> ptr;
-        Logsinker(LogLevel::Level level = LogLevel::DEBUG) : _level_limit(level), _b_has_formatter(false) {}
+        Logsinker(LogLevel::Level level = LogLevel::DEBUG) : _level_limit(level), _b_has_formatter(false),_mutex() {}
         virtual void log(Logger::ptr logger, LogLevel::Level level, LogEvent::ptr ev) = 0;
         virtual std::string toYamlString() = 0; // 将配置转化成yaml格式的string
         bool has_formatter() { return _b_has_formatter; }
@@ -201,10 +202,10 @@ namespace Xten
         virtual ~Logsinker() {}
 
     protected:
+        SpinLock _mutex;              // 自旋锁
         LogLevel::Level _level_limit; // 每个sinks的日志级别
         std::atomic<bool> _b_has_formatter;        // 是否有格式化器
         Formatter::ptr _formatter;    // 格式化器 --由所属的logger赋值 或者自定义
-        SpinLock _mutex;              // 自旋锁
     };
     // 标准输出落地类
     class StdoutLogsinker : public Logsinker
@@ -212,6 +213,7 @@ namespace Xten
         friend class Logger;
 
     public:
+        StdoutLogsinker():Logsinker(){}
         typedef std::shared_ptr<StdoutLogsinker> ptr;
         virtual void log(Logger::ptr logger, LogLevel::Level level, LogEvent::ptr ev);
         virtual std::string toYamlString() override; // 将配置转化成yaml格式的string

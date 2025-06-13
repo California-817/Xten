@@ -2,6 +2,7 @@
 #include "../include/config.h"
 namespace Xten
 {
+    static Logger::ptr g_logger=XTEN_LOG_NAME("system");
     const char *LogLevel::ToString(const LogLevel::Level &level) // level转字符串
     {
         switch (level)
@@ -126,7 +127,7 @@ namespace Xten
         free(buffer);
     }
     Logger::Logger(const std::string &name)
-        : _name(name), _level_limit(LogLevel::DEBUG), _root_logger(nullptr)
+        : _name(name), _level_limit(LogLevel::DEBUG), _root_logger(nullptr),_mutex()
     {
         // 初始化一个logger时分配一个默认格式Formatter
         _formatter = std::make_shared<Formatter>();
@@ -268,7 +269,7 @@ namespace Xten
         }
     }
     FileLogsinker::FileLogsinker(const std::string &filename)
-        : _log_filename(filename)
+        :Logsinker(),_log_filename(filename)
     {
         _last_opentime = TimeUitl::NowTime_to_uint64();
         reopen(); // 打开文件流
@@ -973,7 +974,7 @@ namespace Xten
         {
             // 每次重新读取配置文件都会触发setval 而setval判断值改变会进行触发变更回调函数的调用来更改配置实体
             g_logs_defines->AddListener([](const std::set<LoggerDefine> &old_value, const std::set<LoggerDefine> &new_value){
-                    XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"on_logs_config_changed";
+                    XTEN_LOG_INFO(g_logger)<<"on_logs_config_changed";
                  for(auto& i : new_value) {
                 auto it = old_value.find(i);
                 Xten::Logger::ptr logger;
@@ -989,8 +990,6 @@ namespace Xten
                     }
                 }
                 logger->SetLevelLimit(i._level_limit);
-                //std::cout << "** " << i.name << " level=" << i.level
-                //<< "  " << logger << std::endl;
                 if(!i._formatter.empty()) {
                     logger->SetFormatter(i._formatter.c_str());
                 }
@@ -1002,7 +1001,7 @@ namespace Xten
                         ap.reset(new FileLogsinker(a._file));
                     } else if(a._type == SinkType::STDOUT) {
                         // if(!Xten::EnvMgr::GetInstance()->has("d")) {
-                        //     ap.reset(new StdoutLogAppender);
+                            ap.reset(new StdoutLogsinker());
                         // } else {
                         //     continue;
                         // }

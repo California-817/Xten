@@ -207,6 +207,6 @@ namespace Xten
     }
     int64_t FiberUtil::GetFiberId()
     {
-        return Fiber::GetThis()->GetFiberId();
+        return Fiber::GetFiberId();
     }
 }

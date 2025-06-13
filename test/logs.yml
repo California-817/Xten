@@ -1,27 +1,27 @@
 logs:
     - name: root
       level: debug
-      formatter: root_%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n
+      formatter: L%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n
       sinkers:
           - type: FileLogAppender
             name: root_file  #这个name用于将sink放入logger进行分辨 必须添加 否则会覆盖成一个sink
             file: ./root.txt
             level: debug
-            formatter: root_file_%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n
+            formatter: L%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n
           - type: StdoutLogAppender
             name: root_stdout
             level: debug
-            formatter: root_stdout_%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n
+            formatter: L%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n
     - name: system
       level: debug
-      formatter: root_%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n
+      formatter: L%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n
       sinkers:
           - type: FileLogAppender
             file: ./system.txt
             name: system_file
             level: debug
-            formatter: system_file_%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n
+            formatter: L%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n
           - type: StdoutLogAppender
             level: debug
             name: system_stdout
-            formatter: system_stdout_%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n
+            formatter: L%d{%Y-%m-%d %H:%M:%S}%T%t%T%N%T%F%T[%p]%T[%c]%T%f:%l%T%m%n

@@ -56,6 +56,8 @@ namespace Xten
         return new (fiber_ptr) Fiber(stack_size, func, use_caller); // placement new
         // 柔性数组自动指向尾部多余的栈空间起始地址
     }
+    // 这个FreeFiber用于子协程的删除---子协程智能指针删除器不能使用delete Fiber  -----使用自定义删除器为这个
+    // 子协程的空间是比Fiber的空间更大的 并且不是new出来的 而是用空间开辟器开出来的
     void FreeFiber(Fiber *ptr)
     {
         ptr->~Fiber();
@@ -73,7 +75,7 @@ namespace Xten
                                      << errno << " errstring:" << strerror(errno);
         }
 #elif FIBER_TYPE == FIBER_FCONTEXT
-
+        
 #endif
         SetThis(this); // 设置当前运行协程
         s_total_num++;
@@ -91,7 +93,7 @@ namespace Xten
         }
         _ctx.uc_link = nullptr;
         _ctx.uc_stack.ss_size = _stack_size;
-        _ctx.uc_stack.ss_sp = _stack;
+        _ctx.uc_stack.ss_sp = (char*)_stack;
         if (_user_caller)
         {                                                  // 加入调度
             makecontext(&_ctx, &Fiber::CallerMainFunc, 0); // 创建子协程上下文
@@ -101,6 +103,14 @@ namespace Xten
             makecontext(&_ctx, &Fiber::MainFunc, 0);
         }
 #elif FIBER_TYPE == FIBER_FCONTEXT
+        if (_user_caller)
+        {
+            _ctx = boost::context::detail::make_fcontext((char *)_stack + _stack_size, _stack_size, &Fiber::CallerMainFunc);
+        } // 这里栈空间的首地址是高地址
+        else
+        {
+            _ctx = boost::context::detail::make_fcontext((char *)_stack + _stack_size, _stack_size, &Fiber::MainFunc);
+        }
 
 #endif
         s_total_num++;
@@ -110,7 +120,7 @@ namespace Xten
     Fiber::~Fiber()
     {
         --s_total_num;
-        if (_stack) // 子协程析构
+        if (_stack_size) // 子协程析构
         {
             XTEN_ASSERT(_status == Status::EXCEPT ||
                         Status::INIT ||
@@ -131,36 +141,104 @@ namespace Xten
     }
 
     // 切入协程
-    void Fiber::SwapIn()
+    void Fiber::SwapIn() // 调度协程切到目标协程
     {
     }
 
-    void Fiber::Sall()
+    void Fiber::Call() // 主协程切到目标协程
     {
+        XTEN_ASSERT((_status!=Status::EXEC));
+        SetThis(this);
+        _status = Status::EXEC;
+#if FIBER_TYPE == FIBER_UCONTEXT
+        if (swapcontext(&t_main_fiber->_ctx, &_ctx) == -1)
+        {
+            // 切换失败
+            XTEN_ASSERTINFO(false, "call context failed");
+        }
+#elif FIBER_TYPE == FIBER_FCONTEXT
+        if (!t_main_fiber->_ctx)
+        {
+            //这里切进去不会为 t_main_fiber->_ctx 赋值 仍为nullptr    从里面切出来的时候才会赋值
+            t_main_fiber->_ctx = boost::context::detail::jump_fcontext(_ctx, nullptr).fctx;
+        }
+#endif
     }
 
     // 切出协程
-    void Fiber::SwapOut()
+    void Fiber::SwapOut() // 切回调度协程
     {
     }
 
     // 切出状态为hold
     void Fiber::YieldToHold()
     {
+        Fiber::ptr fb = GetThis();
+        XTEN_ASSERT(fb->_status == Status::EXEC);
+        // fb->_status=Status::HOLD;  ---在Schedule调度后进行状态设置
+        SwapOut();
     }
 
     // 切出状态为Ready
     void Fiber::YieldToReady()
     {
+        Fiber::ptr fb = GetThis();
+        XTEN_ASSERT(fb->_status == Status::EXEC);
+        fb->_status = Status::READY;
+        SwapOut();
     }
 
-    void Fiber::Back()
+    void Fiber::Back() // 切回主协程
     {
+        SetThis(t_main_fiber.get());
+        _status=Status::HOLD;
+#if FIBER_TYPE == FIBER_UCONTEXT
+        if (swapcontext(&_ctx, &t_main_fiber->_ctx) == -1)
+        {
+            // 切换失败
+            XTEN_ASSERTINFO(false, "back context failed");
+        }
+#elif FIBER_TYPE == FIBER_FCONTEXT
+        boost::context::detail::jump_fcontext(t_main_fiber->_ctx, nullptr);
+#endif
     }
 
     // 重置协程
-    void Fiber::Reset()
+    void Fiber::Reset(std::function<void()> func)
     {
+        XTEN_ASSERT(_stack);
+        XTEN_ASSERT(_status == Status::INIT ||
+                    Status::EXCEPT ||
+                    Status::TERM);
+        _func = func;
+#if FIBER_TYPE == FIBER_UCONTEXT
+        if (getcontext(&_ctx))
+        {
+            XTEN_ASSERTINFO(false, "getcontext error");
+        }
+        _ctx.uc_link = nullptr;
+        _ctx.uc_stack.ss_size = _stack_size;
+        _ctx.uc_stack.ss_sp = _stack;
+        if (_user_caller)
+        {                                                  // 加入调度
+            makecontext(&_ctx, &Fiber::CallerMainFunc, 0); // 创建子协程上下文
+        }
+        else
+        {
+            makecontext(&_ctx, &Fiber::MainFunc, 0);
+        }
+#elif FIBER_TYPE == FIBER_FCONTEXT
+        if (_user_caller)
+        {
+            _ctx = boost::context::detail::make_fcontext((char *)_stack + _stack_size, _stack_size, &Fiber::CallerMainFunc);
+        } // 这里栈空间的首地址是高地址
+        else
+        {
+            _ctx = boost::context::detail::make_fcontext((char *)_stack + _stack_size, _stack_size, &Fiber::MainFunc);
+        }
+
+#endif
+        _status = Status::INIT;
     }
 
     // 获取协程状态
@@ -170,18 +248,103 @@ namespace Xten
     }
 
     // 获取协程id
-    size_t Fiber::GetFiberId() const
+    size_t Fiber::GetFiberId() 
     {
-        return _fiber_id;
+        if(t_cur_fiber)
+        {
+            return t_cur_fiber->_fiber_id;
+        }
+        return 0;
     }
 
     // 协程的真正入口函数--非用户传入
+#if FIBER_TYPE == FIBER_UCONTEXT
     void Fiber::MainFunc()
+#elif FIBER_TYPE == FIBER_FCONTEXT
+    void Fiber::MainFunc(boost::context::detail::transfer_t t)
+#endif
     {
-    }
+//         struct transfer_t {
+//              fcontext_t  fctx;  源协程上下文
+//              void    *   data;  用户参数
 
+        //通过传入的参数中的fctx获取原来的主协程上下文
+        // 这里的t.fctx是线程默认主协程的上下文
+        t_main_fiber->_ctx=t.fctx;   //这样就可以切回主协程了
+        // 获取当前协程
+        Fiber::ptr cur = GetThis();
+        XTEN_ASSERT(cur);
+        try
+        {
+            cur->_func();
+            cur->_func = nullptr;
+            cur->_status = Status::TERM;
+        }
+        catch (const std::exception &e)
+        {
+            cur->_func = nullptr;
+            cur->_status = Status::EXCEPT;
+            XTEN_LOG_ERROR(g_logger) << "Fiber Except: " << e.what()
+                                     << " fiber_id=" << cur->GetFiberId()
+                                     << std::endl
+                                     << Xten::BackTraceUtil::backtraceTostring(100);
+        }
+        catch (...)
+        {
+            cur->_func = nullptr;
+            cur->_status = Status::EXCEPT;
+            XTEN_LOG_ERROR(g_logger) << "Fiber Except: "
+                                     << " fiber_id=" << cur->GetFiberId()
+                                     << std::endl
+                                     << Xten::BackTraceUtil::backtraceTostring(100);
+        }
+        // 协程执行完毕---必须取出裸指针并删除智能指针 ---切出去不会回来
+        // 不会走到末尾析构智能指针---引用计数永远+1
+        Fiber *ptr = cur.get();
+        cur.reset(); // 提前将引用计数--
+        cur->SwapOut();
+        XTEN_ASSERTINFO(false, "fiber never swapin to here fiberid=" + std::to_string((int)cur->GetFiberId()));
+    }
+#if FIBER_TYPE == FIBER_UCONTEXT
     void Fiber::CallerMainFunc()
+#elif FIBER_TYPE == FIBER_FCONTEXT
+    void Fiber::CallerMainFunc(boost::context::detail::transfer_t t)
+#endif
     {
+        t_main_fiber->_ctx=t.fctx; 
+        // 获取当前协程
+        Fiber::ptr cur = GetThis();
+        XTEN_ASSERT(cur);
+        try
+        {
+            cur->_func();
+            cur->_func = nullptr;
+            cur->_status = Status::TERM;
+        }
+        catch (const std::exception &e)
+        {
+            cur->_func = nullptr;
+            cur->_status = Status::EXCEPT;
+            XTEN_LOG_ERROR(g_logger) << "Fiber Except: " << e.what()
+                                     << " fiber_id=" << cur->GetFiberId()
+                                     << std::endl
+                                     << Xten::BackTraceUtil::backtraceTostring(100);
+        }
+        catch (...)
+        {
+            cur->_func = nullptr;
+            cur->_status = Status::EXCEPT;
+            XTEN_LOG_ERROR(g_logger) << "Fiber Except: "
+                                     << " fiber_id=" << cur->GetFiberId()
+                                     << std::endl
+                                     << Xten::BackTraceUtil::backtraceTostring(100);
+        }
+        // 协程执行完毕---必须取出裸指针并删除智能指针 ---切出去不会回来
+        // 不会走到末尾析构智能指针---引用计数永远+1
+        Fiber *ptr = cur.get();
+        cur.reset(); // 提前将引用计数--
+        cur->Back();
+        XTEN_ASSERTINFO(false, "fiber never swapin to here fiberid=" + std::to_string((int)cur->GetFiberId()));
     }
 
     // 设置线程当前协程
@@ -201,7 +364,8 @@ namespace Xten
         Fiber::ptr main_fiber(NewFiber());
         XTEN_ASSERT((main_fiber.get() == t_cur_fiber));
         t_main_fiber = main_fiber; // 线程主协程赋值
-        return t_cur_fiber->shared_from_this();
+        auto p=t_cur_fiber->shared_from_this();
+        return p;
     }
 
     int64_t Fiber::GetTotalFiberNums()

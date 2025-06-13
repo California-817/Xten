@@ -32,4 +32,103 @@ root_file_2025-06-01 21:54:10	2957163	UNKNOW	1	[INFO]	[root]	/home/xxxten/Xten_f
 root_file_2025-06-01 21:54:10	2957163	UNKNOW	1	[DEBUG]	[root]	./test.cpp:5	hello log
 root_file_2025-06-01 21:54:10	2957163	UNKNOW	1	[DEBUG]	[root]	./test.cpp:6	hello fmt
 syst_file_2025-06-01 21:53:29	2956955	UNKNOW	1	[INFO]	[system]	./test.cpp:7	system
-sysl_file_2025-06-01 21:54:10	2957163	UNKNOW	1	[INFO]	[system]	./test.cpp:7	system
+sysl_file_2025-06-01 21:54:10	2957163	UNKNOW	1	[INFO]	[system]	./test.cpp:7	systemroot_file_2025-06-13 18:16:34	2485472	UNKNOW	1	[DEBUG]	[root]	test.cpp:6	hello log
+root_file_2025-06-13 18:16:34	2485472	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello fmt
+root_file_2025-06-13 18:27:12	2488832	UNKNOW	1	[DEBUG]	[root]	test.cpp:6	hello log
+root_file_2025-06-13 18:27:12	2488832	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello fmt
+root_file_2025-06-13 18:32:17	2490683	UNKNOW	1	[DEBUG]	[root]	test.cpp:6	hello log
+root_file_2025-06-13 18:32:17	2490683	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello fmt
+root_file_2025-06-13 18:35:10	2491544	UNKNOW	1	[DEBUG]	[root]	test.cpp:6	hello log
+root_file_2025-06-13 18:35:10	2491544	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello fmt
+root_file_2025-06-13 18:35:15	2491591	UNKNOW	1	[DEBUG]	[root]	test.cpp:6	hello log
+root_file_2025-06-13 18:35:15	2491591	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello fmt
+root_file_2025-06-13 18:35:51	2491882	UNKNOW	1	[DEBUG]	[root]	test.cpp:6	hello log
+root_file_2025-06-13 18:35:51	2491882	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello fmt
+root_file_2025-06-13 19:18:41	2503900	UNKNOW	1	[DEBUG]	[root]	test.cpp:6	hello log
+root_file_2025-06-13 19:18:41	2503900	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello fmt
+root_file_2025-06-13 19:25:06	2505955	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello log
+root_file_2025-06-13 19:25:06	2505955	UNKNOW	0	[DEBUG]	[root]	test.cpp:8	hello fmt
+root_file_2025-06-13 19:26:39	2506384	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello log
+root_file_2025-06-13 19:26:39	2506384	UNKNOW	0	[DEBUG]	[root]	test.cpp:8	hello fmt
+root_file_2025-06-13 19:26:40	2506390	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello log
+root_file_2025-06-13 19:26:40	2506390	UNKNOW	0	[DEBUG]	[root]	test.cpp:8	hello fmt
+root_file_2025-06-13 19:27:02	2506572	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello log
+root_file_2025-06-13 19:27:02	2506572	UNKNOW	0	[DEBUG]	[root]	test.cpp:8	hello fmt
+L2025-06-13 19:30:52	2507801	UNKNOW	0	[DEBUG]	[root]	test.cpp:7	hello log
+L2025-06-13 19:30:52	2507801	UNKNOW	0	[DEBUG]	[root]	test.cpp:8	hello fmt
+L2025-06-13 19:33:20	2508900	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 19:33:20	2508900	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 19:44:38	2512395	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 19:44:38	2512395	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 19:45:24	2512605	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 19:45:24	2512605	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 19:47:40	2513257	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 19:47:40	2513257	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 19:47:40	2513257	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 19:47:40	2513257	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 19:48:14	2513389	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 19:48:14	2513389	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 19:48:14	2513389	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 19:48:14	2513389	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 19:55:48	2515594	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 19:55:48	2515594	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 19:55:48	2515594	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 19:55:48	2515594	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 19:56:51	2515931	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 19:56:51	2515931	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 19:56:51	2515931	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 19:56:51	2515931	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:18:01	2520637	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:18:01	2520637	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:18:01	2520637	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:18:01	2520637	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:20:00	2521212	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:20:00	2521212	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:20:00	2521212	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:20:00	2521212	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:21:44	2521748	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:21:44	2521748	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:21:44	2521748	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:21:44	2521748	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:22:47	2522065	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:22:47	2522065	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:22:47	2522065	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:22:47	2522065	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:24:24	2522536	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:24:24	2522536	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:24:24	2522536	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:24:24	2522536	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:25:13	2522779	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:25:13	2522779	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:25:13	2522779	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:25:13	2522779	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:25:42	2522986	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:25:42	2522986	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:25:42	2522986	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:25:42	2522986	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:26:18	2523216	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:26:18	2523216	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:26:53	2523439	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:26:53	2523439	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:26:53	2523439	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:26:53	2523439	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:28:04	2523779	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:28:04	2523779	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:28:04	2523779	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:28:04	2523779	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:28:49	2524178	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:28:49	2524178	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:28:49	2524178	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:28:49	2524178	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:30:05	2524595	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:30:05	2524595	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:30:05	2524595	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:30:05	2524595	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:32:24	2525344	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:32:24	2525344	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:32:24	2525344	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:32:24	2525344	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
+L2025-06-13 20:34:40	2526018	main_thread	0	[DEBUG]	[root]	test.cpp:8	hello log
+L2025-06-13 20:34:40	2526018	main_thread	0	[DEBUG]	[root]	test.cpp:9	hello fmt
+L2025-06-13 20:34:40	2526018	fiber_thread	1	[DEBUG]	[root]	test.cpp:14	hello fiber log
+L2025-06-13 20:34:40	2526018	fiber_thread	1	[DEBUG]	[root]	test.cpp:15	hello fiber fmt
