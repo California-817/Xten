@@ -1,6 +1,9 @@
 #include "../include/util.h"
+#include <execinfo.h>
+#include"log.h"
 namespace Xten
 {
+    static Xten::Logger::ptr g_logger=XTEN_LOG_NAME("system");
     // 打开文件读
     bool FileUtil::OpenForWrite(std::ofstream &file_stream, const std::string &file_name, std::ios_base::openmode mode)
     {
@@ -135,9 +138,9 @@ namespace Xten
         }
         closedir(dir);
     }
-     pid_t ThreadUtil::GetThreadId()
+    pid_t ThreadUtil::GetThreadId()
     {
-        return syscall(SYS_gettid); //系统调用 syscall 获取当前线程的线程ID（TID），并将其返回。
+        return syscall(SYS_gettid); // 系统调用 syscall 获取当前线程的线程ID（TID），并将其返回。
     }
     uint64_t TimeUitl::NowTime_to_uint64()
     {
@@ -149,12 +152,56 @@ namespace Xten
         uint64_t timestamp_uint64 = static_cast<uint64_t>(timestamp);
         return timestamp_uint64;
     }
-        void BackTraceUtil::backtrace()
+    static std::string demangle(const char *str)
+    {
+        size_t size = 0;
+        int status = 0;
+        std::string rt;
+        rt.resize(256);
+        if (1 == sscanf(str, "%*[^(]%*[^_]%255[^)+]", &rt[0]))
         {
+            char *v = abi::__cxa_demangle(&rt[0], nullptr, &size, &status);
+            if (v)
+            {
+                std::string result(v);
+                free(v);
+                return result;
+            }
+        }
+        if (1 == sscanf(str, "%255s", &rt[0]))
+        {
+            return rt;
+        }
+        return str;
+    }
+    void BackTraceUtil::backtrace(std::vector<std::string> &bt, int depth, int skip)
+    {
+        void **buffer = (void **)malloc(sizeof(void *) * depth);
+        int ret = ::backtrace(buffer, depth);
+        char **strings = backtrace_symbols(buffer, ret);
+        if (strings == NULL)
+        {
+            XTEN_LOG_ERROR(g_logger) << "backtrace_synbols error";
+            return;
+        }
 
-        }
-        void BackTraceUtil::backtraceTostring()
+        for (size_t i = skip; i < ret; ++i)
         {
-            
+            bt.push_back(demangle(strings[i]));
         }
+
+        free(strings);
+        free(buffer);
+    }
+    std::string BackTraceUtil::backtraceTostring(int depth, int skip,const std::string& prefix)
+    {
+        std::vector<std::string> bt;
+        backtrace(bt,depth,skip);
+        std::stringstream ss;
+        for(int i=0;i<bt.size();i++)
+        {
+            ss<<prefix<<bt[i]<<std::endl;
+        }
+        return ss.str();
+    }
 }

@@ -1,24 +1,24 @@
 #ifndef __XTEN_UTIL_H__
 #define __XTEN_UTIL_H__
 #include "const.h"
-#include<sys/syscall.h>
-//Xten协程库的工具类模块
+#include <sys/syscall.h>
+// Xten协程库的工具类模块
 namespace Xten
 {
     class FileUtil
     {
     public:
-        static bool OpenForWrite(std::ofstream& file_stream,const std::string& file_name,std::ios_base::openmode mode);
-        static std::string DirName(const std::string & filename);
-        static bool MakeDir(const std::string & dirname);
-        static void ListAllFile(std::vector<std::string>& files,const std::string& path,const std::string& subfix);
+        static bool OpenForWrite(std::ofstream &file_stream, const std::string &file_name, std::ios_base::openmode mode);
+        static std::string DirName(const std::string &filename);
+        static bool MakeDir(const std::string &dirname);
+        static void ListAllFile(std::vector<std::string> &files, const std::string &path, const std::string &subfix);
     };
     class BackTraceUtil
     {
-        public:
-        //查看到当前的整个函数调用链的栈帧情况---便于快速查找错误
-        void backtrace();
-        void backtraceTostring();
+    public:
+        // 查看到当前的整个函数调用链的栈帧情况---便于快速查找错误
+        void backtrace(std::vector<std::string> &bt, int depth, int skip);
+        std::string backtraceTostring(int depth, int skip = 2, const std::string &prefix = "     ");
     };
     class TimeUitl
     {
@@ -27,21 +27,26 @@ namespace Xten
     };
     class ThreadUtil
     {
-        public:
-            static pid_t GetThreadId();
+    public:
+        static pid_t GetThreadId();
+    };
+    class FiberUtil
+    {
+    public:
+    
     };
     class TypeUtil
     {
     public:
-    //这个TypeToName函数也是一个模板函数 不能在cpp文件中进行实现 因为其他文件使用 在编译期间要看到其实现
-        template<class T>
-        static std::string TypeToName()  //TypeToName<T>()
+        // 这个TypeToName函数也是一个模板函数 不能在cpp文件中进行实现 因为其他文件使用 在编译期间要看到其实现
+        template <class T>
+        static std::string TypeToName() // TypeToName<T>()
         {
-            //这里使用static的原因
-            //首先要知道这是一个模板函数---一个类型是一个函数
-            //每一个类型的模板函数都只会执行一次abi::__cxa_demangle生成类型字符串 防止一个类型的函数调用多次abi::__cxa_demangle造成性能开销
-            //static只会初始化一次 后续不会执行这个函数 直接返回第一次执行的结果
-            static const char* ty_str=abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, nullptr);
+            // 这里使用static的原因
+            // 首先要知道这是一个模板函数---一个类型是一个函数
+            // 每一个类型的模板函数都只会执行一次abi::__cxa_demangle生成类型字符串 防止一个类型的函数调用多次abi::__cxa_demangle造成性能开销
+            // static只会初始化一次 后续不会执行这个函数 直接返回第一次执行的结果
+            static const char *ty_str = abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, nullptr);
             return ty_str;
         }
     };

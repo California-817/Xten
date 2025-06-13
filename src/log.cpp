@@ -611,6 +611,7 @@ namespace Xten
             XX(F, FiberIdFormatterItem),
             XX(N, ThreadNameFormatterItem)
 #undef XX
+    //宏函数调用完直接undef
         };
         for (auto &ele : vec)
         {
