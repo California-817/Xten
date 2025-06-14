@@ -165,10 +165,6 @@ namespace Xten
 }
 
 // std::cout << scheduler << std::endl; ---方便调用dump输出调度器状态信息
-std::ostream &operator<<(std::ostream &os, const Xten::Scheduler &scheduler)
-{
-    scheduler.dump(os);
-    return os;
-}
+std::ostream &operator<<(std::ostream &os, const Xten::Scheduler &scheduler);
 
 #endif

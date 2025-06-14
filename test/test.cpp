@@ -17,8 +17,8 @@ int main()
             Xten::Fiber::GetThis()->Back();
             XTEN_LOG_INFO(XTEN_LOG_NAME("system"))<<"system in fiber222222";
         }
-        ,false
-    ));
+        ,true
+    ),Xten::FreeFiber);
     fiber->Call();
     std::cout<<"retrun"<<std::endl;
     fiber->Call();

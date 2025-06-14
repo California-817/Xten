@@ -69,7 +69,7 @@ namespace Xten
 			t_scheduler_fiber = Xten::Fiber::GetThis().get();
 		}
 		// 创建idle协程
-		Fiber::ptr idle_fiber = std::shared_ptr<Fiber>(NewFiber(0, std::bind(&Scheduler::Idle, this), false));
+		Fiber::ptr idle_fiber = std::shared_ptr<Fiber>(NewFiber(0, std::bind(&Scheduler::Idle, this), false), FreeFiber);
 		// 任务协程
 		Fiber::ptr cb_fiber;
 		FuncOrFiber fcb; // Task
@@ -341,4 +341,9 @@ namespace Xten
 			_caller->SwitchTo();
 		}
 	}
+}
+std::ostream &operator<<(std::ostream &os, const Xten::Scheduler &scheduler)
+{
+	scheduler.dump(os);
+	return os;
 }

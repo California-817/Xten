@@ -7,12 +7,12 @@
 #define FIBER_FCONTEXT 1 // fcontext
 
 #ifndef FIBER_TYPE
-#define FIBER_TYPE FIBER_FCONTEXT // 默认使用boost库1.82.0的fcontext
+#define FIBER_TYPE FIBER_FCONTEXT // 默认使用boost库的fcontext
 #endif
 #if FIBER_TYPE == FIBER_UCONTEXT
 #include <ucontext.h>
 #elif FIBER_TYPE == FIBER_FCONTEXT
-#include <boost/context/detail/fcontext.hpp>
+#include "fcontext/fcontext.h"
 #endif
 namespace Xten
 {
@@ -61,8 +61,8 @@ namespace Xten
         static void MainFunc();
         static void CallerMainFunc();
 #elif FIBER_TYPE==FIBER_FCONTEXT
-        static void MainFunc(boost::context::detail::transfer_t t);
-        static void CallerMainFunc(boost::context::detail::transfer_t t);
+        static void MainFunc(intptr_t t);
+        static void CallerMainFunc(intptr_t t);
 #endif
         // 设置线程当前协程
         static void SetThis(Fiber *ts);
@@ -80,7 +80,7 @@ namespace Xten
 #if FIBER_TYPE == FIBER_UCONTEXT     // 协程上下文结构---暂时支持两种类型
         ucontext_t _ctx;
 #elif FIBER_TYPE == FIBER_FCONTEXT
-        boost::context::detail::fcontext_t _ctx;
+        Xten::fcontext_t _ctx;
 #endif
         char _stack[]; // 柔性数组 指向协程栈空间
     };
