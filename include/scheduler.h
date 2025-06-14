@@ -7,6 +7,7 @@
 #include "fiber.h"
 #include <list>
 #include <atomic>
+#include"macro.h"
 #include <vector>
 namespace Xten
 {
@@ -36,7 +37,7 @@ namespace Xten
                 {
                     tickle_me = true;
                 }
-                XTEN_ASSERT(fcb.fiber || fcb.func);
+                XTEN_ASSERT((fcb.fiber!=nullptr || fcb.func!=nullptr));
                 _fun_fibers.push_back(fcb);
             }
             if (tickle_me)
@@ -57,7 +58,7 @@ namespace Xten
                 while (begin != end)
                 {
                     FuncOrFiber fcb(std::move(*begin), threadId);
-                    XTEN_ASSERT(fcb.fiber || fcb.func);
+                    XTEN_ASSERT((fcb.fiber!=nullptr || fcb.func !=nullptr));
                     _fun_fibers.push_back(fcb);
                     begin++;
                 }
@@ -150,12 +151,24 @@ namespace Xten
         std::atomic<bool> _auto_stopping = false; // 是否自动终止
         int _root_threadId = -1;                  // 创建线程参与调度的线程id
     };
+    // 协程任务切换器 --切换协程任务运行的调度器
+    class SwitchScheduler
+    {
+    public:
+        //构造函数自动切换
+        SwitchScheduler(Scheduler* target);
+        //析构函数自动切回
+        ~SwitchScheduler();
+    private:
+        Scheduler* _caller; //原始协程调度器
+    };
 }
 
-//std::cout << scheduler << std::endl; ---方便调用dump输出调度器状态信息
+// std::cout << scheduler << std::endl; ---方便调用dump输出调度器状态信息
 std::ostream &operator<<(std::ostream &os, const Xten::Scheduler &scheduler)
 {
     scheduler.dump(os);
     return os;
 }
+
 #endif

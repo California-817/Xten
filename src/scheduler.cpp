@@ -69,7 +69,7 @@ namespace Xten
 			t_scheduler_fiber = Xten::Fiber::GetThis().get();
 		}
 		// 创建idle协程
-		Fiber::ptr idle_fiber = std::make_shared<Fiber>(NewFiber(0, std::bind(&Scheduler::Idle, this), false));
+		Fiber::ptr idle_fiber = std::shared_ptr<Fiber>(NewFiber(0, std::bind(&Scheduler::Idle, this), false));
 		// 任务协程
 		Fiber::ptr cb_fiber;
 		FuncOrFiber fcb; // Task
@@ -267,40 +267,42 @@ namespace Xten
 			(_root_fiber->GetStatus() == Fiber::Status::INIT ||
 			 _root_fiber->GetStatus() == Fiber::Status::TERM))
 		{
-			_stopping=true;
-			if(IsStopping())
+			_stopping = true;
+			if (IsStopping())
 			{
 				return;
 			}
 		}
-		if(_root_threadId!=-1)
-		{  //调度器有绑定线程
-			XTEN_ASSERT((GetThis()==this)); //创建时绑定的线程才有资格停止调度器
-		}else{
-			XTEN_ASSERT((GetThis()!=this));
+		if (_root_threadId != -1)
+		{									  // 调度器有绑定线程
+			XTEN_ASSERT((GetThis() == this)); // 创建时绑定的线程才有资格停止调度器
 		}
-		_stopping=true;
-		//唤醒工作线程--防止没任务一直处于休眠状态
-		for(int i=0;i<_threads_num;i++)
+		else
+		{
+			XTEN_ASSERT((GetThis() != this));
+		}
+		_stopping = true;
+		// 唤醒工作线程--防止没任务一直处于休眠状态
+		for (int i = 0; i < _threads_num; i++)
 		{
 			Tickle();
 		}
-		if(_root_fiber)
-		{  //创建线程的调度协程
-			if(IsStopping())
+		if (_root_fiber)
+		{ // 创建线程的调度协程
+			if (IsStopping())
 			{
-				//由默认主协程切换到该线程的调度协程
+				// 由默认主协程切换到该线程的调度协程
 				_root_fiber->Call();
-				//这个线程的调度协程处理完任务之后返回
+				// 这个线程的调度协程处理完任务之后返回
 			}
 		}
-		//等待工作线程退出
+		// 等待工作线程退出
 		std::vector<Thread::ptr> ths;
 		{
 			RWMutex::WriteLock lock(_mutex);
 			ths.swap(_threads);
 		}
-		for(auto& th:ths)
+		for (auto &th : ths)
 		{
 			th->join();
 		}
@@ -321,4 +323,22 @@ namespace Xten
 		return _idle_threadNum > 0;
 	}
 
+	// 协程任务切换器 --切换协程任务运行的调度器
+	SwitchScheduler::SwitchScheduler(Scheduler *target)
+	{
+		// 保存当前调度器
+		_caller = Xten::Scheduler::GetThis();
+		if (target)
+		{
+			target->SwitchTo();
+		}
+	}
+	SwitchScheduler::~SwitchScheduler()
+	{
+		// 切回原来调度器
+		if (_caller)
+		{
+			_caller->SwitchTo();
+		}
+	}
 }
