@@ -176,7 +176,7 @@ namespace Xten
         Fiber::ptr fb = GetThis();
         XTEN_ASSERT(fb->_status == Status::EXEC);
         // fb->_status=Status::HOLD;  ---在Schedule调度后进行状态设置
-        SwapOut();
+        fb->SwapOut();
     }
 
     // 切出状态为Ready
@@ -185,7 +185,7 @@ namespace Xten
         Fiber::ptr fb = GetThis();
         XTEN_ASSERT(fb->_status == Status::EXEC);
         fb->_status = Status::READY;
-        SwapOut();
+        fb->SwapOut();
     }
 
     void Fiber::Back() // 切回主协程

@@ -20,9 +20,11 @@ namespace Xten
     Fiber* NewFiber();
     Fiber* NewFiber(size_t stack_size, std::function<void()> func, bool use_caller);
     void FreeFiber(Fiber* ptr);
+    class Scheduler;
     class Fiber : public std::enable_shared_from_this<Fiber>
     {
     public:
+        friend class Scheduler;
         typedef std::shared_ptr<Fiber> ptr;
         enum Status
         {
@@ -45,9 +47,9 @@ namespace Xten
         void SwapOut();
         void Back();
         // 切出状态为hold
-        void YieldToHold();
+        static void YieldToHold();
         // 切出状态为Ready
-        void YieldToReady();
+        static void YieldToReady();
         // 重置协程
         void Reset(std::function<void()> func);
         // 获取协程状态
