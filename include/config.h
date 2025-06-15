@@ -4,7 +4,6 @@
 #include "util.h"
 #include "mutex.h"
 #include "log.h"
-// 协程库的配置模块
 namespace Xten
 {
     // 基类的配置单元

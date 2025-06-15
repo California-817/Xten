@@ -4,7 +4,6 @@
 #include "nocopyable.hpp"
 #include <pthread.h>
 #include <semaphore.h>
-// 封装 互斥锁 读写锁 自旋锁  信号量 lockguard 的模块
 namespace Xten
 {
     // 自动加解锁的lockguard

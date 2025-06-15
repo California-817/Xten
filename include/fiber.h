@@ -1,6 +1,5 @@
 #ifndef __XTEN_FIBER_H__
 #define __XTEN_FIBER_H__
-// 封装有栈协程类
 #include <memory>
 #include <functional>
 #define FIBER_UCONTEXT 0 // ucontext
@@ -21,6 +20,7 @@ namespace Xten
     Fiber* NewFiber(size_t stack_size, std::function<void()> func, bool use_caller);
     void FreeFiber(Fiber* ptr);
     class Scheduler;
+    // 封装有栈协程类
     class Fiber : public std::enable_shared_from_this<Fiber>
     {
     public:

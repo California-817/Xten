@@ -1,0 +1,7 @@
+L2025-06-15 21:03:55	3207774	main_thread	0	[INFO]	[system]	/home/xxxten/Xten_fiber_netlib/Xten/src/config.cpp:113	LoadConfFile file=./logs.yml ok
+L2025-06-15 21:03:55	3207774	main_thread	0	[INFO]	[system]	./test.cpp:10	system
+L2025-06-15 21:03:55	3207774	main_thread	0	[DEBUG]	[system]	/home/xxxten/Xten_fiber_netlib/Xten/src/fiber.cpp:118	Fiber::id=1 create success
+L2025-06-15 21:03:55	3207774	fiber_thread	1	[INFO]	[system]	./test.cpp:16	system in fiber
+L2025-06-15 21:03:55	3207774	fiber_thread	1	[INFO]	[system]	./test.cpp:18	system in fiber222222
+L2025-06-15 21:03:55	3207774	fiber_thread	0	[DEBUG]	[system]	/home/xxxten/Xten_fiber_netlib/Xten/src/fiber.cpp:140	~Fiber:id=1 total fiber nums=1
+L2025-06-15 21:03:55	3207774	fiber_thread	0	[DEBUG]	[system]	/home/xxxten/Xten_fiber_netlib/Xten/src/fiber.cpp:140	~Fiber:id=0 total fiber nums=0

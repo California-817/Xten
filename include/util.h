@@ -2,7 +2,6 @@
 #define __XTEN_UTIL_H__
 #include "const.h"
 #include <sys/syscall.h>
-// Xten协程库的工具类模块
 namespace Xten
 {
     class FileUtil
@@ -24,6 +23,7 @@ namespace Xten
     {
     public:
         static uint64_t NowTime_to_uint64();
+        static  uint64_t GetCurrentMS();
     };
     class ThreadUtil
     {
@@ -50,5 +50,18 @@ namespace Xten
             return ty_str;
         }
     };
+    //T类的构造函数是protected保护的 通过这个函数绕过保护实现创建shared_ptr智能指针
+    template<class T ,class ...Args>
+    inline std::shared_ptr<T> protected_make_shared(Args&&... args)
+    {
+        //子类
+        struct Helper: public T
+        {
+            Helper(Args&&... args) 
+            :T(std::forward<Args>(args)...) //对子类而言 父类protected函数可访问
+            {}
+        };
+        return std::make_shared<Helper>(std::forward<Args>(args)...);
+    }
 }
 #endif

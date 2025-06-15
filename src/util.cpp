@@ -1,10 +1,11 @@
 #include "../include/util.h"
 #include <execinfo.h>
-#include"log.h"
-#include"fiber.h"
+#include "log.h"
+#include "fiber.h"
+#include<sys/time.h>
 namespace Xten
 {
-    static Xten::Logger::ptr g_logger=XTEN_LOG_NAME("system");
+    static Xten::Logger::ptr g_logger = XTEN_LOG_NAME("system");
     // 打开文件读
     bool FileUtil::OpenForWrite(std::ofstream &file_stream, const std::string &file_name, std::ios_base::openmode mode)
     {
@@ -194,14 +195,14 @@ namespace Xten
         free(strings);
         free(buffer);
     }
-    std::string BackTraceUtil::backtraceTostring(int depth, int skip,const std::string& prefix)
+    std::string BackTraceUtil::backtraceTostring(int depth, int skip, const std::string &prefix)
     {
         std::vector<std::string> bt;
-        backtrace(bt,depth,skip);
+        backtrace(bt, depth, skip);
         std::stringstream ss;
-        for(int i=0;i<bt.size();i++)
+        for (int i = 0; i < bt.size(); i++)
         {
-            ss<<prefix<<bt[i]<<std::endl;
+            ss << prefix << bt[i] << std::endl;
         }
         return ss.str();
     }
@@ -209,4 +210,11 @@ namespace Xten
     {
         return Fiber::GetFiberId();
     }
+    uint64_t TimeUitl::GetCurrentMS()
+    {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        return tv.tv_sec * 1000ul + tv.tv_usec / 1000;
+    }
+    
 }

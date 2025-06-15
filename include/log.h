@@ -5,11 +5,6 @@
 #include "util.h"
 #include "mutex.h"
 #include "thread.h"
-// 协程网络库的日志模块
-// 用宏函数的方式来简化日志的使用
-// 传入logger和level自动生成event并返回event的stringstream用于输入内容
-// LogEventWrap在这一行结束自动析构进行日志的log操作
-// \是宏续行符 表示宏替换之后当作一行去处理
 #define XTEN_LOG_LEVEL(logger, level)                                                         \
     if (level >= logger->GetLevelLimit() && logger)                                           \
     Xten::LogEventWrap(std::make_shared<Xten::LogEvent>(logger, level, __FILE__, __LINE__, 0, \

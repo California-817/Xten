@@ -151,7 +151,8 @@ namespace Xten
         std::atomic<bool> _auto_stopping = false; // 是否自动终止
         int _root_threadId = -1;                  // 创建线程参与调度的线程id
     };
-    // 协程任务切换器 --切换协程任务运行的调度器
+    
+    /// @brief  协程任务切换器 --切换协程任务运行的调度器
     class SwitchScheduler
     {
     public:

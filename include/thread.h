@@ -5,7 +5,6 @@
 #include"mutex.h"
 #include<pthread.h>
 #include<functional>
-// 封装线程模块
 namespace Xten
 {
     class Thread : public NoCopyable

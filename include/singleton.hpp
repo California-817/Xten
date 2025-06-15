@@ -1,7 +1,7 @@
 #ifndef __XTEN_SINGLETON_H__
 #define __XTEN_SINGLETON_H__
 #include "const.h"
-namespace Xten // 封装单例基类
+namespace Xten 
 {
     template <class T>
     class singleton
