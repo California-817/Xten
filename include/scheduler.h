@@ -18,7 +18,7 @@ namespace Xten
         typedef std::shared_ptr<Scheduler> ptr;
         // 默认让创建线程参与协程调度
         Scheduler(int threadNum = 1, bool use_caller = true, const std::string &name = "");
-        ~Scheduler();
+        virtual ~Scheduler();
         // 启动
         void Start();
         // 停止
