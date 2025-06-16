@@ -20,13 +20,13 @@ namespace Xten
             // 写事件
             WRITE = 0x04
         };
-        // 添加事件
+        // 添加io事件
         int AddEvent(int fd, Event ev, std::function<void()> func = nullptr);
-        // 删除事件
+        // 删除io事件
         bool DelEvent(int fd, Event ev);
-        // 取消事件
+        // 取消io事件
         bool CancelEvent(int fd, Event ev);
-        // 取消fd上所有事件
+        // 取消fd上所有io事件
         bool CancelAll(int fd);
         // 获取当前调度器指针
         static IOManagerRB *GetThis();
