@@ -83,7 +83,7 @@ namespace Xten
     protected:
         // 通知线程有任务
         virtual void Tickle();
-        // 运行函数
+        // 线程运行函数
         void Run();
         // 返回是否可以终止
         virtual bool IsStopping();
