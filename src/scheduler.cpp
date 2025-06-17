@@ -79,7 +79,7 @@ namespace Xten
 			bool tickle_me = false;
 			bool is_active = false;
 			{
-				RWMutex::WriteLock lock(_mutex);
+				RWMutex::WriteLock lock(_mutex); //加一把全局锁保证多线程访问任务队列的线程安全（锁的粒度是比较大的）
 				auto iter = _fun_fibers.begin();
 				while (iter != _fun_fibers.end())
 				{

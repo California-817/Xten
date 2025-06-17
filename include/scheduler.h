@@ -140,6 +140,7 @@ namespace Xten
         Xten::RWMutex _mutex;                    // 任务队列互斥锁
         std::string _name;                       // 调度器name
         std::vector<Xten::Thread::ptr> _threads; // 工作线程
+        //性能优化点---多线程对这个任务队列的操作需要加全局锁（锁的粒度比较大:考虑使用 无锁队列 + 多个任务队列 + 任务窃取 ）
         std::list<FuncOrFiber> _fun_fibers;      // 任务队列
         Xten::Fiber::ptr _root_fiber;            // 创建线程的调度协程
     protected:
