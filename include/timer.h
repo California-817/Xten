@@ -4,6 +4,7 @@
 #include <list>
 #include <functional>
 #include <memory>
+#include<thread>
 #include "mutex.h"
 #include <queue>
 
@@ -143,7 +144,7 @@ namespace Xten
     {
     public:
         TimerWheelManager();
-        virtual ~TimerWheelManager() = default;
+        virtual ~TimerWheelManager() ;
         // 添加定时器
         TimerW::ptr AddTimer(int time_ms, std::function<void()> func, bool recurring = false);
         // 添加条件定时器
@@ -152,6 +153,8 @@ namespace Xten
         void DelTimer(TimerW::ptr timer);
         // 清理所有定时器
         void ClearTimer();
+        //暂停定时器处理线程
+        void StopTimer();
         // 处理过期定时器
         void ExpireTimer();
 
@@ -174,6 +177,8 @@ namespace Xten
         uint32_t _time;                                      // 32为 tick 指针，当前时间片
         uint64_t _current;                                   // timer运行时间，精度10ms
         uint64_t _current_point;                             // 系统运行时间，精度10ms
+        std::thread _timerThread;                           //专门处理定时任务的定时器线程
+        std::atomic<bool> _b_stop;                          //是否终止定时器
     };
 }
 

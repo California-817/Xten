@@ -274,7 +274,8 @@ namespace Xten
     }
     TimerWheelManager::TimerWheelManager()
         : _time(0),
-          _current(0)
+          _current(0),
+          _b_stop(false)
     {
         _near.resize(TIME_NEAR);
         _t.resize(4);
@@ -283,8 +284,24 @@ namespace Xten
             _t[i].resize(TIME_LEVEL);
         }
         _current_point = gettime();
+        _timerThread = std::thread([this]()
+                                   {
+            while(!_b_stop)
+            {
+                ExpireTimer();
+                usleep(250*10);
+            }
+            ClearTimer(); });
     }
-
+    TimerWheelManager::~TimerWheelManager()
+    {
+        StopTimer();
+        _timerThread.join();
+    }
+    void TimerWheelManager::StopTimer()
+    {
+        _b_stop = true;
+    }
     TimerW::ptr TimerWheelManager::AddTimer(int time_ms, std::function<void()> func, bool recurring)
     {
         // 传入的是ms
@@ -387,7 +404,7 @@ namespace Xten
                 if ((*iter)->_recurring)
                 {
                     TimerW::ptr recu_timer = Xten::protected_make_shared<TimerW>(_time + ((*iter)->_sub_time),
-                                                                      (*iter)->_sub_time, func, true, this);
+                                                                                 (*iter)->_sub_time, func, true, this);
                     add_node(recu_timer);
                 }
             }
