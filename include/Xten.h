@@ -11,4 +11,5 @@
 #include"singleton.hpp"
 #include"nocopyable.hpp"
 #include"timer.h"
+#include"iomanager.h"
 #endif

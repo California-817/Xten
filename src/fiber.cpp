@@ -154,8 +154,7 @@ namespace Xten
             XTEN_ASSERTINFO(false, "call context failed");
         }
 #elif FIBER_TYPE == FIBER_FCONTEXT
-            // 这里切进去不会为 t_main_fiber->_ctx 赋值 仍为nullptr    从里面切出来的时候才会赋值
-            //第二个参数为需要传入协程执行函数的用户数据
+            //第三个参数为需要传入协程执行函数的用户数据
             Xten::jump_fcontext(&Scheduler::GetScheduleFiber()->_ctx,_ctx,0);
 #endif
     }

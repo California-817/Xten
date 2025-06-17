@@ -67,7 +67,7 @@ namespace Xten
         virtual void onTimerInsertedAtFront() override;
         //_fdContexts扩容
         void FdContextsResize(int size);
-        bool IsStopping(uint64_t timeout);
+        bool IsStopping(uint64_t& timeout);
     private:
         int _epfd;                            // eventpoll结构对应的fd
         int _pipeTicklefd[2];                 // 用于通知操作的管道读写fd

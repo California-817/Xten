@@ -121,7 +121,7 @@ namespace Xten
 				{ // 执行完切出来后 协程状态为 准备执行状态 -----继续调度
 					Schedule(fcb.fiber, fcb.threadId);
 				}
-				else if (fcb.fiber->GetStatus() != Fiber::Status::TERM ||
+				else if (fcb.fiber->GetStatus() != Fiber::Status::TERM &&
 						 fcb.fiber->GetStatus() != Fiber::Status::EXCEPT)
 				{
 					// 状态设置成挂起状态 ----执行条件不满足
@@ -176,15 +176,16 @@ namespace Xten
 				}
 				// 执行idle协程
 				if (idle_fiber->GetStatus() == Fiber::Status::TERM ||
-					idle_fiber->GetStatus() != Fiber::Status::EXCEPT)
+					idle_fiber->GetStatus() == Fiber::Status::EXCEPT)
 				{ // idle协程的状态是终止状态或者异常退出
 					XTEN_LOG_DEBUG(g_logger) << "idle fiber term";
 					break; // 整个工作线程退出
 				}
 				_idle_threadNum++;
 				idle_fiber->SwapIn();
+				std::cout<<"idle out"<<std::endl;
 				_idle_threadNum--;
-				if (idle_fiber->GetStatus() != Fiber::Status::TERM ||
+				if (idle_fiber->GetStatus() != Fiber::Status::TERM &&
 					idle_fiber->GetStatus() != Fiber::Status::EXCEPT)
 				{
 					idle_fiber->_status = Fiber::Status::HOLD;
@@ -289,7 +290,7 @@ namespace Xten
 		}
 		if (_root_fiber)
 		{ // 创建线程的调度协程
-			if (IsStopping())
+			if (!IsStopping())
 			{
 				// 由默认主协程切换到该线程的调度协程
 				_root_fiber->Call();

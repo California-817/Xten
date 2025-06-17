@@ -151,7 +151,7 @@ namespace Xten
         // 删除定时器
         void DelTimer(TimerW::ptr timer);
         // 清理所有定时器
-        void CleatTimer();
+        void ClearTimer();
         // 处理过期定时器
         void ExpireTimer();
 

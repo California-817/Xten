@@ -320,7 +320,7 @@ namespace Xten
     {
         timer->_cancel = true;
     }
-    void TimerWheelManager::CleatTimer()
+    void TimerWheelManager::ClearTimer()
     {
         // 锁
         SpinLock::Lock lock(_mutex);

@@ -64,17 +64,47 @@ namespace Xten
     // 获取事件对应上下文
     IOManagerRB::FdContext::EventContext &IOManagerRB::FdContext::getEvContext(IOManagerRB::Event ev)
     {
+        switch (ev)
+        {
+        case IOManagerRB::Event::READ:
+            return read;
+        case IOManagerRB::Event::WRITE:
+            return write;
+        default:
+            XTEN_ASSERT(false);
+        }
+        return read;
     }
     // 重置事件上下文
     void IOManagerRB::FdContext::resetEvContext(EventContext &evctx)
     {
+        evctx.cb = nullptr;
+        evctx.fiber.reset();
+        evctx.scheduler = nullptr;
     }
     // 触发事件上下文
     void IOManagerRB::FdContext::triggerEvent(IOManagerRB::Event ev)
     {
+        IOManagerRB::FdContext::EventContext &evctx = getEvContext(ev);
+        Scheduler *sche = evctx.scheduler;
+        XTEN_ASSERTINFO(sche, "EventContext dont have Scheduler");
+        events = (Event)(events & ~ev); // 事件触发后取消该事件
+        // 将事件的回调处理执行体放入调度队列中 由线程调度
+        if (evctx.cb)
+        {
+            sche->Schedule(std::move(evctx.cb));
+        }
+        if (evctx.fiber)
+        {
+            sche->Schedule(std::move(evctx.fiber));
+        }
+        evctx.scheduler = nullptr;
+        XTEN_ASSERT(!evctx.fiber &&
+                    !evctx.cb &&
+                    !evctx.scheduler);
     }
 
-    IOManagerRB::IOManagerRB(int threadNum = 1, bool userCaller = true, const std::string &name = "")
+    IOManagerRB::IOManagerRB(int threadNum, bool userCaller, const std::string &name )
         : Scheduler(threadNum, userCaller, name)
     {
         // 创建eventpoll结构
@@ -90,7 +120,8 @@ namespace Xten
         struct epoll_event ev;
         bzero(&ev, sizeof ev);
         ev.events = EPOLLIN | EPOLLET;
-        ev.data.fd = _pipeTicklefd[0];
+        //联合体的所有成员从相同的内存地址开始存储，但一次只能存储其中一个成员的值---联合体的大小由其最大成员的大小决定
+        ev.data.fd = _pipeTicklefd[0]; // 参数传入fd---->data是一个联合体
         int ret3 = epoll_ctl(_epfd, EPOLL_CTL_ADD, _pipeTicklefd[0], &ev);
         XTEN_ASSERT(!ret3);
         // 初始化fdcontexts
@@ -99,6 +130,18 @@ namespace Xten
     }
     IOManagerRB::~IOManagerRB()
     {
+        // 调用调度器的stop函数
+        Scheduler::Stop();
+        close(_pipeTicklefd[0]);
+        close(_pipeTicklefd[1]);
+        close(_epfd);
+        for (int i = 0; i < _fdContexts.size(); i++)
+        {
+            if (_fdContexts[i])
+            {
+                delete _fdContexts[i];
+            }
+        }
     }
 
     // 添加事件
@@ -196,7 +239,7 @@ namespace Xten
             // 1.epoll中删除事件
             Event new_events = (Event)(fd_ctx->events & (~ev));
             struct epoll_event epev;
-            epev.data.ptr = fd_ctx;
+            epev.data.ptr = (void*)fd_ctx;
             epev.events = new_events | EPOLLET;
             int opt = new_events ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
             int ret = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
@@ -213,8 +256,8 @@ namespace Xten
             FdContext::EventContext &evctx = fd_ctx->getEvContext(ev);
             fd_ctx->resetEvContext(evctx);
             _pendingEventNum--;
-            return true;
         }
+        return true;
     }
     // 取消事件
     bool IOManagerRB::CancelEvent(int fd, Event ev)
@@ -239,7 +282,7 @@ namespace Xten
             Event new_event = (Event)(fd_ctx->events & ~ev);
             int opt = new_event ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
             struct epoll_event epev;
-            epev.data.ptr = fd_ctx;
+            epev.data.ptr = (void*)fd_ctx;
             epev.events = EPOLLET | new_event;
             int ret = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
             if (XTEN_UNLIKELY(ret))
@@ -254,6 +297,7 @@ namespace Xten
             fd_ctx->triggerEvent(ev);
             _pendingEventNum--;
         }
+        return true;
     }
     // 取消fd上所有事件
     bool IOManagerRB::CancelAll(int fd)
@@ -272,7 +316,7 @@ namespace Xten
             SpinLock::Lock lock(fd_ctx->mutex);
             int opt = EPOLL_CTL_DEL;
             struct epoll_event epev;
-            epev.data.ptr = fd_ctx;
+            epev.data.ptr = (void*)fd_ctx;
             epev.events = 0;
             int ret = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
             if (XTEN_UNLIKELY(ret))
@@ -296,28 +340,161 @@ namespace Xten
                 _pendingEventNum--;
             }
             XTEN_ASSERT(!fd_ctx->events);
-            return true;
         }
+        return true;
     }
     // 获取当前调度器指针
-    IOManagerRB *IOManagerRB::GetThis()
+    IOManagerRB *IOManagerRB::GetThis() // 重定义
     {
+        return dynamic_cast<IOManagerRB *>(Scheduler::GetThis());
     }
     // 通知线程有任务
-    void IOManagerRB::Tickle()
+    void IOManagerRB::Tickle() // override
     {
+        // 无空闲线程--无需通知
+        if (!Scheduler::HasIdleThread())
+        {
+            return;
+        }
+        int ret = write(_pipeTicklefd[1], "T", 1);
+        if (XTEN_UNLIKELY(ret != 1))
+        {
+            XTEN_ASSERTINFO(false, "Tickle failed");
+        }
     }
     // 返回是否可以终止
-    bool IOManagerRB::IsStopping()
+    bool IOManagerRB::IsStopping() // override
     {
+        uint64_t timeout = 0;
+        return IsStopping(timeout);
     }
-    // 线程无任务执行idle空闲协程
-    void IOManagerRB::Idle()
+    // 线程无任务执行idle空闲协程 ----基于epoll_wait封装idle协程
+    void IOManagerRB::Idle() // override
     {
+        XTEN_LOG_DEBUG(g_logger) << "idle";
+        int MAX_EVENT = 256; // 一次epoll_wait返回的最大事件数
+        struct epoll_event *epevs = new epoll_event[MAX_EVENT];
+        std::shared_ptr<epoll_event> shared_epevs = std::shared_ptr<epoll_event>(epevs, [](epoll_event *ptr)
+                                                                                 { delete[] ptr; });
+        while (true)
+        {
+            uint64_t timeout = 0;
+            // 判断idle协程是否满足终止条件---满足则idle协程退出循环
+            if (XTEN_UNLIKELY(IsStopping(timeout)))
+            {
+                break;
+            }
+            // 拿到定时器中最早过期时间
+            int ret = 0;
+            do
+            {
+                static const int MAX_TIMEOUT = 3000; // 3s
+                uint64_t next_time = 0;
+                // 超时时间由定时器最早过期时间和MAX_TIMEOUT的较小值决定
+                if (timeout != ~0ull)
+                {
+                    next_time = timeout < MAX_TIMEOUT ? timeout : MAX_TIMEOUT;
+                }
+                else
+                {
+                    next_time = MAX_TIMEOUT;
+                }
+                // 多线程epoll_wait该epfd ------可能产生惊群现象
+                ret = epoll_wait(_epfd, epevs, MAX_EVENT, (int)(next_time));
+                if (ret == -1 && errno == EINTR)
+                { // epoll被信号中断返回
+                    continue;
+                }
+                else
+                { // epoll超时返回 有事件就绪
+                    break;
+                }
+            } while (true);
+            // 1.处理超时事件------多线程安全
+            std::vector<std::function<void()>> expire_funcS;
+            TimerManager::listExpiredCb(expire_funcS);
+            for (auto &func : expire_funcS)
+            {
+                func();
+            }
+            // 2.处理就绪事件
+            for (int i = 0; i < ret; i++)
+            {
+                struct epoll_event epev = epevs[i];
+                // 2.1.tickle通知事件------不做多线程同步机制
+                if (epev.data.fd == _pipeTicklefd[0])
+                {
+                    char dummy[256];
+                    while (read(_pipeTicklefd[0], dummy, sizeof dummy) > 0)
+                    {
+                        continue;
+                    }
+                    //是tickle事件处理完后再处理下一个fd
+                    continue;
+                }
+                // 2.2.处理注册的io事件-------多线程安全
+                FdContext *fd_ctx = (FdContext *)epev.data.ptr; //如果tickle事件走到这 由于data是联合体 导致ptr得出来是0x04-----段错误
+                {
+                    // 同一个事件只能同时被一个线程处理
+                    SpinLock::Lock lock(fd_ctx->mutex);
+                    if (epev.events & (EPOLLERR | EPOLLHUP)) // 异常事件转化成读写事件进行处理
+                    {
+                        epev.events = (EPOLLIN | EPOLLOUT) & fd_ctx->events;
+                    }
+                    // 获取触发的事件
+                    int real_event = Event::NONE;
+                    if (epev.events & EPOLLIN)
+                    {
+                        real_event |= Event::READ;
+                    }
+                    if (epev.events & EPOLLOUT)
+                    {
+                        real_event |= Event::WRITE;
+                    }
+                    if (XTEN_UNLIKELY((real_event & epev.events)==Event::NONE))
+                    {
+                        continue;
+                    }
+                    // 获取fd_ctx中还没触发的事件
+                    int leave_event = fd_ctx->events & ~real_event;
+                    int opt = leave_event ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
+                    // 重新设置epoll
+                    epev.events = EPOLLET | leave_event;
+                    int ret2 = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
+                    if (XTEN_UNLIKELY(ret2))
+                    {
+                        XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
+                                                 << (EpollCtlOp)opt << ", " << fd_ctx->fd << ", " << (EPOLL_EVENTS)epev.events << "):"
+                                                 << ret2 << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
+                                                 << (EPOLL_EVENTS)fd_ctx->events;
+                    }
+                    //处理就绪事件----将就绪事件设置的执行体放入调度队列
+                   if(real_event&Event::READ)
+                   { 
+                        //读事件触发
+                        fd_ctx->triggerEvent(Event::READ);
+                        _pendingEventNum--;
+                   }         
+                   if(real_event&Event::WRITE)
+                   {
+                        //写事件触发
+                        fd_ctx->triggerEvent(Event::WRITE);
+                        _pendingEventNum--;
+                   }
+                }
+            }
+            //一次idle协程从epoll_wait唤醒并处理完事件---切回调度协程
+            Fiber::ptr cur=Fiber::GetThis();
+            Fiber* ptr=cur.get();
+            cur.reset();
+            ptr->SwapOut();
+        }
+        //while(true)循环退出---->调度器的终止条件就绪了
     }
     // 有更早过期任务
-    void IOManagerRB::onTimerInsertedAtFront()
+    void IOManagerRB::onTimerInsertedAtFront() // override
     {
+        Tickle();
     }
     //_fdContexts扩容
     void IOManagerRB::FdContextsResize(int size)
@@ -332,7 +509,11 @@ namespace Xten
             }
         }
     }
-    bool IOManagerRB::IsStopping(uint64_t timeout)
+    bool IOManagerRB::IsStopping(uint64_t &timeout)
     {
+        timeout = TimerManager::getNextTimer();
+        return timeout == ~0ull &&
+               _pendingEventNum == 0 &&
+               Scheduler::IsStopping();
     }
 }

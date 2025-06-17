@@ -40,11 +40,13 @@ namespace Xten
         // 子协程构造函数
         Fiber(size_t stack_size, std::function<void()> func, bool use_caller);
         ~Fiber();
-        // 切入协程
+        // 切入协程---由调度协程切入
         void SwapIn();
+        // 切入协程---由线程默认主协程切入
         void Call();
-        // 切出协程
+        // 切出协程--切到调度协程
         void SwapOut();
+        // 切出协程--切到线程默认主协程
         void Back();
         // 切出状态为hold
         static void YieldToHold();
