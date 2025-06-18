@@ -275,7 +275,8 @@ namespace Xten
     TimerWheelManager::TimerWheelManager()
         : _time(0),
           _current(0),
-          _b_stop(false), _timerThread()
+          _b_stop(false),
+          _timerThread()
     {
         _near.resize(TIME_NEAR);
         _t.resize(4);

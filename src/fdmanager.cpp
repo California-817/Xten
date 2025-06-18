@@ -20,40 +20,40 @@ namespace Xten
     }
     bool FdCtx::init()
     {
-        if (_isInit)
-        {
-            return true;
-        }
-        _readTimeOut_ms = -1;
-        _writeTimeOut_ms = -1;
-        struct stat st;
-        if (fstat(_fd, &st) == -1)
-        {
-            // error
-            _isInit = false;
-            _isSocket = false;
-        }
-        else
-        {
-            _isInit = true;
-            _isSocket = S_ISSOCK(st.st_mode);
-        }
-        if (_isSocket)
-        {
-            int flags = fcntl_f(_fd, F_GETFL); // 使用原始接口
-            if (!(flags & O_NONBLOCK))
-            {
-                // 未设置非阻塞
-                fcntl_f(_fd, F_SETFL, flags | O_NONBLOCK);
-            }
-            _isSysSetNoBlock = true;
-        }
-        else
-        {
-            _isSysSetNoBlock = false;
-        }
-        _isClose = false;
-        _isUserSetNoBlock = false;
+        // if (_isInit)
+        // {
+        //     return true;
+        // }
+        // _readTimeOut_ms = -1;
+        // _writeTimeOut_ms = -1;
+        // struct stat st;
+        // if (fstat(_fd, &st) == -1)
+        // {
+        //     // error
+        //     _isInit = false;
+        //     _isSocket = false;
+        // }
+        // else
+        // {
+        //     _isInit = true;
+        //     _isSocket = S_ISSOCK(st.st_mode);
+        // }
+        // if (_isSocket)
+        // {
+        //     int flags = fcntl_f(_fd, F_GETFL); // 使用原始接口
+        //     if (!(flags & O_NONBLOCK))
+        //     {
+        //         // 未设置非阻塞
+        //         fcntl_f(_fd, F_SETFL, flags | O_NONBLOCK);
+        //     }
+        //     _isSysSetNoBlock = true;
+        // }
+        // else
+        // {
+        //     _isSysSetNoBlock = false;
+        // }
+        // _isClose = false;
+        // _isUserSetNoBlock = false;
         return _isInit;
     }
     // 是否是socketfd

@@ -6,8 +6,9 @@
 #include "mutex.h"
 #include "fiber.h"
 #include <list>
+#include "threadsafequeue.hpp"
 #include <atomic>
-#include"macro.h"
+#include "macro.h"
 #include <vector>
 namespace Xten
 {
@@ -37,7 +38,7 @@ namespace Xten
                 {
                     tickle_me = true;
                 }
-                XTEN_ASSERT((fcb.fiber!=nullptr || fcb.func!=nullptr));
+                XTEN_ASSERT((fcb.fiber != nullptr || fcb.func != nullptr));
                 _fun_fibers.push_back(fcb);
             }
             if (tickle_me)
@@ -58,7 +59,7 @@ namespace Xten
                 while (begin != end)
                 {
                     FuncOrFiber fcb(std::move(*begin), threadId);
-                    XTEN_ASSERT((fcb.fiber!=nullptr || fcb.func !=nullptr));
+                    XTEN_ASSERT((fcb.fiber != nullptr || fcb.func != nullptr));
                     _fun_fibers.push_back(fcb);
                     begin++;
                 }
@@ -99,6 +100,45 @@ namespace Xten
         struct FuncOrFiber
         {
             FuncOrFiber() : threadId(-1) {}
+            FuncOrFiber(const FuncOrFiber &target) // 拷贝构造
+            {
+                if (this != &target)
+                {
+                    func = target.func;
+                    fiber = target.fiber;
+                    threadId = target.threadId;
+                }
+            }
+            FuncOrFiber(FuncOrFiber &&target) // 移动构造
+            {
+                if (this != &target)
+                {
+                    func.swap(target.func);
+                    fiber.swap(target.fiber);
+                    threadId = target.threadId;
+                }
+            }
+            FuncOrFiber &operator=(const FuncOrFiber &target)
+            {
+                if (this != &target)
+                {
+                    func = target.func;
+                    fiber = target.fiber;
+                    threadId = target.threadId;
+                }
+                return *this;
+            }
+            // 移动赋值运算符
+            FuncOrFiber &operator=(FuncOrFiber &&target)
+            {
+                if (this != &target)
+                {
+                    func.swap(target.func);
+                    fiber.swap(target.fiber);
+                    threadId = target.threadId;
+                }
+                return *this;
+            }
             FuncOrFiber(std::function<void()> &fc, int id = -1) // 左值引用
             {
                 fiber.reset();
@@ -140,9 +180,9 @@ namespace Xten
         Xten::RWMutex _mutex;                    // 任务队列互斥锁
         std::string _name;                       // 调度器name
         std::vector<Xten::Thread::ptr> _threads; // 工作线程
-        //性能优化点---多线程对这个任务队列的操作需要加全局锁（锁的粒度比较大:考虑使用 无锁队列 + 多个任务队列 + 任务窃取 ）
-        std::list<FuncOrFiber> _fun_fibers;      // 任务队列
-        Xten::Fiber::ptr _root_fiber;            // 创建线程的调度协程
+        // 性能优化点---多线程对这个任务队列的操作需要加全局锁（锁的粒度比较大:考虑使用  多个任务队列 + 任务窃取 ）
+        std::list<FuncOrFiber> _fun_fibers; // 任务队列
+        Xten::Fiber::ptr _root_fiber;       // 创建线程的调度协程
     protected:
         std::vector<int> _thread_ids;             // 所有线程id
         int _threads_num;                         // 总线程数
@@ -152,17 +192,18 @@ namespace Xten
         std::atomic<bool> _auto_stopping = false; // 是否自动终止
         int _root_threadId = -1;                  // 创建线程参与调度的线程id
     };
-    
+
     /// @brief  协程任务切换器 --切换协程任务运行的调度器
     class SwitchScheduler
     {
     public:
-        //构造函数自动切换
-        SwitchScheduler(Scheduler* target);
-        //析构函数自动切回
+        // 构造函数自动切换
+        SwitchScheduler(Scheduler *target);
+        // 析构函数自动切回
         ~SwitchScheduler();
+
     private:
-        Scheduler* _caller; //原始协程调度器
+        Scheduler *_caller; // 原始协程调度器
     };
 }
 

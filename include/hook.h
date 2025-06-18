@@ -27,11 +27,14 @@ extern "C"
     //sleep
     typedef  unsigned int (*sleep_func)(unsigned int seconds);
     extern sleep_func sleep_f;
-    
+    typedef int (*usleep_func)(useconds_t usec);
+    extern usleep_func usleep_t;
+
+    //socket
     typedef ssize_t (*read_func)(int fd, void *buf, size_t count);
     extern read_func read_f;
 
-
+    //
     typedef int (*fcntl_func)(int fd, int cmd, ... /* arg */ );
     extern fcntl_func fcntl_f;
 }
