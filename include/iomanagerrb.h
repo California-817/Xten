@@ -1,5 +1,5 @@
-#ifndef __XTEN_IOMANAGER_H__
-#define __XTEN_IOMANAGER_H__
+#ifndef __XTEN_IOMANAGERRB_H__
+#define __XTEN_IOMANAGERRB_H__
 #include "scheduler.h"
 #include "timer.h"
 namespace Xten
