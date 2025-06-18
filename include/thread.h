@@ -11,6 +11,8 @@ namespace Xten
     {
     public:
         typedef std::shared_ptr<Thread> ptr;
+        Thread();
+        void Init(std::function<void()> func, const std::string &name);
         Thread(std::function<void()> func,const std::string& name);
         pid_t getId(); //获取lwp的id
         std::string getName(); //获取线程name

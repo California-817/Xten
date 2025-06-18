@@ -4,7 +4,7 @@
 #include <list>
 #include <functional>
 #include <memory>
-#include<thread>
+#include"thread.h"
 #include "mutex.h"
 #include <queue>
 
@@ -177,7 +177,7 @@ namespace Xten
         uint32_t _time;                                      // 32为 tick 指针，当前时间片
         uint64_t _current;                                   // timer运行时间，精度10ms
         uint64_t _current_point;                             // 系统运行时间，精度10ms
-        std::thread _timerThread;                           //专门处理定时任务的定时器线程
+        Xten::Thread _timerThread;                           //专门处理定时任务的定时器线程
         std::atomic<bool> _b_stop;                          //是否终止定时器
     };
 }

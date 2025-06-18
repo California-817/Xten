@@ -275,7 +275,7 @@ namespace Xten
     TimerWheelManager::TimerWheelManager()
         : _time(0),
           _current(0),
-          _b_stop(false)
+          _b_stop(false), _timerThread()
     {
         _near.resize(TIME_NEAR);
         _t.resize(4);
@@ -284,14 +284,14 @@ namespace Xten
             _t[i].resize(TIME_LEVEL);
         }
         _current_point = gettime();
-        _timerThread = std::thread([this]()
-                                   {
+        _timerThread.Init([this]()
+                          {
             while(!_b_stop)
             {
                 ExpireTimer();
                 usleep(250*10);
             }
-            ClearTimer(); });
+            ClearTimer(); }, "TimerThread");
     }
     TimerWheelManager::~TimerWheelManager()
     {
