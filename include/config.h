@@ -445,8 +445,6 @@ namespace Xten
                 XTEN_LOG_ERROR(XTEN_LOG_ROOT()) << "lookup name=" << name << " is invalid!";
                 return nullptr;
             }
-            // std::cout << name << "create" << std::endl;
-            // std::cout << &GetDatas() << std::endl;
             auto tmp = std::make_shared<ConfigVar<T>>(name, val, desc);
             configvar_map.insert(std::make_pair(name, tmp)); // 放入map
             return tmp;

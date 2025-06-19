@@ -33,12 +33,12 @@ void test_iomanager() //也是在协程中调用
     else if (errno == EINPROGRESS)
     {
         XTEN_LOG_INFO(g_logger) << "add event errno=" << errno << " " << strerror(errno);
-        Xten::IOManagerRB::GetThis()->AddEvent(sock, Xten::IOManagerRB::Event::READ, []()
+        Xten::IOManager::GetThis()->AddEvent(sock, Xten::IOManager::Event::READ, []()
                                               { XTEN_LOG_INFO(g_logger) << "read callback"; });
-        Xten::IOManagerRB::GetThis()->AddEvent(sock, Xten::IOManagerRB::Event::WRITE, []()
+        Xten::IOManager::GetThis()->AddEvent(sock, Xten::IOManager::Event::WRITE, []()
                                               {
             XTEN_LOG_INFO(g_logger) << "write callback";
-            Xten::IOManagerRB::GetThis()->CancelEvent(sock, Xten::IOManagerRB::Event::READ);close(sock);
+            Xten::IOManager::GetThis()->CancelEvent(sock, Xten::IOManager::Event::READ);close(sock);
              });
     }
     else
@@ -49,7 +49,7 @@ void test_iomanager() //也是在协程中调用
 int main()
 {
 
-    Xten::IOManagerRB iom(2, false, "test");
+    Xten::IOManager iom(2, false, "test");
     iom.Schedule(&test_iomanager);
     // Xten::TimerManager mgr;
     //     XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"add";

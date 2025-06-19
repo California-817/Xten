@@ -1,4 +1,4 @@
-#include "iomanagerrb.h"
+#include "iomanager.h"
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -62,13 +62,13 @@ namespace Xten
     }
 
     // 获取事件对应上下文
-    IOManagerRB::FdContext::EventContext &IOManagerRB::FdContext::getEvContext(IOManagerRB::Event ev)
+    IOManager::FdContext::EventContext &IOManager::FdContext::getEvContext(IOManager::Event ev)
     {
         switch (ev)
         {
-        case IOManagerRB::Event::READ:
+        case IOManager::Event::READ:
             return read;
-        case IOManagerRB::Event::WRITE:
+        case IOManager::Event::WRITE:
             return write;
         default:
             XTEN_ASSERT(false);
@@ -76,16 +76,16 @@ namespace Xten
         return read;
     }
     // 重置事件上下文
-    void IOManagerRB::FdContext::resetEvContext(EventContext &evctx)
+    void IOManager::FdContext::resetEvContext(EventContext &evctx)
     {
         evctx.cb = nullptr;
         evctx.fiber.reset();
         evctx.scheduler = nullptr;
     }
     // 触发事件上下文
-    void IOManagerRB::FdContext::triggerEvent(IOManagerRB::Event ev)
+    void IOManager::FdContext::triggerEvent(IOManager::Event ev)
     {
-        IOManagerRB::FdContext::EventContext &evctx = getEvContext(ev);
+        IOManager::FdContext::EventContext &evctx = getEvContext(ev);
         Scheduler *sche = evctx.scheduler;
         XTEN_ASSERTINFO(sche, "EventContext dont have Scheduler");
         events = (Event)(events & ~ev); // 事件触发后取消该事件
@@ -104,7 +104,7 @@ namespace Xten
                     !evctx.scheduler);
     }
 
-    IOManagerRB::IOManagerRB(int threadNum, bool userCaller, const std::string &name )
+    IOManager::IOManager(int threadNum, bool userCaller, const std::string &name )
         : Scheduler(threadNum, userCaller, name)
     {
         // 创建eventpoll结构
@@ -128,7 +128,7 @@ namespace Xten
         FdContextsResize(32);
         Scheduler::Start();
     }
-    IOManagerRB::~IOManagerRB()
+    IOManager::~IOManager()
     {
         // 调用调度器的stop函数
         Scheduler::Stop();
@@ -145,7 +145,7 @@ namespace Xten
     }
 
     // 添加事件
-    int IOManagerRB::AddEvent(int fd, Event ev, std::function<void()> func)
+    int IOManager::AddEvent(int fd, Event ev, std::function<void()> func)
     {
         FdContext *fd_ctx = nullptr;
         // 在这个范围访问共享的fds数组----加大粒度锁
@@ -217,7 +217,7 @@ namespace Xten
         return 0;
     }
     // 删除事件
-    bool IOManagerRB::DelEvent(int fd, Event ev)
+    bool IOManager::DelEvent(int fd, Event ev)
     {
         FdContext *fd_ctx = nullptr;
         {
@@ -260,7 +260,7 @@ namespace Xten
         return true;
     }
     // 取消事件
-    bool IOManagerRB::CancelEvent(int fd, Event ev)
+    bool IOManager::CancelEvent(int fd, Event ev)
     {
         FdContext *fd_ctx = nullptr;
         {
@@ -300,7 +300,7 @@ namespace Xten
         return true;
     }
     // 取消fd上所有事件
-    bool IOManagerRB::CancelAll(int fd)
+    bool IOManager::CancelAll(int fd)
     {
         FdContext *fd_ctx = nullptr;
         {
@@ -344,12 +344,12 @@ namespace Xten
         return true;
     }
     // 获取当前调度器指针
-    IOManagerRB *IOManagerRB::GetThis() // 重定义
+    IOManager *IOManager::GetThis() // 重定义
     {
-        return dynamic_cast<IOManagerRB *>(Scheduler::GetThis());
+        return dynamic_cast<IOManager *>(Scheduler::GetThis());
     }
     // 通知线程有任务
-    void IOManagerRB::Tickle() // override
+    void IOManager::Tickle() // override
     {
         // 无空闲线程--无需通知
         if (!Scheduler::HasIdleThread())
@@ -363,13 +363,13 @@ namespace Xten
         }
     }
     // 返回是否可以终止
-    bool IOManagerRB::IsStopping() // override
+    bool IOManager::IsStopping() // override
     {
         uint64_t timeout = 0;
         return IsStopping(timeout);
     }
     // 线程无任务执行idle空闲协程 ----基于epoll_wait封装idle协程
-    void IOManagerRB::Idle() // override
+    void IOManager::Idle() // override
     {
         XTEN_LOG_DEBUG(g_logger) << "idle";
         int MAX_EVENT = 256; // 一次epoll_wait返回的最大事件数
@@ -492,12 +492,12 @@ namespace Xten
         //while(true)循环退出---->调度器的终止条件就绪了
     }
     // 有更早过期任务
-    void IOManagerRB::onTimerInsertedAtFront() // override
+    void IOManager::onTimerInsertedAtFront() // override
     {
         Tickle();
     }
     //_fdContexts扩容
-    void IOManagerRB::FdContextsResize(int size)
+    void IOManager::FdContextsResize(int size)
     {
         _fdContexts.resize(size);
         for (int i = 0; i < _fdContexts.size(); i++)
@@ -509,7 +509,7 @@ namespace Xten
             }
         }
     }
-    bool IOManagerRB::IsStopping(uint64_t &timeout)
+    bool IOManager::IsStopping(uint64_t &timeout)
     {
         timeout = TimerManager::getNextTimer();
         return timeout == ~0ull &&

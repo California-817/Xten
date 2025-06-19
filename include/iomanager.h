@@ -1,16 +1,16 @@
-#ifndef __XTEN_IOMANAGERRB_H__
-#define __XTEN_IOMANAGERRB_H__
+#ifndef __XTEN_IOMANAGER_H__
+#define __XTEN_IOMANAGER_H__
 #include "scheduler.h"
 #include "timer.h"
 namespace Xten
 {
     // 基于 epoll_wait+红黑树定时器 封装的io协程调度器
-    class IOManagerRB : public Scheduler, public TimerManager
+    class IOManager : public Scheduler, public TimerManager
     {
     public:
-        typedef std::shared_ptr<IOManagerRB> prt;
-        IOManagerRB(int threadNum = 1, bool userCaller = true, const std::string &name="");
-        ~IOManagerRB();
+        typedef std::shared_ptr<IOManager> prt;
+        IOManager(int threadNum = 1, bool userCaller = true, const std::string &name="");
+        ~IOManager();
         enum Event
         {
             // 无事件
@@ -29,7 +29,7 @@ namespace Xten
         // 取消fd上所有io事件
         bool CancelAll(int fd);
         // 获取当前调度器指针
-        static IOManagerRB *GetThis();
+        static IOManager *GetThis();
         //fd上下文结构
         struct FdContext
         {
@@ -74,12 +74,6 @@ namespace Xten
         std::atomic<int> _pendingEventNum{0}; // 要处理的任务数量
         RWMutex _mutex;                       // 读写锁
         std::vector<FdContext *> _fdContexts; // io事件上下文
-    };
-    // 基于 epoll_wait+多层级时间轮定时器 封装的io协程调度器
-    class IOManagerTW : public Scheduler, public TimerWheelManager
-    {
-    public:
-    private:
     };
 }
 #endif

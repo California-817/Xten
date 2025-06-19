@@ -6,7 +6,6 @@
 #include "mutex.h"
 #include "fiber.h"
 #include <list>
-#include "threadsafequeue.hpp"
 #include <atomic>
 #include "macro.h"
 #include <vector>
