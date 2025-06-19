@@ -138,7 +138,7 @@ namespace Xten
                 }
                 return *this;
             }
-            FuncOrFiber(std::function<void()> &fc, int id = -1) // 左值引用
+            FuncOrFiber(const std::function<void()> &fc, int id = -1) // 左值引用
             {
                 fiber.reset();
                 func = fc;
@@ -150,7 +150,7 @@ namespace Xten
                 func.swap(fc); // 外部为nullptr
                 threadId = id;
             }
-            FuncOrFiber(Xten::Fiber::ptr &fb, int id = -1) // 左值引用
+            FuncOrFiber(const Xten::Fiber::ptr &fb, int id = -1) // 左值引用
             {
                 fiber = fb;
                 func = nullptr;

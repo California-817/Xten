@@ -25,4 +25,4 @@ file(GLOB ASM_SOURCES "include/fcontext/*.S")
 add_library(Xten SHARED ${SOURCES} ${ASM_SOURCES})
 
 # 链接依赖库
-target_link_libraries(Xten PRIVATE  ${YAML_CPP_LIBRARIES})
+target_link_libraries(Xten PRIVATE  ${YAML_CPP_LIBRARIES} dl)

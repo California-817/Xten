@@ -32,9 +32,9 @@
     XX(ioctl)        \
     XX(getsockopt)   \
     XX(setsockopt)
+static Xten::Logger::ptr g_logger = XTEN_LOG_NAME("system");
 namespace Xten
 {
-    static Logger::ptr g_logger = XTEN_LOG_NAME("system");
 
     /// @brief // 默认是非hook --实现线程级别hook
     static thread_local bool t_hookable = false;
@@ -266,8 +266,103 @@ extern "C"
         }
         return ret;
     }
+    int connect_with_timeout(int fd, const struct sockaddr *addr, socklen_t addrlen, uint64_t timeout_ms)
+    {
+        if (!Xten::is_hook_enable())
+        {
+            struct timeval tv{int(timeout_ms / 1000), int(timeout_ms % 1000 * 1000)};
+            socklen_t len = sizeof tv;
+            setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, len);
+            return connect_f(fd, addr, addrlen);
+        }
+        Xten::FdCtx::ptr fdctx = Xten::FdCtxMgr::GetInstance()->Get(fd);
+        if (!fdctx || fdctx->IsClose())
+        {
+            errno = EBADF;
+            return -1;
+        }
+        if (!fdctx->IsSocket() || fdctx->GetUserNoBlock())
+        {
+            return connect_f(fd, addr, addrlen);
+        }
+        // 是socket且是阻塞connect
+        // 尝试连接
+        int ret = connect_f(fd, addr, addrlen);
+        while (ret == -1 && errno == EINTR)
+        {
+            // 信号中断
+            ret = connect_f(fd, addr, addrlen);
+        }
+        // 连接正在处理中
+        if (ret == -1 && errno == EINPROGRESS)
+        {
+            Xten::Timer::ptr timer;
+            Xten::IOManager *iom = Xten::IOManager::GetThis();
+            std::shared_ptr<timer_condition> tmcond;
+            std::weak_ptr<timer_condition> wkcond(tmcond);
+            if (timeout_ms != (uint64_t)-1)
+            {
+                // 设置了超时时间
+                timer = iom->addConditionTimer(timeout_ms, [wkcond, iom, fd]()
+                                               {
+                std::shared_ptr<timer_condition> cond=wkcond.lock();
+                if(!cond || cond->cancelled)
+                {
+                    return;
+                }
+                //超时
+                cond->cancelled=ETIMEDOUT;
+                iom->CancelEvent(fd,Xten::IOManager::Event::WRITE); }, wkcond);
+            }
+            // 向io调度器中添加写事件
+            int rt = iom->AddEvent(fd, Xten::IOManager::Event::WRITE);
+            if (XTEN_UNLIKELY(rt))
+            {
+                XTEN_LOG_ERROR(g_logger) << "connect " << " addEvent("
+                                         << fd << ", " << "WRITE" << ")";
+                if (timer)
+                {
+                    timer->cancel();
+                }
+                return -1;
+            }
+            Xten::Fiber::YieldToHold();
+            if (timer)
+            {
+                timer->cancel();
+            }
+            if (tmcond->cancelled)
+            {
+                // 超时
+                errno = tmcond->cancelled;
+                return -1;
+            }
+            // 未超时返回--条件就绪返回 (不需要返回再重新连接)
+            int error = 0;
+            socklen_t len = sizeof error;
+            int ret2 = getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len);
+            if (ret2 == -1)
+            {
+                return -1;
+            }
+            if (!error)
+            {
+                // 没有错误
+                return 0;
+            }
+            else
+            {
+                // 有错误
+                errno = error;
+                return -1;
+            }
+        }
+        return ret;
+    }
+    // 在os层面 connect是不能设置超时参数的
     int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
     {
+        connect_with_timeout(sockfd, addr, addrlen, Xten::s_tcp_connect_timeout);
     }
     // read
     ssize_t read(int fd, void *buf, size_t count)
@@ -322,22 +417,32 @@ extern "C"
     }
     int close(int fd)
     {
-        if(!Xten::is_hook_enable())
+        if (!Xten::is_hook_enable())
         {
             return close_f(fd);
         }
-        Xten::FdCtx::ptr fdctx=Xten::FdCtxMgr::GetInstance()->Get(fd);
-        if(fdctx)
+        Xten::FdCtx::ptr fdctx = Xten::FdCtxMgr::GetInstance()->Get(fd);
+        if (fdctx)
         {
-            Xten::IOManager* iom=Xten::IOManager::GetThis();
-            //取消io调度器中事件
-            if(iom)
+            Xten::IOManager *iom = Xten::IOManager::GetThis();
+            // 取消io调度器中事件
+            if (iom)
             {
                 iom->CancelAll(fd);
             }
-            //删除对fdctx的管理
+            // 删除对fdctx的管理
             Xten::FdCtxMgr::GetInstance()->Del(fd);
         }
         return close_f(fd);
     }
+    // socket属性相关
+    int fcntl(int fd, int cmd, ... /* arg */)
+    {
+    }
+
+    int ioctl(int d, unsigned long int request, ...) {}
+
+    int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen) {}
+
+    int setsockop(int sockfd, int level, int optname, const void *optval, socklen_t optlen) {}
 }

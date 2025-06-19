@@ -33,7 +33,7 @@ extern "C"
     extern sleep_fun sleep_f;
 
     typedef int (*usleep_fun)(useconds_t usec);
-    extern usleep_fun usleep_t;
+    extern usleep_fun usleep_f;
 
     typedef int (*nanosleep_fun)(const struct timespec *req, struct timespec *rem);
     extern nanosleep_fun nanosleep_f;
