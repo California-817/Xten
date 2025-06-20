@@ -6,9 +6,9 @@
 #include <fcntl.h>
 #include <iostream>
 #include <sys/epoll.h>
-static Xten::Logger::ptr g_logger=XTEN_LOG_ROOT();
-int sock=0;
-void test_iomanager() //也是在协程中调用
+static Xten::Logger::ptr g_logger = XTEN_LOG_ROOT();
+int sock = 0;
+void test_iomanager() // 也是在协程中调用
 {
     XTEN_LOG_INFO(g_logger) << "test_fiber sock=" << sock;
 
@@ -18,8 +18,8 @@ void test_iomanager() //也是在协程中调用
     // sylar::IOManager::GetThis()->cancelAll(sock);
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
-    int flags=fcntl(sock,F_GETFL);
-    fcntl(sock, F_SETFL, O_NONBLOCK|flags);
+    int flags = fcntl(sock, F_GETFL);
+    fcntl(sock, F_SETFL, O_NONBLOCK | flags);
 
     sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -34,23 +34,64 @@ void test_iomanager() //也是在协程中调用
     {
         XTEN_LOG_INFO(g_logger) << "add event errno=" << errno << " " << strerror(errno);
         Xten::IOManager::GetThis()->AddEvent(sock, Xten::IOManager::Event::READ, []()
-                                              { XTEN_LOG_INFO(g_logger) << "read callback"; });
+                                             { XTEN_LOG_INFO(g_logger) << "read callback"; });
         Xten::IOManager::GetThis()->AddEvent(sock, Xten::IOManager::Event::WRITE, []()
-                                              {
+                                             {
             XTEN_LOG_INFO(g_logger) << "write callback";
-            Xten::IOManager::GetThis()->CancelEvent(sock, Xten::IOManager::Event::READ);close(sock);
-             });
+            Xten::IOManager::GetThis()->CancelEvent(sock, Xten::IOManager::Event::READ);close(sock); });
     }
     else
     {
         XTEN_LOG_INFO(g_logger) << "else " << errno << " " << strerror(errno);
     }
 }
+void test_hook()
+{
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(8080);
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr.s_addr);
+
+    XTEN_LOG_INFO(g_logger) << "begin connect";
+    int rt = connect(sock, (const sockaddr *)&addr, sizeof(addr));
+    XTEN_LOG_INFO(g_logger) << "connect rt=" << rt << " errno=" << errno;
+
+    if (rt)
+    {
+        return;
+    }
+
+    const char data[] = "GET /register HTTP/1.1\r\n\r\n";
+    rt = send(sock, data, sizeof(data), 0);
+    XTEN_LOG_INFO(g_logger) << "send rt=" << rt << " errno=" << errno;
+
+    if (rt <= 0)
+    {
+        return;
+    }
+
+    std::string buff;
+    buff.resize(4096);
+
+    rt = recv(sock, &buff[0], buff.size(), 0);
+    XTEN_LOG_INFO(g_logger) << "recv rt=" << rt << " errno=" << errno;
+
+    if (rt <= 0)
+    {
+        return;
+    }
+
+    buff.resize(rt);
+    XTEN_LOG_INFO(g_logger) << buff;
+}
 int main()
 {
 
-    Xten::IOManager iom(2, false, "test");
-    iom.Schedule(&test_iomanager);
+    Xten::IOManager iom(1, false, "test");
+    iom.Schedule(&test_hook);
     // Xten::TimerManager mgr;
     //     XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"add";
 

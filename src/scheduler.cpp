@@ -1,5 +1,6 @@
 #include "../include/scheduler.h"
 #include "../include/macro.h"
+#include"../include/hook.h"
 #include "log.h"
 namespace Xten
 {
@@ -26,6 +27,7 @@ namespace Xten
 			t_scheduler_fiber = _root_fiber.get();
 			Xten::Thread::SetName(_name);
 			_thread_ids.push_back(_root_threadId);
+			Xten::set_hook_enable(true);
 		}
 	}
 	Scheduler::~Scheduler()
@@ -60,8 +62,8 @@ namespace Xten
 	{
 		// 设置线程所属调度器
 		SetThis();
-		// 设置hook属性  Todo
-
+		// 设置hook属性
+		Xten::set_hook_enable(true);
 		// 设置当前线程的调度协程
 		if (Xten::ThreadUtil::GetThreadId() != _root_threadId)
 		{
@@ -183,7 +185,7 @@ namespace Xten
 				}
 				_idle_threadNum++;
 				idle_fiber->SwapIn();
-				std::cout<<"idle out"<<std::endl;
+        		XTEN_LOG_DEBUG(g_logger) << "idle out";
 				_idle_threadNum--;
 				if (idle_fiber->GetStatus() != Fiber::Status::TERM &&
 					idle_fiber->GetStatus() != Fiber::Status::EXCEPT)

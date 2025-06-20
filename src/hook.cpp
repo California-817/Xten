@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 #include <time.h>
 #include <sys/types.h>
+ #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -85,7 +86,7 @@ namespace Xten
         }
     };
 
-    static __Hook_Init __hookinit;
+    static __Hook_Init __hookinit; //在main函数之前初始化原始接口
     bool is_hook_enable()
     {
         return t_hookable;
@@ -298,7 +299,7 @@ extern "C"
         {
             Xten::Timer::ptr timer;
             Xten::IOManager *iom = Xten::IOManager::GetThis();
-            std::shared_ptr<timer_condition> tmcond;
+            std::shared_ptr<timer_condition> tmcond=std::make_shared<timer_condition>();
             std::weak_ptr<timer_condition> wkcond(tmcond);
             if (timeout_ms != (uint64_t)-1)
             {
@@ -362,7 +363,7 @@ extern "C"
     // 在os层面 connect是不能设置超时参数的
     int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
     {
-        connect_with_timeout(sockfd, addr, addrlen, Xten::s_tcp_connect_timeout);
+        return connect_with_timeout(sockfd, addr, addrlen, Xten::s_tcp_connect_timeout);
     }
     // read
     ssize_t read(int fd, void *buf, size_t count)
@@ -438,11 +439,145 @@ extern "C"
     // socket属性相关
     int fcntl(int fd, int cmd, ... /* arg */)
     {
+        va_list va;
+        va_start(va, cmd);
+        switch (cmd)
+        {
+        case F_SETFL:
+        {
+            int arg = va_arg(va, int);
+            va_end(va);
+            Xten::FdCtx::ptr ctx = Xten::FdCtxMgr::GetInstance()->Get(fd);
+            if (!ctx || ctx->IsClose() || !ctx->IsSocket())
+            {
+                return fcntl_f(fd, cmd, arg);
+            }
+            ctx->SetUserNoBlock(arg & O_NONBLOCK);
+            if (ctx->GetSysNoBlock())
+            {
+                arg |= O_NONBLOCK;
+            }
+            else
+            {
+                arg &= ~O_NONBLOCK;
+            }
+            return fcntl_f(fd, cmd, arg);
+        }
+        break;
+        case F_GETFL:
+        {
+            va_end(va);
+            int arg = fcntl_f(fd, cmd);
+            Xten::FdCtx::ptr ctx = Xten::FdCtxMgr::GetInstance()->Get(fd);
+            if (!ctx || ctx->IsClose() || !ctx->IsSocket())
+            {
+                return arg;
+            }
+            if (ctx->GetUserNoBlock())
+            {
+                return arg | O_NONBLOCK;
+            }
+            else
+            {
+                return arg & ~O_NONBLOCK;
+            }
+        }
+        break;
+        case F_DUPFD:
+        case F_DUPFD_CLOEXEC:
+        case F_SETFD:
+        case F_SETOWN:
+        case F_SETSIG:
+        case F_SETLEASE:
+        case F_NOTIFY:
+#ifdef F_SETPIPE_SZ
+        case F_SETPIPE_SZ:
+#endif
+        {
+            int arg = va_arg(va, int);
+            va_end(va);
+            return fcntl_f(fd, cmd, arg);
+        }
+        break;
+        case F_GETFD:
+        case F_GETOWN:
+        case F_GETSIG:
+        case F_GETLEASE:
+#ifdef F_GETPIPE_SZ
+        case F_GETPIPE_SZ:
+#endif
+        {
+            va_end(va);
+            return fcntl_f(fd, cmd);
+        }
+        break;
+        case F_SETLK:
+        case F_SETLKW:
+        case F_GETLK:
+        {
+            struct flock *arg = va_arg(va, struct flock *);
+            va_end(va);
+            return fcntl_f(fd, cmd, arg);
+        }
+        break;
+        case F_GETOWN_EX:
+        case F_SETOWN_EX:
+        {
+            struct f_owner_exlock *arg = va_arg(va, struct f_owner_exlock *);
+            va_end(va);
+            return fcntl_f(fd, cmd, arg);
+        }
+        break;
+        default:
+            va_end(va);
+            return fcntl_f(fd, cmd);
+        }
     }
 
-    int ioctl(int d, unsigned long int request, ...) {}
+    int ioctl(int d, unsigned long int request, ...)
+    {
+        va_list va;
+        va_start(va, request);
+        void *arg = va_arg(va, void *);
+        va_end(va);
 
-    int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen) {}
+        if (FIONBIO == request)
+        {
+            bool user_nonblock = !!*(int *)arg;
+            Xten::FdCtx::ptr ctx = Xten::FdCtxMgr::GetInstance()->Get(d);
+            if (!ctx || ctx->IsClose() || !ctx->IsSocket())
+            {
+                return ioctl_f(d, request, arg);
+            }
+            ctx->SetUserNoBlock(user_nonblock);
+        }
+        return ioctl_f(d, request, arg);
+    }
 
-    int setsockop(int sockfd, int level, int optname, const void *optval, socklen_t optlen) {}
+    int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen)
+    {
+        return getsockopt_f(sockfd, level, optname, optval, optlen);
+    }
+    int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen)
+    {
+        if (!Xten::is_hook_enable())
+        {
+            return setsockopt_f(sockfd, level, optname, optval, optlen);
+        }
+        if (level == SOL_SOCKET)
+        {
+            if (optname == SO_SNDTIMEO || optname == SO_RCVTIMEO)
+            {
+                Xten::FdCtx::ptr fdctx = Xten::FdCtxMgr::GetInstance()->Get(sockfd);
+                if (fdctx)
+                {
+                    // 在框架层面设置超时时间
+                    struct timeval *tm = (struct timeval *)(optval);
+                    fdctx->SetTimeOut(optname, tm->tv_sec * 1000 + tm->tv_usec / 1000);
+                    return 0; // 框架层面设置超时时间直接返回
+                }
+            }
+        }
+        return setsockopt_f(sockfd, level, optname, optval, optlen);
+    }
 }
