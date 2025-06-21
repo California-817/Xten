@@ -1,6 +1,6 @@
 #include "timer.h"
 #include "util.h"
-
+#include"../include/iomanager.h"
 namespace Xten
 {
     bool Timer::Comparator::operator()(const Timer::ptr &lhs, const Timer::ptr &rhs) const
@@ -274,11 +274,12 @@ namespace Xten
 #endif
         return t;
     }
-    TimerWheelManager::TimerWheelManager()
+    TimerWheelManager::TimerWheelManager(IOManager* iom)
         : _time(0),
           _current(0),
           _b_stop(false),
-          _timerThread()
+          _timerThread(),
+          _iom(iom)
     {
         _near.resize(TIME_NEAR);
         _t.resize(4);
@@ -467,7 +468,13 @@ namespace Xten
         }
         for (auto &func : _tasks)
         {
-            func(); // 执行定时器对应的任务
+            // 执行定时器对应的任务--交给调度器线程池完成任务（指定了执行的调度器）
+            if(_iom)
+            {
+                _iom->Schedule(std::move(func));
+            }else{
+                func(); //未指定调度器 ---当前线程执行
+            }
         }
     }
     void TimerWheelManager::add_node(TimerW::ptr timer)

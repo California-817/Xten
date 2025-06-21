@@ -140,10 +140,12 @@ namespace Xten
         uint32_t _sub_time;                // 间隔过期时间
         TimerWheelManager *_manager;
     };
+    class IOManager;
+    /// @brief 时间轮定时器任务管理方案
     class TimerWheelManager
     {
     public:
-        TimerWheelManager();
+        TimerWheelManager(IOManager* iom=nullptr);
         virtual ~TimerWheelManager() ;
         // 添加定时器
         TimerW::ptr AddTimer(int time_ms, std::function<void()> func, bool recurring = false);
@@ -179,6 +181,7 @@ namespace Xten
         uint64_t _current_point;                             // 系统运行时间，精度10ms
         Xten::Thread _timerThread;                           //专门处理定时任务的定时器线程
         std::atomic<bool> _b_stop;                          //是否终止定时器
+        IOManager* _iom;                                     //执行定时器任务的io调度器
     };
 }
 
