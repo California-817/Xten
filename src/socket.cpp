@@ -2,11 +2,48 @@
 #include "../include/log.h"
 #include "../include/macro.h"
 #include "../include/fdmanager.h"
+#include "../include/iomanager.h"
 #include "../include/hook.h"
 namespace Xten
 {
     static Logger::ptr g_logger = XTEN_LOG_NAME("system");
-    Socket::Socket(Socket::FAMILY family, Socket::TYPE type, int protocol)
+    Socket::ptr Socket::CreateTCP(Address::ptr addr)
+    {
+        return std::make_shared<Socket>(addr->getFamily(), TYPE::TCP);
+    }
+    Socket::ptr Socket::CreateUDP(Address::ptr addr)
+    {
+        Socket::ptr socket = std::make_shared<Socket>(addr->getFamily(), TYPE::UDP);
+        //创建udp的socket后要显式的在系统层面构造出真正的socket结构
+        //因为tcp的socket结构会在bind和connect时自动在函数内部创建真正socket结构
+        //而客户端的udp的socket不会进行bind和connect 而是直接读写操作
+        socket->newSocket();
+        socket->_isConnect = true;
+        return socket;
+    }
+    Socket::ptr Socket::CreateTCPSocket()
+    {
+        return std::make_shared<Socket>(FAMILY::IPv4, TYPE::TCP);
+    }
+    Socket::ptr Socket::CreateUDPSocket()
+    {
+        Socket::ptr socket = std::make_shared<Socket>(FAMILY::IPv4, TYPE::UDP);
+        socket->newSocket();
+        socket->_isConnect = true;
+        return socket;
+    }
+    Socket::ptr Socket::CreateTCPSocketIPv6()
+    {
+        return std::make_shared<Socket>(FAMILY::IPv6, TYPE::TCP);
+    }
+    Socket::ptr Socket::CreateUDPSocketIPv6()
+    {
+        Socket::ptr socket = std::make_shared<Socket>(FAMILY::IPv6, TYPE::UDP);
+        socket->newSocket();
+        socket->_isConnect = true;
+        return socket;
+    }
+    Socket::Socket(int family, int type, int protocol)
         : _sockfd(-1),
           _family(family),
           _type(type),
@@ -117,6 +154,17 @@ namespace Xten
         GetPeerAddress();
         return true;
     }
+    bool Socket::ReConnect(uint64_t timeout)
+    {
+        if (!_peerAddress.get())
+        {
+            XTEN_LOG_ERROR(g_logger) << "reconnect m_remoteAddress is null";
+            return false;
+        }
+        // 重连后 本地绑定的address将失效 由系统自动重新分配
+        _localAddress.reset();
+        return Connect(_peerAddress, timeout);
+    }
     // 检查是否连接---系统层面检查
     bool Socket::CheckConnected()
     {
@@ -147,6 +195,7 @@ namespace Xten
         {
             // 不会多次关闭
             ::close(_sockfd);
+            XTEN_LOG_DEBUG(g_logger)<<"close: "<<_sockfd;
             _sockfd = -1;
         }
         return true;
@@ -173,23 +222,187 @@ namespace Xten
         }
         return nullptr;
     }
-    // 获取本地address
+    // tcp读函数-单缓冲区
+    ssize_t Socket::Recv(void *buf, size_t len, int flags)
+    {
+        if (!IsConnected())
+        {
+            return -1;
+        }
+        ssize_t ret = ::recv(_sockfd, buf, len, flags);
+        return ret;
+    }
+    // tcp读函数-多缓冲区
+    ssize_t Socket::RecvV(struct iovec *iov, int iovcnt, int flags)
+    {
+        if (!IsConnected())
+        {
+            return -1;
+        }
+        struct msghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        msg.msg_iov = iov;
+        msg.msg_iovlen = iovcnt;
+        ssize_t ret = ::recvmsg(_sockfd, &msg, flags);
+        return ret;
+    }
+    // udp读函数-单缓冲区
+    ssize_t Socket::RecvFrom(void *buf, size_t len, Address::ptr from, int flags)
+    {
+        if (!IsConnected())
+        {
+            return -1;
+        }
+        socklen_t sock_len = from->getAddrLen();
+        ssize_t ret = ::recvfrom(_sockfd, buf, len, flags, from->getAddr(), &sock_len);
+        return ret;
+    }
+    // udp读函数-多缓冲区
+    ssize_t Socket::RecvFromV(struct iovec *iov, int iovcnt, Address::ptr from, int flags)
+    {
+        if (!IsConnected())
+        {
+            return -1;
+        }
+        sockaddr *peer = from->getAddr();
+        socklen_t socklen = from->getAddrLen();
+        struct msghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        msg.msg_name = (void *)peer;
+        msg.msg_namelen = socklen;
+        msg.msg_iov = iov;
+        msg.msg_iovlen = iovcnt;
+        ssize_t ret = ::recvmsg(_sockfd, &msg, flags);
+        return ret;
+    }
+    // tcp写函数-单缓冲区
+    ssize_t Socket::Send(const void *msg, size_t len, int flags)
+    {
+        if (IsConnected())
+        {
+            return ::send(_sockfd, msg, len, flags);
+        }
+        return -1;
+    }
+    // tcp写函数-多缓冲区
+    ssize_t Socket::SendV(const struct iovec *iov, int iovcnt, int flags)
+    {
+        if (IsConnected())
+        {
+            struct msghdr msg;
+            memset(&msg, 0, sizeof(msg));
+            msg.msg_iov = (iovec *)iov;
+            msg.msg_iovlen = iovcnt;
+            return ::sendmsg(_sockfd, &msg, flags);
+        }
+        return -1;
+    }
+    // udp写函数-单缓冲区
+    ssize_t Socket::SendTo(const void *msg, size_t len, Address::ptr to, int flags)
+    {
+        if (IsConnected())
+        {
+            socklen_t socklen = to->getAddrLen();
+            return ::sendto(_sockfd, msg, len, flags, to->getAddr(), socklen);
+        }
+        return -1;
+    }
+    // udp写函数-多缓冲区
+    ssize_t Socket::SendToV(const struct iovec *iov, int iovcnt, Address::ptr to, int flags)
+    {
+        if (IsConnected())
+        {
+            struct msghdr msg;
+            memset(&msg, 0, sizeof(msg));
+            msg.msg_iov = (iovec *)iov;
+            msg.msg_iovlen = iovcnt;
+            msg.msg_name = (void *)to->getAddr();
+            msg.msg_namelen = to->getAddrLen();
+            return ::sendmsg(_sockfd, &msg, flags);
+        }
+        return -1;
+    }
+    // 获取本地addres
     Address::ptr Socket::GetLocalAddress()
     {
         if (_localAddress)
         {
             return _localAddress;
         }
+        Address::ptr result;
+        switch (_family)
+        {
+        case AF_INET:
+            result = std::make_shared<IPv4Address>();
+            break;
+        case AF_INET6:
+            result = std::make_shared<IPv6Address>();
+            break;
+        case AF_UNIX:
+            result = std::make_shared<UnixAddress>();
+            break;
+        default:
+            result = std::make_shared<UnknownAddress>(_family);
+        }
+        socklen_t len = result->getAddrLen();
+        if (getsockname(_sockfd, result->getAddr(), &len))
+        {
+            XTEN_LOG_ERROR(g_logger) << "getsockname error sock=" << _sockfd
+                                     << " errno=" << errno << " errstr=" << strerror(errno);
+            return std::make_shared<UnknownAddress>(_family);
+        }
+        // 域间套接字重新赋值长度
+        if (_family == AF_UNIX)
+        {
+            UnixAddress::ptr addr = std::dynamic_pointer_cast<UnixAddress>(result);
+            addr->setAddrLen(len);
+        }
+        _localAddress = result;
+        return _localAddress;
     }
     // 获取对端address
     Address::ptr Socket::GetPeerAddress()
     {
+        if (_peerAddress)
+        {
+            return _peerAddress;
+        }
+        Address::ptr result;
+        switch (_family)
+        {
+        case AF_INET:
+            result = std::make_shared<IPv4Address>();
+            break;
+        case AF_INET6:
+            result = std::make_shared<IPv6Address>();
+            break;
+        case AF_UNIX:
+            result = std::make_shared<UnixAddress>();
+            break;
+        default:
+            result = std::make_shared<UnknownAddress>(_family);
+        }
+        socklen_t len = result->getAddrLen();
+        if (getpeername(_sockfd, result->getAddr(), &len))
+        {
+            XTEN_LOG_ERROR(g_logger) << "getpeername error sock=" << _sockfd
+                                     << " errno=" << errno << " errstr=" << strerror(errno);
+            return std::make_shared<UnknownAddress>(_family);
+        }
+        // 域间套接字重新赋值长度
+        if (_family == AF_UNIX)
+        {
+            UnixAddress::ptr addr = std::dynamic_pointer_cast<UnixAddress>(result);
+            addr->setAddrLen(len);
+        }
+        _peerAddress = result;
+        return _peerAddress;
     }
     Socket::~Socket()
     {
         Close();
     }
-    // 通过sockfd进行初始化
+    // 通过sockfd进行初始化---服务端通过accept获取连接之后
     bool Socket::init(int sockfd)
     {
         FdCtx::ptr fdctx = FdCtxMgr::GetInstance()->Get(sockfd);
@@ -258,8 +471,101 @@ namespace Xten
         }
         return ret;
     }
+    // 获取读超时时间
+    int64_t Socket::GetRecvTimeOut()
+    {
+        FdCtx::ptr fdctx = FdCtxMgr::GetInstance()->Get(_sockfd);
+        if (fdctx)
+        {
+            return fdctx->GetTimeOut(SO_RCVTIMEO);
+        }
+        return -1;
+    }
+    // 设置读超时时间
+    bool Socket::SetRecvTimeOut(int64_t timeout)
+    {
+        struct timeval val{timeout / 1000, timeout % 1000 * 1000};
+        return Setsockopt(SOL_SOCKET, SO_RCVTIMEO, val);
+    }
+    // 获取写超时时间
+    int64_t Socket::GetSendTimeOut()
+    {
+
+        FdCtx::ptr fdctx = FdCtxMgr::GetInstance()->Get(_sockfd);
+        if (fdctx)
+        {
+            return fdctx->GetTimeOut(SO_SNDTIMEO);
+        }
+        return -1;
+    }
+    // 设置写超时时间
+    bool Socket::SetSendTimeOut(int64_t timeout)
+    {
+        struct timeval val{timeout / 1000, timeout % 1000 * 1000};
+        return Setsockopt(SOL_SOCKET, SO_SNDTIMEO, val);
+    }
+    int Socket::GetError()
+    {
+        int error = 0;
+        if (!Getsockopt(SOL_SOCKET, SO_ERROR, error))
+        {
+            error = errno;
+        }
+        return error;
+    }
+    // 取消读事件
+    bool Socket::CancelRead()
+    {
+        return IOManager::GetThis()->CancelEvent(_sockfd, Xten::IOManager::Event::READ);
+    }
+    // 取消写事件
+    bool Socket::CancelWrite()
+    {
+        return IOManager::GetThis()->CancelEvent(_sockfd, Xten::IOManager::Event::WRITE);
+    }
+    // 取消所有事件
+    bool Socket::CancelAll()
+    {
+        return IOManager::GetThis()->CancelAll(_sockfd);
+    }
+    // 取消accept
+    bool Socket::CancelAccept()
+    {
+        return IOManager::GetThis()->CancelEvent(_sockfd, Xten::IOManager::Event::READ);
+    }
+    // 输出信息
+    std::ostream &Socket::dump(std::ostream &os)
+    {
+        os << "[Socket sock=" << _sockfd
+           << " is_connected=" << _isConnect
+           << " family=" << _family
+           << " type=" << _type
+           << " protocol=" << _protocol;
+        if (_localAddress)
+        {
+            os << " local_address=" << _localAddress->toString();
+        }
+        if (_peerAddress)
+        {
+            os << " remote_address=" << _peerAddress->toString();
+        }
+        os << "]";
+        return os;
+    }
+    std::string Socket::tostring()
+    {
+        std::stringstream ss;
+        dump(ss);
+        return ss.str();
+    }
     bool Socket::isValid()
     {
         return _sockfd != -1;
     }
+
+}
+
+std::ostream &operator<<(std::ostream &os, Xten::Socket &socket)
+{
+    return socket.dump(os);
 }

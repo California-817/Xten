@@ -23,6 +23,7 @@ namespace Xten
     {
     public:
         static uint64_t NowTime_to_uint64();
+        //获取当前的毫秒数
         static  uint64_t GetCurrentMS();
     };
     class ThreadUtil

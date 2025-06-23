@@ -87,11 +87,105 @@ void test_hook()
     buff.resize(rt);
     XTEN_LOG_INFO(g_logger) << buff;
 }
+void test_socket()
+{
+    Xten::IPAddress::ptr addr = Xten::Address::LookupAnyIPAddress("www.baidu.com:80");
+    if (addr)
+    {
+        XTEN_LOG_DEBUG(g_logger) << "get address: " << addr->toString();
+    }
+    else
+    {
+        XTEN_LOG_ERROR(g_logger) << "get address fail";
+        return;
+    }
+
+    Xten::Socket::ptr sock = Xten::Socket::CreateTCP(addr);
+    if (!sock->Connect(addr))
+    {
+        XTEN_LOG_ERROR(g_logger) << "connect " << addr->toString() << " fail";
+        return;
+    }
+    else
+    {
+        XTEN_LOG_INFO(g_logger) << "connect " << addr->toString() << " connected";
+    }
+
+    uint64_t ts = Xten::TimeUitl::GetCurrentMS();
+    for (size_t i = 0; i < 10000000000ul; ++i)
+    {
+        if (int err = sock->GetError())
+        {
+            XTEN_LOG_INFO(g_logger) << "err=" << err << " errstr=" << strerror(err);
+            break;
+        }
+
+        // struct tcp_info tcp_info;
+        // if(!sock->getOption(IPPROTO_TCP, TCP_INFO, tcp_info)) {
+        //     SYLAR_LOG_INFO(g_looger) << "err";
+        //     break;
+        // }
+        // if(tcp_info.tcpi_state != TCP_ESTABLISHED) {
+        //     SYLAR_LOG_INFO(g_looger)
+        //             << " state=" << (int)tcp_info.tcpi_state;
+        //     break;
+        // }
+        static int batch = 10000000;
+        if (i && (i % batch) == 0)
+        {
+            uint64_t ts2 = Xten::TimeUitl::GetCurrentMS();
+            XTEN_LOG_INFO(g_logger)<<"10000000 use time:"<<(ts2-ts)<<" ms";
+            XTEN_LOG_INFO(g_logger) << "i=" << i << " used: " << ((ts2 - ts) * 1.0 / batch) << " ms";
+            ts = ts2;
+            break;
+        }
+    }
+}
+void test_socket2()
+{
+        Xten::IPAddress::ptr addr = Xten::Address::LookupAnyIPAddress("www.baidu.com");
+    if(addr) {
+        XTEN_LOG_INFO(g_logger) << "get address: " << addr->toString();
+    } else {
+        XTEN_LOG_ERROR(g_logger) << "get address fail";
+        return;
+    }
+
+    Xten::Socket::ptr sock = Xten::Socket::CreateTCP(addr);
+    addr->setPort(80);
+    XTEN_LOG_INFO(g_logger) << "addr=" << addr->toString();
+    if(!sock->Connect(addr)) {
+        XTEN_LOG_ERROR(g_logger) << "connect " << addr->toString() << " fail";
+        return;
+    } else {
+        XTEN_LOG_INFO(g_logger) << "connect " << addr->toString() << " connected";
+    }
+
+    const char buff[] = "GET / HTTP/1.0\r\n\r\n";
+    int rt = sock->Send(buff, sizeof(buff));
+    if(rt <= 0) {
+        XTEN_LOG_INFO(g_logger) << "send fail rt=" << rt;
+        return;
+    }
+
+    std::string buffs;
+    buffs.resize(4096);
+    rt = sock->Recv(&buffs[0], buffs.size());
+
+    if(rt <= 0) {
+        XTEN_LOG_INFO(g_logger) << "recv fail rt=" << rt;
+        return;
+    }
+
+    buffs.resize(rt);
+    XTEN_LOG_INFO(g_logger) << buffs;
+}
+
 int main()
 {
 
     Xten::IOManager iom(1, false, "test");
-    iom.Schedule(&test_hook);
+    iom.Schedule(&test_socket2);
     // Xten::TimerManager mgr;
     //     XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"add";
 
