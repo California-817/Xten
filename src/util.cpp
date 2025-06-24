@@ -2,7 +2,7 @@
 #include <execinfo.h>
 #include "log.h"
 #include "fiber.h"
-#include<sys/time.h>
+#include <sys/time.h>
 namespace Xten
 {
     static Xten::Logger::ptr g_logger = XTEN_LOG_NAME("system");
@@ -140,6 +140,15 @@ namespace Xten
         }
         closedir(dir);
     }
+    bool FileUtil::UnLink(const std::string &name, bool exist)
+    {
+        if(!exist&&__lstat(name.c_str()))
+        {
+            return true;
+        }
+        return (::unlink(name.c_str())==0);
+    }
+
     pid_t ThreadUtil::GetThreadId()
     {
         return syscall(SYS_gettid); // 系统调用 syscall 获取当前线程的线程ID（TID），并将其返回。
@@ -216,5 +225,5 @@ namespace Xten
         gettimeofday(&tv, NULL);
         return tv.tv_sec * 1000ul + tv.tv_usec / 1000;
     }
-    
+
 }

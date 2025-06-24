@@ -7,10 +7,16 @@ namespace Xten
     class FileUtil
     {
     public:
+        //以读方式打开文件
         static bool OpenForWrite(std::ofstream &file_stream, const std::string &file_name, std::ios_base::openmode mode);
+        //获取路径名
         static std::string DirName(const std::string &filename);
+        //递归创建目录
         static bool MakeDir(const std::string &dirname);
+        //列出指定路径下的所有符合后缀的文件
         static void ListAllFile(std::vector<std::string> &files, const std::string &path, const std::string &subfix);
+        //删除指定的文件
+        static bool UnLink(const std::string& name,bool exist=false);    
     };
     class BackTraceUtil
     {

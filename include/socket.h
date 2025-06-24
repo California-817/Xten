@@ -24,13 +24,22 @@ namespace Xten
             IPv6 = AF_INET6,
             UNIX = AF_UNIX
         };
-        //创建tcp和udp套接字的静态方法
+        //创建ipv4tcp套接字
         static Socket::ptr CreateTCP(Address::ptr addr);
+        //创建ipv4udp套接字
         static Socket::ptr CreateUDP(Address::ptr addr);
+        //创建ipv4tcp套接字
         static Socket::ptr CreateTCPSocket();
+        //创建ipv4udp套接字
         static Socket::ptr CreateUDPSocket();
+        //创建ipv6tcp套接字
         static Socket::ptr CreateTCPSocketIPv6();
+        //创建ipv6udp套接字
         static Socket::ptr CreateUDPSocketIPv6();
+        //创建unix类似tcp套接字
+        static Socket::ptr CreateUnixTCPSocket();
+        //创建unix类似udp套接字
+        static Socket::ptr CreateUnixUDPSocket();
         Socket(int family, int type, int protocol = 0);
         // bind绑定
         bool Bind(Address::ptr addr);

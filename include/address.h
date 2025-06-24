@@ -270,6 +270,11 @@ namespace Xten
     /**
      * @brief UnixSocket地址
      */
+    // UNIX域套接字是一种用于在同一台主机上的进程之间进行通信的机制，它不依赖于网络协议栈，而是直接在主机的文件系统中创建特殊文件来进行通信
+    // 类似于网络套接字使用IP地址和端口号来标识端点，域间套接字使用文件路径来标识  (普通文件路径) or (抽象命名空间)
+    // 在同一台主机上，不同的进程可以通过相同的文件路径来找到彼此，从而实现通信
+    // 数据交换始终发生在内核管理的缓冲区中（通信双方都有接收+发送缓冲区），绑定文件仅作为进程访问缓冲区的“入口”
+    //域间套接字的客户端不需要显式bind 内核会在操作该套接字时自动生成一个 抽象命名空间 用来在主机中唯一标识这个客户端
     class UnixAddress : public Address
     {
     public:
@@ -290,12 +295,13 @@ namespace Xten
         sockaddr *getAddr() override;
         socklen_t getAddrLen() const override;
         void setAddrLen(uint32_t v);
+
         std::string getPath() const;
         std::ostream &insert(std::ostream &os) const override;
 
     private:
-        sockaddr_un m_addr;
-        socklen_t m_length;
+        sockaddr_un m_addr; // unix域间套接字结构
+        socklen_t m_length; // 真正的套接字的大小
     };
 
     /**

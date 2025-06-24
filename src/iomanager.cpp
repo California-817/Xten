@@ -321,6 +321,7 @@ namespace Xten
             int ret = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
             if (XTEN_UNLIKELY(ret))
             {
+                //在idle中事件触发后无事件会删除节点-->此时再次删除就会出错并返回-1 错误码为 ENOENT (这是正常的,忽略该错误即可)
                 if (errno != ENOENT)
                 {
                     XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
@@ -463,6 +464,7 @@ namespace Xten
                     int opt = leave_event ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
                     // 重新设置epoll
                     epev.events = EPOLLET | leave_event;
+                    std::cout<<(EpollCtlOp)opt<<" : "<<fd_ctx->fd<<std::endl;
                     int ret2 = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
                     if (XTEN_UNLIKELY(ret2))
                     {

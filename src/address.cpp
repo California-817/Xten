@@ -555,6 +555,7 @@ namespace Xten
     {
         memset(&m_addr, 0, sizeof(m_addr));
         m_addr.sun_family = AF_UNIX;
+        //offsetof计算结构体成员相对于结构体起始地址的字节偏移量
         m_length = offsetof(sockaddr_un, sun_path) + MAX_PATH_LEN;
     }
 
@@ -563,9 +564,10 @@ namespace Xten
         memset(&m_addr, 0, sizeof(m_addr));
         m_addr.sun_family = AF_UNIX;
         m_length = path.size() + 1;
-
+        // /tmp/tmp.sock ----> 唯一的普通文件路径（.sock文件）---->与内核的通信缓冲区建立映射关系--->通过内核缓冲区直接通信
+        //\0abc--->抽象命名空间（内核只在内存中维护，不会在文件系统中创建 socket 文件，适合临时通信、避免文件残留）
         if (!path.empty() && path[0] == '\0')
-        {
+        {//抽象命名空间
             --m_length;
         }
 
@@ -574,6 +576,7 @@ namespace Xten
             throw std::logic_error("path too long");
         }
         memcpy(m_addr.sun_path, path.c_str(), m_length);
+        //m_length用于计算真实的结构体大小 第一个字段协议类型2字节（偏移量） + 第二个字段路径长度
         m_length += offsetof(sockaddr_un, sun_path);
     }
 
@@ -600,10 +603,12 @@ namespace Xten
     std::string UnixAddress::getPath() const
     {
         std::stringstream ss;
+        //抽象命名空间
         if (m_length > offsetof(sockaddr_un, sun_path) && m_addr.sun_path[0] == '\0')
         {
             ss << "\\0" << std::string(m_addr.sun_path + 1, m_length - offsetof(sockaddr_un, sun_path) - 1);
         }
+        //普通文件路径
         else
         {
             ss << m_addr.sun_path;

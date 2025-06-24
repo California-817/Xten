@@ -14,9 +14,9 @@ namespace Xten
     Socket::ptr Socket::CreateUDP(Address::ptr addr)
     {
         Socket::ptr socket = std::make_shared<Socket>(addr->getFamily(), TYPE::UDP);
-        //创建udp的socket后要显式的在系统层面构造出真正的socket结构
-        //因为tcp的socket结构会在bind和connect时自动在函数内部创建真正socket结构
-        //而客户端的udp的socket不会进行bind和connect 而是直接读写操作
+        // 创建udp的socket后要显式的在系统层面构造出真正的socket结构
+        // 因为tcp的socket结构会在bind和connect时自动在函数内部创建真正socket结构
+        // 而客户端的udp的socket不会进行bind和connect 而是直接读写操作---->因此需要在创建的时候直接真正创建socket结构
         socket->newSocket();
         socket->_isConnect = true;
         return socket;
@@ -41,6 +41,17 @@ namespace Xten
         Socket::ptr socket = std::make_shared<Socket>(FAMILY::IPv6, TYPE::UDP);
         socket->newSocket();
         socket->_isConnect = true;
+        return socket;
+    }
+    Socket::ptr Socket::CreateUnixTCPSocket()
+    {
+        return std::make_shared<Socket>(FAMILY::UNIX,TYPE::TCP);
+    }
+    Socket::ptr Socket::CreateUnixUDPSocket()
+    {
+        std::shared_ptr<Socket> socket=std::make_shared<Socket>(FAMILY::UNIX,TYPE::UDP);
+        socket->newSocket();
+        socket->_isConnect=true;
         return socket;
     }
     Socket::Socket(int family, int type, int protocol)
@@ -74,8 +85,17 @@ namespace Xten
         UnixAddress::ptr uaddr = std::dynamic_pointer_cast<UnixAddress>(addr);
         if (uaddr)
         {
-            // 转化成功说明是unix地址
-            // todo
+            // 转化成功说明是unix地址--->绑定之前判断是否已经该路径已经在使用或者有残留
+            Socket::ptr usock=CreateUnixTCPSocket();
+            if(usock->Connect(uaddr)) //以客户端方式连接
+            {
+                //success
+                return false; //这个路径的套接字正在被使用
+            }
+            //连接失败 未被使用--->去除残留防止bind失败
+            else{
+                Xten::FileUtil::UnLink(uaddr->getPath(),true);
+            }
         }
         // 普通ip地址
         int ret = ::bind(_sockfd, addr->getAddr(), addr->getAddrLen());
@@ -195,7 +215,7 @@ namespace Xten
         {
             // 不会多次关闭
             ::close(_sockfd);
-            XTEN_LOG_DEBUG(g_logger)<<"close: "<<_sockfd;
+            XTEN_LOG_DEBUG(g_logger) << "close: " << _sockfd;
             _sockfd = -1;
         }
         return true;
@@ -345,17 +365,18 @@ namespace Xten
             result = std::make_shared<UnknownAddress>(_family);
         }
         socklen_t len = result->getAddrLen();
-        if (getsockname(_sockfd, result->getAddr(), &len))
+        // 获取sockfd对应的本地的地址
+        if (getsockname(_sockfd, result->getAddr(), &len)) // 内核会对真实长度进行赋值
         {
             XTEN_LOG_ERROR(g_logger) << "getsockname error sock=" << _sockfd
                                      << " errno=" << errno << " errstr=" << strerror(errno);
             return std::make_shared<UnknownAddress>(_family);
         }
-        // 域间套接字重新赋值长度
+        // 域间套接字重新赋值长度（默认构造时内部的_length不是真实长度 而是 2 + 108）
         if (_family == AF_UNIX)
         {
             UnixAddress::ptr addr = std::dynamic_pointer_cast<UnixAddress>(result);
-            addr->setAddrLen(len);
+            addr->setAddrLen(len); // 赋值真实路径的长度
         }
         _localAddress = result;
         return _localAddress;
