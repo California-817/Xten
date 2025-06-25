@@ -134,7 +134,7 @@ void test_socket()
         if (i && (i % batch) == 0)
         {
             uint64_t ts2 = Xten::TimeUitl::GetCurrentMS();
-            XTEN_LOG_INFO(g_logger)<<"10000000 use time:"<<(ts2-ts)<<" ms";
+            XTEN_LOG_INFO(g_logger) << "10000000 use time:" << (ts2 - ts) << " ms";
             XTEN_LOG_INFO(g_logger) << "i=" << i << " used: " << ((ts2 - ts) * 1.0 / batch) << " ms";
             ts = ts2;
             break;
@@ -143,49 +143,107 @@ void test_socket()
 }
 void test_socket2()
 {
-        Xten::IPAddress::ptr addr = Xten::Address::LookupAnyIPAddress("www.baidu.com");
-    if(addr) {
+    Xten::IPAddress::ptr addr = Xten::Address::LookupAnyIPAddress("www.baidu.com");
+    if (addr)
+    {
         XTEN_LOG_INFO(g_logger) << "get address: " << addr->toString();
-    } else {
+    }
+    else
+    {
         XTEN_LOG_ERROR(g_logger) << "get address fail";
         return;
     }
+    int i = 0;
+    while (true)
+    {
+        if ((i++) == 50)
+        {
+            break;
+        }
+        sleep(2);
+        Xten::Socket::ptr sock = Xten::Socket::CreateTCP(addr);
+        addr->setPort(80);
+        XTEN_LOG_INFO(g_logger) << "addr=" << addr->toString();
+        if (!sock->Connect(addr))
+        {
+            XTEN_LOG_ERROR(g_logger) << "connect " << addr->toString() << " fail";
+            return;
+        }
+        else
+        {
+            XTEN_LOG_INFO(g_logger) << "connect " << addr->toString() << " connected";
+        }
 
-    Xten::Socket::ptr sock = Xten::Socket::CreateTCP(addr);
-    addr->setPort(80);
-    XTEN_LOG_INFO(g_logger) << "addr=" << addr->toString();
-    if(!sock->Connect(addr)) {
-        XTEN_LOG_ERROR(g_logger) << "connect " << addr->toString() << " fail";
-        return;
-    } else {
-        XTEN_LOG_INFO(g_logger) << "connect " << addr->toString() << " connected";
+        const char buff[] = "GET / HTTP/1.0\r\n\r\n";
+        int rt = sock->Send(buff, sizeof(buff));
+        if (rt <= 0)
+        {
+            XTEN_LOG_INFO(g_logger) << "send fail rt=" << rt;
+            return;
+        }
+
+        std::string buffs;
+        buffs.resize(4096);
+        rt = sock->Recv(&buffs[0], buffs.size());
+
+        if (rt <= 0)
+        {
+            XTEN_LOG_INFO(g_logger) << "recv fail rt=" << rt;
+            return;
+        }
+
+        buffs.resize(rt);
+        XTEN_LOG_INFO(g_logger) << buffs;
     }
-
-    const char buff[] = "GET / HTTP/1.0\r\n\r\n";
-    int rt = sock->Send(buff, sizeof(buff));
-    if(rt <= 0) {
-        XTEN_LOG_INFO(g_logger) << "send fail rt=" << rt;
-        return;
-    }
-
-    std::string buffs;
-    buffs.resize(4096);
-    rt = sock->Recv(&buffs[0], buffs.size());
-
-    if(rt <= 0) {
-        XTEN_LOG_INFO(g_logger) << "recv fail rt=" << rt;
-        return;
-    }
-
-    buffs.resize(rt);
-    XTEN_LOG_INFO(g_logger) << buffs;
 }
-
+void handle_client(Xten::Socket::ptr client)
+{
+    while (true)
+    {
+        std::string buffs;
+        buffs.resize(4096);
+        int rt = client->Recv(&buffs[0], buffs.size());
+        if (rt <= 0)
+        {
+            XTEN_LOG_INFO(g_logger) << "recv fail rt=" << rt;
+            return;
+        }
+        // std::cout << "client:: " << buffs << std::endl;
+        int i=0;
+        char ret[1024];
+        snprintf(ret,1024,"server recv:%d",i);
+        int rt2 = client->Send(ret,1024);
+        if (rt2 <= 0)
+        {
+            XTEN_LOG_INFO(g_logger) << "send fail rt=" << rt;
+            return;
+        }
+    }
+}
+void test_server()
+{
+    Xten::Socket::ptr apt = Xten::Socket::CreateTCPSocket();
+    auto addr = Xten::IPv4Address::Create("127.0.0.1", 8080);
+    apt->Bind(addr);
+    apt->Listen();
+    while (true)
+    {
+        Xten::Socket::ptr client = apt->Accept();
+        if(!client)
+        {
+            return;
+        }
+        Xten::Scheduler::GetThis()->Schedule(std::bind(&handle_client, client));
+    }
+}
 int main()
 {
+    // Xten::Config::LoadFromConFDir(".");
+    Xten::IOManager iom(2
 
-    Xten::IOManager iom(1, false, "test");
-    iom.Schedule(&test_socket2);
+                        ,
+                        false, "test");
+    iom.Schedule(&test_server);
     // Xten::TimerManager mgr;
     //     XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"add";
 
@@ -210,7 +268,7 @@ int main()
     // std::cout<<"main"<<std::endl;
     // Xten::Thread::SetName("main_thread");
     // Xten::Fiber::GetThis();
-    // Xten::Config::LoadFromConFDir(".");
+
     // XTEN_LOG_DEBUG(XTEN_LOG_ROOT())<<"hello log";
     // XTEN_LOG_FMT_DEBUG(XTEN_LOG_ROOT(),"hello %s","fmt");
     // XTEN_LOG_INFO(XTEN_LOG_NAME("system"))<<"system";

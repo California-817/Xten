@@ -85,11 +85,20 @@ namespace Xten
     // 触发事件上下文
     void IOManager::FdContext::triggerEvent(IOManager::Event ev)
     {
+        if (XTEN_UNLIKELY(!(events & ev)))
+        {
+            XTEN_LOG_ERROR(g_logger) << "fd=" << fd
+                                      << " triggerEvent event=" << ev
+                                      << " events=" << events
+                                      << "\nbacktrace:\n"
+                                      << Xten::BackTraceUtil::backtraceTostring(100);
+            return;
+        }
         IOManager::FdContext::EventContext &evctx = getEvContext(ev);
         Scheduler *sche = evctx.scheduler;
-        XTEN_ASSERTINFO(sche, "EventContext dont have Scheduler");
         events = (Event)(events & ~ev); // 事件触发后取消该事件
         // 将事件的回调处理执行体放入调度队列中 由线程调度
+        XTEN_ASSERTINFO(sche, "EventContext dont have Scheduler");
         if (evctx.cb)
         {
             sche->Schedule(std::move(evctx.cb));
@@ -133,7 +142,7 @@ namespace Xten
         // 调用调度器的stop函数
         Scheduler::Stop();
         close(_pipeTicklefd[0]);
-        close(_pipeTicklefd[1]); 
+        close(_pipeTicklefd[1]);
         close(_epfd);
         for (int i = 0; i < _fdContexts.size(); i++)
         {
@@ -245,11 +254,11 @@ namespace Xten
             int ret = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
             if (XTEN_UNLIKELY(ret))
             {
-                XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
-                                         << (EpollCtlOp)opt << ", " << fd << ", " << (EPOLL_EVENTS)epev.events << "):"
-                                         << ret << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
-                                         << (EPOLL_EVENTS)fd_ctx->events;
-                return false;
+                    XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
+                                             << (EpollCtlOp)opt << ", " << fd << ", " << (EPOLL_EVENTS)epev.events << "):"
+                                             << ret << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
+                                             << (EPOLL_EVENTS)fd_ctx->events;
+                    return false;
             }
             // 2.fdcontexts中删除事件
             fd_ctx->events = new_events;
@@ -275,6 +284,7 @@ namespace Xten
         }
         {
             // 1.epoll中取消
+            SpinLock::Lock lock(fd_ctx->mutex);
             if (XTEN_UNLIKELY(!(fd_ctx->events & ev)))
             {
                 return false;
@@ -287,11 +297,11 @@ namespace Xten
             int ret = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
             if (XTEN_UNLIKELY(ret))
             {
-                XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
-                                         << (EpollCtlOp)opt << ", " << fd << ", " << (EPOLL_EVENTS)epev.events << "):"
-                                         << ret << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
-                                         << (EPOLL_EVENTS)fd_ctx->events;
-                return false;
+                    XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
+                                             << (EpollCtlOp)opt << ", " << fd << ", " << (EPOLL_EVENTS)epev.events << "):"
+                                             << ret << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
+                                             << (EPOLL_EVENTS)fd_ctx->events;
+                    return false;
             }
             // 2.fdcontext直接触发这个事件
             fd_ctx->triggerEvent(ev);
@@ -314,6 +324,10 @@ namespace Xten
         }
         {
             SpinLock::Lock lock(fd_ctx->mutex);
+            if(!fd_ctx->events)
+            {
+                return false;
+            }
             int opt = EPOLL_CTL_DEL;
             struct epoll_event epev;
             epev.data.ptr = (void *)fd_ctx;
@@ -321,15 +335,11 @@ namespace Xten
             int ret = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
             if (XTEN_UNLIKELY(ret))
             {
-                //在idle中事件触发后无事件会删除节点-->此时再次删除就会出错并返回-1 错误码为 ENOENT (这是正常的,忽略该错误即可)
-                if (errno != ENOENT)
-                {
                     XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
                                              << (EpollCtlOp)opt << ", " << fd << ", " << (EPOLL_EVENTS)epev.events << "):"
                                              << ret << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
                                              << (EPOLL_EVENTS)fd_ctx->events;
                     return false;
-                }
             }
             // 有读事件
             if (fd_ctx->events & Event::READ)
@@ -417,9 +427,10 @@ namespace Xten
             // 1.处理超时事件------多线程安全
             std::vector<std::function<void()>> expire_funcS;
             TimerManager::listExpiredCb(expire_funcS);
-            for (auto &func : expire_funcS)
+            if(!expire_funcS.empty())
             {
-                func();
+                Schedule(expire_funcS.begin(),expire_funcS.end());
+                expire_funcS.clear();
             }
             // 2.处理就绪事件
             for (int i = 0; i < ret; i++)
@@ -443,7 +454,7 @@ namespace Xten
                     SpinLock::Lock lock(fd_ctx->mutex);
                     if (epev.events & (EPOLLERR | EPOLLHUP)) // 异常事件转化成读写事件进行处理
                     {
-                        epev.events = (EPOLLIN | EPOLLOUT) & fd_ctx->events;
+                        epev.events |= ((EPOLLIN | EPOLLOUT) & fd_ctx->events);
                     }
                     // 获取触发的事件
                     int real_event = Event::NONE;
@@ -455,23 +466,24 @@ namespace Xten
                     {
                         real_event |= Event::WRITE;
                     }
-                    if (XTEN_UNLIKELY((real_event & epev.events) == Event::NONE))
+                    //这个判断是I/O事件分发机制中非常重要的一环--->[确保只有真正被监听的事件就绪后才会被触发执行]
+                    if ((real_event & fd_ctx->events) == Event::NONE)
                     {
                         continue;
                     }
                     // 获取fd_ctx中还没触发的事件
-                    int leave_event = fd_ctx->events & ~real_event;
+                    int leave_event = (fd_ctx->events & ~real_event);
                     int opt = leave_event ? EPOLL_CTL_MOD : EPOLL_CTL_DEL;
                     // 重新设置epoll
                     epev.events = EPOLLET | leave_event;
-                    std::cout<<(EpollCtlOp)opt<<" : "<<fd_ctx->fd<<std::endl;
                     int ret2 = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
                     if (XTEN_UNLIKELY(ret2))
                     {
-                        XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
-                                                 << (EpollCtlOp)opt << ", " << fd_ctx->fd << ", " << (EPOLL_EVENTS)epev.events << "):"
-                                                 << ret2 << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
-                                                 << (EPOLL_EVENTS)fd_ctx->events;
+                            XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
+                                                     << (EpollCtlOp)opt << ", " << fd_ctx->fd << ", " << (EPOLL_EVENTS)epev.events << "):"
+                                                     << ret2 << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
+                                                     << (EPOLL_EVENTS)fd_ctx->events;
+                        continue;
                     }
                     // 处理就绪事件----将就绪事件设置的执行体放入调度队列
                     if (real_event & Event::READ)
