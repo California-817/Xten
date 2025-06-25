@@ -88,10 +88,10 @@ namespace Xten
         if (XTEN_UNLIKELY(!(events & ev)))
         {
             XTEN_LOG_ERROR(g_logger) << "fd=" << fd
-                                      << " triggerEvent event=" << ev
-                                      << " events=" << events
-                                      << "\nbacktrace:\n"
-                                      << Xten::BackTraceUtil::backtraceTostring(100);
+                                     << " triggerEvent event=" << ev
+                                     << " events=" << events
+                                     << "\nbacktrace:\n"
+                                     << Xten::BackTraceUtil::backtraceTostring(100);
             return;
         }
         IOManager::FdContext::EventContext &evctx = getEvContext(ev);
@@ -254,11 +254,11 @@ namespace Xten
             int ret = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
             if (XTEN_UNLIKELY(ret))
             {
-                    XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
-                                             << (EpollCtlOp)opt << ", " << fd << ", " << (EPOLL_EVENTS)epev.events << "):"
-                                             << ret << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
-                                             << (EPOLL_EVENTS)fd_ctx->events;
-                    return false;
+                XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
+                                         << (EpollCtlOp)opt << ", " << fd << ", " << (EPOLL_EVENTS)epev.events << "):"
+                                         << ret << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
+                                         << (EPOLL_EVENTS)fd_ctx->events;
+                return false;
             }
             // 2.fdcontexts中删除事件
             fd_ctx->events = new_events;
@@ -297,11 +297,11 @@ namespace Xten
             int ret = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
             if (XTEN_UNLIKELY(ret))
             {
-                    XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
-                                             << (EpollCtlOp)opt << ", " << fd << ", " << (EPOLL_EVENTS)epev.events << "):"
-                                             << ret << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
-                                             << (EPOLL_EVENTS)fd_ctx->events;
-                    return false;
+                XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
+                                         << (EpollCtlOp)opt << ", " << fd << ", " << (EPOLL_EVENTS)epev.events << "):"
+                                         << ret << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
+                                         << (EPOLL_EVENTS)fd_ctx->events;
+                return false;
             }
             // 2.fdcontext直接触发这个事件
             fd_ctx->triggerEvent(ev);
@@ -324,7 +324,7 @@ namespace Xten
         }
         {
             SpinLock::Lock lock(fd_ctx->mutex);
-            if(!fd_ctx->events)
+            if (!fd_ctx->events)
             {
                 return false;
             }
@@ -335,11 +335,11 @@ namespace Xten
             int ret = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
             if (XTEN_UNLIKELY(ret))
             {
-                    XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
-                                             << (EpollCtlOp)opt << ", " << fd << ", " << (EPOLL_EVENTS)epev.events << "):"
-                                             << ret << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
-                                             << (EPOLL_EVENTS)fd_ctx->events;
-                    return false;
+                XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
+                                         << (EpollCtlOp)opt << ", " << fd << ", " << (EPOLL_EVENTS)epev.events << "):"
+                                         << ret << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
+                                         << (EPOLL_EVENTS)fd_ctx->events;
+                return false;
             }
             // 有读事件
             if (fd_ctx->events & Event::READ)
@@ -427,9 +427,9 @@ namespace Xten
             // 1.处理超时事件------多线程安全
             std::vector<std::function<void()>> expire_funcS;
             TimerManager::listExpiredCb(expire_funcS);
-            if(!expire_funcS.empty())
+            if (!expire_funcS.empty())
             {
-                Schedule(expire_funcS.begin(),expire_funcS.end());
+                Schedule(expire_funcS.begin(), expire_funcS.end());
                 expire_funcS.clear();
             }
             // 2.处理就绪事件
@@ -466,7 +466,7 @@ namespace Xten
                     {
                         real_event |= Event::WRITE;
                     }
-                    //这个判断是I/O事件分发机制中非常重要的一环--->[确保只有真正被监听的事件就绪后才会被触发执行]
+                    // 这个判断是I/O事件分发机制中非常重要的一环--->[确保只有真正被监听的事件就绪后才会被触发执行]
                     if ((real_event & fd_ctx->events) == Event::NONE)
                     {
                         continue;
@@ -479,10 +479,10 @@ namespace Xten
                     int ret2 = epoll_ctl(_epfd, opt, fd_ctx->fd, &epev);
                     if (XTEN_UNLIKELY(ret2))
                     {
-                            XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
-                                                     << (EpollCtlOp)opt << ", " << fd_ctx->fd << ", " << (EPOLL_EVENTS)epev.events << "):"
-                                                     << ret2 << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
-                                                     << (EPOLL_EVENTS)fd_ctx->events;
+                        XTEN_LOG_ERROR(g_logger) << "epoll_ctl(" << _epfd << ", "
+                                                 << (EpollCtlOp)opt << ", " << fd_ctx->fd << ", " << (EPOLL_EVENTS)epev.events << "):"
+                                                 << ret2 << " (" << errno << ") (" << strerror(errno) << ") fd_ctx->events="
+                                                 << (EPOLL_EVENTS)fd_ctx->events;
                         continue;
                     }
                     // 处理就绪事件----将就绪事件设置的执行体放入调度队列
