@@ -4,6 +4,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include<stdlib.h>
+#include <iomanip>
 #include <iostream>
 #include <sys/epoll.h>
 static Xten::Logger::ptr g_logger = XTEN_LOG_ROOT();
@@ -236,14 +238,107 @@ void test_server()
         Xten::Scheduler::GetThis()->Schedule(std::bind(&handle_client, client));
     }
 }
+void test_assert()
+{ 
+    XTEN_ASSERT(false);
+}
+void test_byteArray()
+{
+#define XX(type, len, write_fun, read_fun, base_len) {\
+    std::vector<type> vec; \
+    for(int i = 0; i < len; ++i) { \
+        vec.push_back(rand()); \
+    } \
+    Xten::ByteArray::ptr ba(new Xten::ByteArray(base_len)); \
+    for(auto& i : vec) { \
+        ba->write_fun(i); \
+    } \
+    ba->SetPosition(0); \
+    for(size_t i = 0; i < vec.size(); ++i) { \
+        type v = ba->read_fun(); \
+        XTEN_ASSERT(v == vec[i]); \
+    } \
+    XTEN_ASSERT(ba->GetReadSize() == 0); \
+    XTEN_LOG_INFO(g_logger) << #write_fun "/" #read_fun \
+                    " (" #type " ) len=" << len \
+                    << " base_len=" << base_len \
+                    << " size=" << ba->GetSize(); \
+}
+
+    XX(int8_t,  100, WriteFint8, ReadFint8, 1);
+    XX(uint8_t, 100, WriteFUint8, ReadFUint8, 1);
+    XX(int16_t,  100, WriteFint16,  ReadFint16, 1);
+    XX(uint16_t, 100, WriteFUint16, ReadFUint16, 1);
+    XX(int32_t,  100, WriteFint32,  ReadFint32, 1);
+    XX(uint32_t, 100, WriteFUint32, ReadFUint32, 1);
+    XX(int64_t,  100, WriteFint64,  ReadFint64, 1);
+    XX(uint64_t, 100, WriteFUint64, ReadFUint64, 1);
+
+    XX(int32_t,  100, WriteVarint32,  ReadVarint32, 1);
+    XX(uint32_t, 100, WriteVarUint32, ReadVarUint32, 1);
+    XX(int64_t,  100, WriteVarint64,  ReadVarint64, 1);
+    XX(uint64_t, 100, WriteVarUint64, ReadVarUint64, 1);
+#undef XX
+#define XX(type, len, write_fun, read_fun, base_len) {\
+    std::vector<type> vec; \
+    for(int i = 0; i < len; ++i) { \
+        vec.push_back(rand()); \
+    } \
+    Xten::ByteArray::ptr ba(new Xten::ByteArray(base_len)); \
+    for(auto& i : vec) { \
+        ba->write_fun(i); \
+    } \
+    ba->SetPosition(0); \
+    for(size_t i = 0; i < vec.size(); ++i) { \
+        type v = ba->read_fun(); \
+        XTEN_ASSERT(v == vec[i]); \
+    } \
+    XTEN_ASSERT(ba->GetReadSize() == 0); \
+    XTEN_LOG_INFO(g_logger) << #write_fun "/" #read_fun \
+                    " (" #type " ) len=" << len \
+                    << " base_len=" << base_len \
+                    << " size=" << ba->GetSize(); \
+    ba->SetPosition(0); \
+    XTEN_ASSERT(ba->WriteToFile("/tmp/" #type "_" #len "-" #read_fun ".dat.test")); \
+    Xten::ByteArray::ptr ba2(new Xten::ByteArray(base_len * 2)); \
+    XTEN_ASSERT(ba2->ReadFromFile("/tmp/" #type "_" #len "-" #read_fun ".dat.test")); \
+    ba2->SetPosition(0); \
+    XTEN_ASSERT(ba2->WriteToFile("/tmp/" #type "_" #len "-" #read_fun ".dat.bak.test")); \
+    ba2->SetPosition(0); \
+    std::cout<<"same begin"<<std::endl;  \
+    std::cout<<ba->ToHexString()<<std::endl; \
+    std::cout<<ba2->ToHexString()<<std::endl;  \
+    XTEN_ASSERT(ba->ToString() == ba2->ToString());  \
+    std::cout<<"same end"<<std::endl;  \
+    XTEN_ASSERT(ba->GetPosition() == 0); \
+    XTEN_ASSERT(ba2->GetPosition() == 0); \
+}
+    XX(int8_t,  100, WriteFint8, ReadFint8, 3);
+    XX(uint8_t, 100, WriteFUint8, ReadFUint8, 3);
+    XX(int16_t,  100, WriteFint16,  ReadFint16, 3);
+    XX(uint16_t, 100, WriteFUint16, ReadFUint16, 1);
+    XX(int32_t,  100, WriteFint32,  ReadFint32, 1);
+    XX(uint32_t, 100, WriteFUint32, ReadFUint32, 1);
+    XX(int64_t,  100, WriteFint64,  ReadFint64, 1);
+    XX(uint64_t, 100, WriteFUint64, ReadFUint64, 1);
+
+    XX(int32_t,  100, WriteVarint32,  ReadVarint32, 1);
+    XX(uint32_t, 100, WriteVarUint32, ReadVarUint32, 5);
+    XX(int64_t,  100, WriteVarint64,  ReadVarint64, 1);
+    XX(uint64_t, 100, WriteVarUint64, ReadVarUint64, 1);
+
+#undef XX
+}
 int main()
 {
+    // test_assert();
     // Xten::Config::LoadFromConFDir(".");
-    Xten::IOManager iom(2
-
-                        ,
-                        false, "test");
-    iom.Schedule(&test_server);
+    // Xten::IOManager iom(2
+// 
+                        // ,
+                        // false, "test");
+    // iom.Schedule(&test_byteArray);
+    test_byteArray();
     // Xten::TimerManager mgr;
     //     XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"add";
 
