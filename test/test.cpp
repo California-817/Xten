@@ -329,6 +329,15 @@ void test_byteArray()
 
 #undef XX
 }
+void test_sslSocket()
+{
+    Xten::SSLSocket::ptr sslsk=Xten::SSLSocket::CreateTCPSocket();
+    auto addr=Xten::IPv4Address::Create("0.0.0.0",8080);
+    sslsk->Bind(addr);
+    sslsk->Listen();
+    sslsk->Accept();
+    std::cout<<sslsk<<std::endl;
+}
 int main()
 {
     // test_assert();
@@ -339,6 +348,7 @@ int main()
                         // false, "test");
     // iom.Schedule(&test_byteArray);
     test_byteArray();
+    test_sslSocket();
     // Xten::TimerManager mgr;
     //     XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"add";
 

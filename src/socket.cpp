@@ -45,13 +45,13 @@ namespace Xten
     }
     Socket::ptr Socket::CreateUnixTCPSocket()
     {
-        return std::make_shared<Socket>(FAMILY::UNIX,TYPE::TCP);
+        return std::make_shared<Socket>(FAMILY::UNIX, TYPE::TCP);
     }
     Socket::ptr Socket::CreateUnixUDPSocket()
     {
-        std::shared_ptr<Socket> socket=std::make_shared<Socket>(FAMILY::UNIX,TYPE::UDP);
+        std::shared_ptr<Socket> socket = std::make_shared<Socket>(FAMILY::UNIX, TYPE::UDP);
         socket->newSocket();
-        socket->_isConnect=true;
+        socket->_isConnect = true;
         return socket;
     }
     Socket::Socket(int family, int type, int protocol)
@@ -86,15 +86,16 @@ namespace Xten
         if (uaddr)
         {
             // 转化成功说明是unix地址--->绑定之前判断是否已经该路径已经在使用或者有残留
-            Socket::ptr usock=CreateUnixTCPSocket();
-            if(usock->Connect(uaddr)) //以客户端方式连接
+            Socket::ptr usock = CreateUnixTCPSocket();
+            if (usock->Connect(uaddr)) // 以客户端方式连接
             {
-                //success
-                return false; //这个路径的套接字正在被使用
+                // success
+                return false; // 这个路径的套接字正在被使用
             }
-            //连接失败 未被使用--->去除残留防止bind失败
-            else{
-                Xten::FileUtil::UnLink(uaddr->getPath(),true);
+            // 连接失败 未被使用--->去除残留防止bind失败
+            else
+            {
+                Xten::FileUtil::UnLink(uaddr->getPath(), true);
             }
         }
         // 普通ip地址
@@ -584,9 +585,246 @@ namespace Xten
         return _sockfd != -1;
     }
 
+    // SSL安全的socket
+    namespace
+    {
+        class _SSLInit
+        {
+        public:
+            _SSLInit()
+            {
+                //完成Openssl环境的初始化工作
+                SSL_library_init();
+                SSL_load_error_strings();
+                OpenSSL_add_all_algorithms();
+            }
+        };
+    }
+    //在main函数之前，编译成静态库由运行时库在__libc_start_main函数中执行该构造函数
+    static _SSLInit s_sslinit;
+    //  创建加密ipv4tcp套接字
+    SSLSocket::ptr SSLSocket::CreateTCP(Address::ptr addr)
+    {
+        return std::make_shared<SSLSocket>(addr->getFamily(), TYPE::TCP);
+    }
+    // 创建加密ipv4tcp套接字
+    SSLSocket::ptr SSLSocket::CreateTCPSocket()
+    {
+        return std::make_shared<SSLSocket>(FAMILY::IPv4, TYPE::TCP);
+    }
+    // 创建加密ipv6tcp套接字
+    SSLSocket::ptr SSLSocket::CreateTCPSocketIPv6()
+    {
+        return std::make_shared<SSLSocket>(FAMILY::IPv6, TYPE::TCP);
+    }
+    SSLSocket::SSLSocket(int family, int type, int protocol)
+        : Socket(family, type, protocol)
+    {
+    }
+    // connect发起连接
+    bool SSLSocket::Connect(Address::ptr addr, uint64_t timeout)
+    {
+        if (Socket::Connect(addr, timeout))
+        {
+            // 网络层连接建立成功 作为客户端开始进行TLS握手
+            // 1.创建TLS上下文并用智能指针管理
+            _ctx.reset(SSL_CTX_new(SSLv23_client_method()), SSL_CTX_free);
+            // 2.根据上下文创建SSL结构
+            _ssl.reset(SSL_new(_ctx.get()), SSL_free);
+            // 3.ssl结构绑定一个socket
+            SSL_set_fd(_ssl.get(), _sockfd);
+            // 4.发起TLS握手
+            int ret = SSL_connect(_ssl.get());
+            if (ret == 1)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    // 接收连接
+    std::shared_ptr<Socket> SSLSocket::Accept()
+    {
+        SSLSocket::ptr newsocket = std::make_shared<SSLSocket>(_family, _type, _protocol);
+        int socketfd = ::accept(_sockfd, nullptr, nullptr);
+        if (socketfd < 0)
+        {
+            XTEN_LOG_ERROR(g_logger) << "accept(" << _sockfd << ") errno="
+                                     << errno << " errstr=" << strerror(errno);
+            return nullptr;
+        }
+        // 将listen套接字的ssl上下文给到新的通信socket
+        newsocket->_ctx = _ctx;
+        if (newsocket->init(socketfd))
+        {
+            return newsocket;
+        }
+        return nullptr;
+    }
+    // tcp读函数-单缓冲区
+    ssize_t SSLSocket::Recv(void *buf, size_t len, int flags)
+    {
+        if (_ssl)
+        {
+            return SSL_read(_ssl.get(), buf, len);
+        }
+        return -1;
+    }
+    // tcp读函数-多缓冲区(iovec *iov为iov数组的指针,iovcnt为数组的大小)
+    ssize_t SSLSocket::RecvV(struct iovec *iov, int iovcnt, int flags)
+    {
+        if (!_ssl)
+        {
+            return -1;
+        }
+        int total = 0;
+        for (int i = 0; i < iovcnt; i++)
+        {
+            int tmp = SSL_read(_ssl.get(), iov[i].iov_base, iov[i].iov_len);
+            if (tmp <= 0)
+            {
+                return tmp;
+            }
+            total += tmp;
+            if (tmp != (int)iov[i].iov_len)
+            {
+                break;
+            }
+        }
+        return total;
+    }
+    // udp读函数-单缓冲区
+    ssize_t SSLSocket::RecvFrom(void *buf, size_t len, Address::ptr from, int flags)
+    {
+        XTEN_ASSERT(false);
+        return -1;
+    }
+    // udp读函数-多缓冲区(iovec *iov为iov数组的指针,iovcnt为数组的大小)
+    ssize_t SSLSocket::RecvFromV(struct iovec *iov, int iovcnt, Address::ptr from, int flags)
+    {
+        XTEN_ASSERT(false);
+        return -1;
+    }
+    // tcp写函数-单缓冲区
+    ssize_t SSLSocket::Send(const void *msg, size_t len, int flags)
+    {
+        if (_ssl)
+        {
+            return SSL_write(_ssl.get(), msg, len);
+        }
+        return -1;
+    }
+    // tcp写函数-多缓冲区
+    ssize_t SSLSocket::SendV(const struct iovec *iov, int iovcnt, int flags)
+    {
+        if (!_ssl)
+        {
+            return -1;
+        }
+        int total = 0;
+        for (int i = 0; i < iovcnt; i++)
+        {
+            int tmp = SSL_write(_ssl.get(), iov[i].iov_base, iov[i].iov_len);
+            if (tmp <= 0)
+            {
+                return tmp;
+            }
+            total += tmp;
+            if (tmp != (int)iov[i].iov_len)
+            {
+                break;
+            }
+        }
+        return total;
+    }
+    // udp写函数-单缓冲区
+    ssize_t SSLSocket::SendTo(const void *msg, size_t len, Address::ptr to, int flags)
+    {
+        XTEN_ASSERT(false);
+        return -1;
+    }
+    // udp写函数-多缓冲区
+    ssize_t SSLSocket::SendToV(const struct iovec *iov, int iovcnt, Address::ptr to, int flags)
+    {
+        XTEN_ASSERT(false);
+        return -1;
+    }
+    // 通过sockfd进行初始化
+    bool SSLSocket::init(int sockfd)
+    {
+        if (Socket::init(sockfd))
+        {
+            // socket层面的初始化完成后，进行与客户端的TLS握手
+            _ssl.reset(SSL_new(_ctx.get()), SSL_free); // 新链接的ssl上下文来自listen套接字
+            SSL_set_fd(_ssl.get(), _sockfd);
+            int ret = SSL_accept(_ssl.get());
+            if (ret == 1)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    // 加载证书和私钥文件(服务端调用给listen套接字加载)
+    bool SSLSocket::LoadCertificates(const std::string &cert_file, const std::string &key_file)
+    {
+        _ctx.reset(SSL_CTX_new(SSLv23_server_method()), SSL_CTX_free);
+        if (SSL_CTX_use_certificate_chain_file(_ctx.get(), cert_file.c_str()) != 1)
+        {
+            // 加载证书失败
+            XTEN_LOG_ERROR(g_logger) << "SSL_CTX_use_certificate_chain_file("
+                                     << cert_file << ") error";
+            return false;
+        }
+        if (SSL_CTX_use_PrivateKey_file(_ctx.get(), key_file.c_str(), SSL_FILETYPE_PEM) != 1)
+        {
+            // 加载密钥对文件失败
+            XTEN_LOG_ERROR(g_logger) << "SSL_CTX_use_PrivateKey_file("
+                                     << key_file << ") error";
+            return false;
+        }
+        if (SSL_CTX_check_private_key(_ctx.get()) != 1)
+        {
+            // 证书中的公钥和私钥配对失败
+            XTEN_LOG_ERROR(g_logger) << "SSL_CTX_check_private_key cert_file="
+                                     << cert_file << " key_file=" << key_file;
+            return false;
+        }
+        return true;
+    }
+    // 输出信息
+    std::ostream &SSLSocket::dump(std::ostream &os)
+    {
+        os << "[SSLSocket sock=" << _sockfd
+           << " is_connected=" << _isConnect
+           << " family=" << _family
+           << " type=" << _type
+           << " protocol=" << _protocol;
+        if (_localAddress)
+        {
+            os << " local_address=" << _localAddress->toString();
+        }
+        if (_peerAddress)
+        {
+            os << " remote_address=" << _peerAddress->toString();
+        }
+        os << "]";
+        return os;
+    }
+    std::string SSLSocket::tostring()
+    {
+        std::stringstream ss;
+        dump(ss);
+        return ss.str();
+    }
 }
 
 std::ostream &operator<<(std::ostream &os, Xten::Socket &socket)
+{
+    return socket.dump(os);
+}
+// 流式输出SSLsocket内容
+std::ostream &operator<<(std::ostream &os, Xten::SSLSocket &socket)
 {
     return socket.dump(os);
 }
