@@ -22,13 +22,13 @@ namespace Xten
         // 将二进制序列数组中数据写入
         virtual ssize_t Write(ByteArray::ptr ba, size_t len) = 0;
 
-        // 读取指定长度数据到buffer中
+        // 读取指定长度数据到buffer中 (retval<=0失败 retval==len成功)
         virtual ssize_t ReadFixSize(void *buffer, size_t len);
-        // 读取指定长度数据到二进制序列数组bytearray中
+        // 读取指定长度数据到二进制序列数组bytearray中 (retval<=0失败 retval==len成功)
         virtual ssize_t ReadFixSize(ByteArray::ptr ba, size_t len);
-        // 将buffer中指定长度数据写入
+        // 将buffer中指定长度数据写入 (retval<=0失败 retval==len成功)
         virtual ssize_t WriteFixSize(const void *buffer, size_t len);
-        // 将二进制序列数组中指定长度数据写入
+        // 将二进制序列数组中指定长度数据写入 (retval<=0失败 retval==len成功)
         virtual ssize_t WriteFixSize(ByteArray::ptr ba, size_t len);
     };
 }
