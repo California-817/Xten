@@ -3,9 +3,9 @@ namespace Xten
 {
     static Xten::Logger::ptr g_logger=XTEN_LOG_NAME("system");
     // 定义静态成员变量
-    Config::ConfigVarMap Config::_configvars_map;
-    Config::ConfigFileModifyTimeMap Config::_configfile_modifytimes;
-    RWMutex Config::_mutex;
+    // Config::ConfigVarMap Config::_configvars_map;
+    // Config::ConfigFileModifyTimeMap Config::_configfile_modifytimes;
+    // RWMutex Config::_mutex;
     std::unordered_map<std::string, ConfigVarBase::ptr> &Config::GetDatas() // 获取到全局唯一的static类型的map结构
     {
         static std::unordered_map<std::string, ConfigVarBase::ptr> _configvars_map; // 第一次调用时初始化一次
@@ -18,6 +18,7 @@ namespace Xten
     }
     RWMutex &Config::GetMutex()// 获取锁
     {
+        static RWMutex _mutex;
         return _mutex;
     }
     typename ConfigVarBase::ptr Config::LookUpBase(const std::string &name) // 查找并返回基类指针
@@ -107,8 +108,7 @@ namespace Xten
             {
                 // 每一个yml文件都生成对应的node节点
                 YAML::Node root = YAML::LoadFile(i);
-                // std::cout << "调用 LoadFromYaml" << std::endl;
-                LoadFromYaml(root); // 进行node值加载到配置项
+                LoadFromYaml(root); // 进行node值加载到配置项并且会调用注册的更新回调函数
                 //走到这里的时候 logger模块的实体更新已经完成 所有之后的日志使用的是新配置
                 XTEN_LOG_INFO(g_logger) << "LoadConfFile file="
                                                << i << " ok";

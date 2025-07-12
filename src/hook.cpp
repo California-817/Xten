@@ -39,19 +39,6 @@ namespace Xten
 
     /// @brief // 默认是非hook --实现线程级别hook
     static thread_local bool t_hookable = false;
-
-    struct ConfigInitializer
-    {
-        ConfigInitializer()
-        {
-            // 强制访问静态成员变量，触发其构造
-            (void)Config::_configvars_map;
-            (void)Config::_configfile_modifytimes;
-            (void)Config::_mutex;
-        }
-    };
-    static ConfigInitializer s_configInit;
-
     /// @brief connect超时参数
     static ConfigVar<uint64_t>::ptr g_tcp_connect_timeout =
         Config::LookUp<uint64_t>("tcp.connect.timeout", (uint64_t)5000, "tcp connect timeout");

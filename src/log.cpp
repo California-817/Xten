@@ -2,7 +2,7 @@
 #include "../include/config.h"
 namespace Xten
 {
-    static Logger::ptr g_logger=XTEN_LOG_NAME("system");
+    static Logger::ptr g_logger = XTEN_LOG_NAME("system");
     const char *LogLevel::ToString(const LogLevel::Level &level) // level转字符串
     {
         switch (level)
@@ -127,7 +127,7 @@ namespace Xten
         free(buffer);
     }
     Logger::Logger(const std::string &name)
-        : _name(name), _level_limit(LogLevel::DEBUG), _root_logger(nullptr),_mutex()
+        : _name(name), _level_limit(LogLevel::DEBUG), _root_logger(nullptr), _mutex()
     {
         // 初始化一个logger时分配一个默认格式Formatter
         _formatter = std::make_shared<Formatter>();
@@ -269,7 +269,7 @@ namespace Xten
         }
     }
     FileLogsinker::FileLogsinker(const std::string &filename)
-        :Logsinker(),_log_filename(filename)
+        : Logsinker(), _log_filename(filename)
     {
         _last_opentime = TimeUitl::NowTime_to_uint64();
         reopen(); // 打开文件流
@@ -612,7 +612,7 @@ namespace Xten
             XX(F, FiberIdFormatterItem),
             XX(N, ThreadNameFormatterItem)
 #undef XX
-    //宏函数调用完直接undef
+            // 宏函数调用完直接undef
         };
         for (auto &ele : vec)
         {
@@ -947,25 +947,8 @@ namespace Xten
             return ss.str();
         }
     };
-
-
-    // 这个变量的存在用来保证config文件中的类静态成员变量要先于下面此文件全局变量访问时创建
-    struct ConfigInitializer
-    {
-        ConfigInitializer()
-        {
-            // 强制访问静态成员变量，触发其构造
-            (void)Config::_configvars_map;
-            (void)Config::_configfile_modifytimes;
-            (void)Config::_mutex;
-        }
-    };
-    static ConfigInitializer s_configInit; // 静态变量，构造早于 main
-
-
     // 创建一个日志的Configvar到config模块中
     Xten::ConfigVar<std::set<LoggerDefine>>::ptr g_logs_defines = Xten::Config::LookUp("logs", std::set<LoggerDefine>(), "logs config");
-
 
     struct LogIniter
     {
@@ -973,7 +956,8 @@ namespace Xten
         LogIniter()
         {
             // 每次重新读取配置文件都会触发setval 而setval判断值改变会进行触发变更回调函数的调用来更改配置实体
-            g_logs_defines->AddListener([](const std::set<LoggerDefine> &old_value, const std::set<LoggerDefine> &new_value){
+            g_logs_defines->AddListener([](const std::set<LoggerDefine> &old_value, const std::set<LoggerDefine> &new_value)
+                                        {
                     XTEN_LOG_INFO(g_logger)<<"on_logs_config_changed";
                  for(auto& i : new_value) {
                 auto it = old_value.find(i);
@@ -1029,14 +1013,13 @@ namespace Xten
                     logger->ClearSinkers(); //不是真正删除---而是进行将所有落地类删除 ---等效于删除
                     //即使外部static变量有智能指针---也无法利用该logger进行输出
                 }
-            }
-                 });
+            } });
         }
     };
 
     // 这个库的静态局部变量在main函数之前创建 在构造函数中会进行变更回调函数的注册
     static LogIniter __log__init;
-    
+
     Logger::ptr LoggerManager::GetAndSetLogger(const std::string &name) // 获取logger 不存在则设置
     {
         SpinLock::Lock lock(_mutex);

@@ -399,9 +399,9 @@ namespace Xten
         // ConfigVarMap用来保存所有配置项的 name:ConfigVar<T>ptr
         typedef std::unordered_map<std::string, ConfigVarBase::ptr> ConfigVarMap;
         typedef std::unordered_map<std::string, uint64_t> ConfigFileModifyTimeMap;
-        static ConfigVarMap _configvars_map;
-        static std::unordered_map<std::string, uint64_t> _configfile_modifytimes;
-        static RWMutex _mutex; //静态成员变量
+        // static ConfigVarMap _configvars_map;
+        // static std::unordered_map<std::string, uint64_t> _configfile_modifytimes;
+        // static RWMutex _mutex; //静态成员变量
         static ConfigVarMap &GetDatas();                      // 获取到全局唯一的static类型的map结构
         static ConfigFileModifyTimeMap &GetFileModifyTimes(); // 存储配置文件的修改时间
         static RWMutex &GetMutex(); // 获取锁
