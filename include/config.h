@@ -313,7 +313,6 @@ namespace Xten
         }
         virtual bool FromString(const std::string &val_str) override // 从yaml的string转成val 并且内部会进行对val赋值
         {
-            // std::cout << "走到 FromString" << std::endl;
             try
             {
                 // 这个setval除了会对值进行重新设置 还会通过变更回调函数进行修改真正的配置实体

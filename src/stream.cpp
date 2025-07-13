@@ -5,7 +5,7 @@ namespace Xten
 {
     static Logger::ptr g_logger = XTEN_LOG_NAME("system");
     // 默认缓冲区的最大长度是16KB
-    static ConfigVar<int32_t>::ptr g_buffer_size = Config::LookUp("Stream_buffer.size",
+    static ConfigVar<int32_t>::ptr g_buffer_size = Config::LookUp("stream_buffer.size",
                                                                   (int32_t)1024 * 16, "stream buffer size");
     static int32_t s_bufferSize = g_buffer_size->GetValue();
     namespace

@@ -145,6 +145,7 @@ namespace Xten
     class TimerWheelManager
     {
     public:
+        typedef std::shared_ptr<TimerWheelManager> ptr;
         TimerWheelManager(IOManager* iom=nullptr);
         virtual ~TimerWheelManager() ;
         // 添加定时器

@@ -58,7 +58,13 @@ namespace Xten
         return (val >> 1) ^ -(val & 1);
     }
     ByteArray::ByteArray(size_t node_size)
-        : _root(new Node(node_size)), _nodeSize(node_size), _position(0), _size(0), _cur(_root), _capacity(node_size), _endian(XTEN_BIG_ENDIAN)
+        : _root(new Node(node_size)),
+          _nodeSize(node_size),
+          _position(0),
+          _size(0),
+          _cur(_root),
+          _capacity(node_size),
+          _endian(XTEN_BIG_ENDIAN)
     {
     }
     ByteArray::~ByteArray()
@@ -342,12 +348,12 @@ namespace Xten
         }
         size_t npos = position % _nodeSize;
         size_t rd_pos = 0;
-        //根据position确定cur的Node节点位置
+        // 根据position确定cur的Node节点位置
         Node *cur = _root;
-        int64_t count=position/_nodeSize;
-        while(count>0)
+        int64_t count = position / _nodeSize;
+        while (count > 0)
         {
-            cur=cur->next;
+            cur = cur->next;
             count--;
         }
         size_t ncap = cur->size - npos;
@@ -449,7 +455,7 @@ namespace Xten
     // 读取变长uint32_t数据
     uint32_t ByteArray::ReadVarUint32()
     {
-        uint32_t val=0;
+        uint32_t val = 0;
         int i = 0;
         while (true)
         {
@@ -503,7 +509,7 @@ namespace Xten
     // 读取变长uint64_t数据
     uint64_t ByteArray::ReadVarUint64()
     {
-        uint64_t val=0;
+        uint64_t val = 0;
         int i = 0;
         while (true)
         {
@@ -623,7 +629,7 @@ namespace Xten
             return str;
         }
         // 读取数据 但是不会改变position和cur的位置
-        Read(&str[0], str.size(),_position);
+        Read(&str[0], str.size(), _position);
         return str;
     }
     // 将bytearray里的[_position,_size)的数据转换成16进制表示 (格式：FF 11 22 3a )
@@ -687,7 +693,7 @@ namespace Xten
     bool ByteArray::ReadFromFile(const std::string &file)
     {
         std::ifstream ifs;
-        ifs.open(file,std::ios::binary);
+        ifs.open(file, std::ios::binary);
         if (!ifs.is_open())
         {
             XTEN_LOG_ERROR(g_logger) << "ReadFromFile name=" << file
@@ -783,7 +789,7 @@ namespace Xten
     uint64_t ByteArray::GetReadBuffers(std::vector<iovec> &buffers, uint64_t len, size_t pos)
     {
         // 看len是否可读数据的长度
-        size_t can_read=_size-pos;
+        size_t can_read = _size - pos;
         len = can_read > len ? len : can_read;
         if (len == 0)
         {

@@ -556,7 +556,7 @@ namespace Xten
         return IOManager::GetThis()->CancelEvent(_sockfd, Xten::IOManager::Event::READ);
     }
     // 输出信息
-    std::ostream &Socket::dump(std::ostream &os)
+    std::ostream &Socket::dump(std::ostream &os) const
     {
         os << "[Socket sock=" << _sockfd
            << " is_connected=" << _isConnect
@@ -574,7 +574,7 @@ namespace Xten
         os << "]";
         return os;
     }
-    std::string Socket::tostring()
+    std::string Socket::tostring() const
     {
         std::stringstream ss;
         dump(ss);
@@ -593,14 +593,14 @@ namespace Xten
         public:
             _SSLInit()
             {
-                //完成Openssl环境的初始化工作
+                // 完成Openssl环境的初始化工作
                 SSL_library_init();
                 SSL_load_error_strings();
                 OpenSSL_add_all_algorithms();
             }
         };
     }
-    //在main函数之前，编译成静态库由运行时库在__libc_start_main函数中执行该构造函数
+    // 在main函数之前，编译成静态库由运行时库在__libc_start_main函数中执行该构造函数
     static _SSLInit s_sslinit;
     //  创建加密ipv4tcp套接字
     SSLSocket::ptr SSLSocket::CreateTCP(Address::ptr addr)
@@ -793,7 +793,7 @@ namespace Xten
         return true;
     }
     // 输出信息
-    std::ostream &SSLSocket::dump(std::ostream &os)
+    std::ostream &SSLSocket::dump(std::ostream &os) const
     {
         os << "[SSLSocket sock=" << _sockfd
            << " is_connected=" << _isConnect
@@ -811,20 +811,19 @@ namespace Xten
         os << "]";
         return os;
     }
-    std::string SSLSocket::tostring()
+    std::string SSLSocket::tostring() const
     {
         std::stringstream ss;
         dump(ss);
         return ss.str();
     }
-}
-
-std::ostream &operator<<(std::ostream &os, Xten::Socket &socket)
-{
-    return socket.dump(os);
-}
-// 流式输出SSLsocket内容
-std::ostream &operator<<(std::ostream &os, Xten::SSLSocket &socket)
-{
-    return socket.dump(os);
+    std::ostream &operator<<(std::ostream &os, const Xten::Socket &socket)
+    {
+        return socket.dump(os);
+    }
+    // 流式输出SSLsocket内容
+    std::ostream &operator<<(std::ostream &os, const Xten::SSLSocket &socket)
+    {
+        return socket.dump(os);
+    }
 }

@@ -132,8 +132,8 @@ namespace Xten
         // 取消accept
         bool CancelAccept();
         // 输出信息
-        virtual std::ostream &dump(std::ostream &os);
-        virtual std::string tostring();
+        virtual std::ostream &dump(std::ostream &os) const;
+        virtual std::string tostring() const;
 
     protected:
         // 内部使用的获取属性方法
@@ -193,8 +193,8 @@ namespace Xten
         // 加载证书和私钥文件（服务端调用)
         bool LoadCertificates(const std::string &cert_file, const std::string &key_file);
         // 输出信息
-        virtual std::ostream &dump(std::ostream &os) override;
-        virtual std::string tostring() override;
+        virtual std::ostream &dump(std::ostream &os) const override;
+        virtual std::string tostring() const override;
 
     private:
         // 通过sockfd进行初始化
@@ -206,9 +206,10 @@ namespace Xten
         // ssl加密的操作系统层socket结构（由socketfd进行初始化）
         std::shared_ptr<SSL> _ssl;
     };
+    // 流式输出socket内容
+    std::ostream &operator<<(std::ostream &os, const Xten::Socket &socket);
+    // 流式输出SSLsocket内容
+    std::ostream &operator<<(std::ostream &os, const Xten::SSLSocket &socket);
 }
-// 流式输出socket内容
-std::ostream &operator<<(std::ostream &os,  Xten::Socket &socket);
-// 流式输出SSLsocket内容
-std::ostream &operator<<(std::ostream &os,  Xten::SSLSocket &socket);
+
 #endif

@@ -224,19 +224,22 @@ void handle_client(Xten::Socket::ptr client)
 }
 void test_server()
 {
-    Xten::Socket::ptr apt = Xten::Socket::CreateTCPSocket();
+    // Xten::Socket::ptr apt = Xten::Socket::CreateTCPSocket();
     auto addr = Xten::IPv4Address::Create("127.0.0.1", 8080);
-    apt->Bind(addr);
-    apt->Listen();
-    while (true)
-    {
-        Xten::Socket::ptr client = apt->Accept();
-        if(!client)
-        {
-            return;
-        }
-        Xten::Scheduler::GetThis()->Schedule(std::bind(&handle_client, client));
-    }
+    Xten::TcpServer::ptr tcp_server(new  Xten::TcpServer());
+    tcp_server->Bind(addr);
+    tcp_server->Start();
+    // apt->Bind(addr);
+    // apt->Listen();
+    // while (true)
+    // {
+        // Xten::Socket::ptr client = apt->Accept();
+        // if(!client)
+        // {
+            // return;
+        // }
+        // Xten::Scheduler::GetThis()->Schedule(std::bind(&handle_client, client));
+    // }
 }
 void test_assert()
 { 
@@ -342,13 +345,10 @@ int main()
 {
     // test_assert();
     // Xten::Config::LoadFromConFDir(".");
-    // Xten::IOManager iom(2
-// 
-                        // ,
-                        // false, "test");
-    // iom.Schedule(&test_byteArray);
-    test_byteArray();
-    test_sslSocket();
+    Xten::IOManager iom(2);
+    iom.Schedule(&test_server);
+    // test_byteArray();
+    // test_sslSocket();
     // Xten::TimerManager mgr;
     //     XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"add";
 

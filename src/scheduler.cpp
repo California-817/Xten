@@ -27,7 +27,7 @@ namespace Xten
 			t_scheduler_fiber = _root_fiber.get();
 			Xten::Thread::SetName(_name);
 			_thread_ids.push_back(_root_threadId);
-			Xten::set_hook_enable(true);
+			// Xten::set_hook_enable(true);
 		}
 	}
 	Scheduler::~Scheduler()

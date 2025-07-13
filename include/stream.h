@@ -8,10 +8,10 @@ namespace Xten
     {
     public:
         typedef std::shared_ptr<Stream> ptr;
-        Stream();
+        Stream()=default;
         // 关闭流结构
         virtual void Close() = 0;
-        virtual ~Stream();
+        virtual ~Stream()=default;
         
         // 读取数据到buffer中
         virtual ssize_t Read(void *buffer, size_t len) = 0;
