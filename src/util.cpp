@@ -142,11 +142,11 @@ namespace Xten
     }
     bool FileUtil::UnLink(const std::string &name, bool exist)
     {
-        if(!exist&&__lstat(name.c_str()))
+        if (!exist && __lstat(name.c_str()))
         {
             return true;
         }
-        return (::unlink(name.c_str())==0);
+        return (::unlink(name.c_str()) == 0);
     }
 
     pid_t ThreadUtil::GetThreadId()
@@ -224,6 +224,13 @@ namespace Xten
         struct timeval tv;
         gettimeofday(&tv, NULL);
         return tv.tv_sec * 1000ul + tv.tv_usec / 1000;
+    }
+    // 获取当前微秒数
+    uint64_t TimeUitl::GetCurrentUS()
+    {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        return tv.tv_sec * 1000ul * 1000ul + tv.tv_usec;
     }
 
 }

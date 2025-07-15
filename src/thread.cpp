@@ -15,6 +15,7 @@ namespace Xten
         if (name.empty())
             _name = "UNKNOW";
         // 创建线程
+        _func=func;
         int ret = pthread_create(&_thread, nullptr, &Thread::run, this);
         if (ret)
         { // 创建失败

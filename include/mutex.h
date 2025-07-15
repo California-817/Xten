@@ -3,6 +3,7 @@
 #include "const.h"
 #include "nocopyable.hpp"
 #include <pthread.h>
+#include "fiber.h"
 #include <semaphore.h>
 namespace Xten
 {
@@ -190,7 +191,7 @@ namespace Xten
     private:
         pthread_spinlock_t _spin_lock; // 自旋锁
     };
-    // 4.信号量
+    // 4.信号量(线程级别)
     class Semaphore : public NoCopyable
     {
     public:
@@ -201,6 +202,28 @@ namespace Xten
 
     private:
         sem_t _semaphore; // 信号量
+    };
+    // 5.协程信号量--控制协程的并发
+    class Scheduler;
+    class FiberSemphore : public NoCopyable
+    {
+    public:
+        FiberSemphore(size_t initial_concurrency = 0);
+        // 尝试获取协程信号量（非阻塞）
+        bool trywait();
+        // 获取协程信号量（未获取成功 协程阻塞挂起）
+        void wait();
+        //释放信号量
+        void post();
+        //唤醒所有等待信号量的协程
+        void notifyAll();
+        ~FiberSemphore();
+
+    private:
+        // 这个线程锁是为了保证协程在多线程情况下操作信号量和等待队列的线程安全
+        SpinLock _mutex;
+        size_t _concurrency;                                      // 当前信号量的值
+        std::list<std::pair<Scheduler *, Fiber::ptr>> _waitQueue; // 协程未获取到信号量的等待队列
     };
 
 }

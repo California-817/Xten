@@ -12,7 +12,10 @@ namespace Xten
           _processWorker(process_worker),
           _conf(conf),
           _isStop(true),
-          _timeWheelMgr(nullptr)
+          _timeWheelMgr(nullptr),
+          _recvTimeout(2*1000*60),
+          _isSSL(false),
+          _timeWheel(false)
     {
         if (conf)
         {
@@ -181,7 +184,7 @@ namespace Xten
     {
         std::stringstream ss;
         ss << prefix << "[type=" << _type
-           << " name=" << _name << " ssl=" << _isSSL
+           << " name=" << _name << " ssl=" << _isSSL <<" timewheel="<<_timeWheel
            << " worker=" << (_processWorker ? _processWorker->GetName() : "")
            << " accept=" << (_acceptWorker ? _acceptWorker->GetName() : "")
            << " recv_timeout=" << _recvTimeout << "]" << std::endl;
