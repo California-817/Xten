@@ -26,6 +26,7 @@ namespace Xten
             IPv6 = AF_INET6,
             UNIX = AF_UNIX
         };
+        //提供静态工厂方法快速创建Socket
         // 创建ipv4tcp套接字
         static Socket::ptr CreateTCP(Address::ptr addr);
         // 创建ipv4udp套接字

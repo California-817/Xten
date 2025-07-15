@@ -203,7 +203,7 @@ namespace Xten
     private:
         sem_t _semaphore; // 信号量
     };
-    // 5.协程信号量--控制协程的并发
+    // 5.协程信号量--控制协程的并发，[并且还能保证只是进行协程等待挂起而不是直接挂起线程]
     class Scheduler;
     class FiberSemphore : public NoCopyable
     {

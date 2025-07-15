@@ -108,6 +108,9 @@ namespace Xten
         }
     };
     // tcpserver服务器类
+    //(继承自shared_form_this是因为这个server的函数是在调度器中执行的，而可能存在server销毁而调度器还没执行这个函数)
+    //为了防止这种情况产生，需要保证传入的函数中携带server的智能指针，该由this生成的智能指针和外部需要共享引用计数--->本质是同步处理
+    //形成闭包，延长生命周期
     class TcpServer : public std::enable_shared_from_this<TcpServer>, public NoCopyable
     {
     public:

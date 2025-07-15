@@ -13,6 +13,7 @@
 #include"timer.h"
 #include"bytearray.h"
 #include"iomanager.h"
+#include"worker.h"
 #include"tcp_server.h"
 #include"stream.h"
 #include"socket.h"
