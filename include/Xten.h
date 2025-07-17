@@ -10,6 +10,8 @@
 #include"util.h"
 #include"singleton.hpp"
 #include"nocopyable.hpp"
+#include"http/http.h"
+#include"http/http_parser.h"
 #include"timer.h"
 #include"bytearray.h"
 #include"iomanager.h"

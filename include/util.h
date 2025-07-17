@@ -59,7 +59,7 @@ namespace Xten
             return ty_str;
         }
     };
-    //T类的构造函数是protected保护的 通过这个函数绕过保护实现创建shared_ptr智能指针
+    //T类的构造函数是protected保护的 通过这个函数绕过保护实现创建shared_ptr智能指针 <模板函数定义内联在调用处直接展开，防止多重定义>
     template<class T ,class ...Args>
     inline std::shared_ptr<T> protected_make_shared(Args&&... args)
     {
@@ -71,6 +71,32 @@ namespace Xten
             {}
         };
         return std::make_shared<Helper>(std::forward<Args>(args)...);
+    }
+    class StringUtil
+    {
+        public:
+        //进行url编码
+        static std::string UrlEncode(const std::string& str, bool space_as_plus = true);
+        //对浏览器的url编码后的字符串进行解码
+        static std::string UrlDecode(const std::string& str, bool space_as_plus = true);
+        static std::string Trim(const std::string& str, const std::string& delimit = " \t\r\n");
+    };
+    //时间转化成字符串
+    std::string Time2Str(time_t ts, const std::string& format);
+    template<class Iter>
+    inline std::string MapJoin(Iter begin, Iter end, const std::string& tag1="=", const std::string& tag2="&")
+    {
+        // k1=v1&k2=v2&k3=v3
+        std::stringstream ss;
+        for(auto i=begin;i!=end;i++)
+        {
+            if(i!=begin)
+            {
+                ss<<tag2;
+            }
+            ss<<i->first<<tag1<<i->second;
+        }
+        return ss.str();
     }
 }
 #endif

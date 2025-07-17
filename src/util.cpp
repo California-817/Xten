@@ -232,5 +232,145 @@ namespace Xten
         gettimeofday(&tv, NULL);
         return tv.tv_sec * 1000ul * 1000ul + tv.tv_usec;
     }
-
+    //将字面的值转化成底层该4bit真正的内存中的值 （字面值!=内存值）
+    static const char xdigit_chars[256] = {
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,1,2,3,4,5,6,7,8,9,0,0,0,0,0,0,            // index[48-57] 对应 内存二进制值[0-9] 
+    0,10,11,12,13,14,15,0,0,0,0,0,0,0,0,0,      //index[65-70](大写A-F) 对应 内存二进制值[10-15]
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,10,11,12,13,14,15,0,0,0,0,0,0,0,0,0,      //index[97-102](小写a-f) 对应 内存二进制值[10-15]
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+};
+//当一个字符的值是在为1下标处的时候，这个字符不需要被编码，比如数字，英文字符，等
+    static const char uri_chars[256] = {
+    /* 0 */
+    0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 1, 1, 0,
+    1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 0, 0, 0, 1, 0, 0,
+    /* 64 */
+    0, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 0, 0, 0, 0, 1,
+    0, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 0, 0, 0, 1, 0,
+    /* 128 */ //一般需要编码的字符对应一个字节的值一般都大于0x7f
+    0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
+    /* 192 */
+    0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
+};
+//无需编码字符：-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz~
+#define CHAR_IS_UNRESERVED(c) \
+    (uri_chars[(unsigned char)(c)])
+    std::string StringUtil::UrlEncode(const std::string &str, bool space_as_plus)
+    {
+        static const char *hexdigits = "0123456789ABCDEF";
+        std::string *ss = nullptr;
+        const char *end = str.c_str() + str.length();
+        for (const char *c = str.c_str(); c < end; ++c)
+        {
+            if (!CHAR_IS_UNRESERVED(*c))
+            {
+                if (!ss)
+                {
+                    ss = new std::string;
+                    ss->reserve(str.size() * 1.2);
+                    ss->append(str.c_str(), c - str.c_str());
+                }
+                if (*c == ' ' && space_as_plus)
+                {
+                    //空格转+
+                    ss->append(1, '+');
+                }
+                else
+                {
+                    //汉字转utf-8内存值
+                    ss->append(1, '%');
+                    ss->append(1, hexdigits[(uint8_t)*c >> 4]);
+                    ss->append(1, hexdigits[*c & 0xf]);
+                }
+            }
+            else if (ss)
+            {
+                ss->append(1, *c);
+            }
+        }
+        if (!ss)
+        {
+            return str;
+        }
+        else
+        {
+            std::string rt = *ss;
+            delete ss;
+            return rt;
+        }
+    }
+ std::string StringUtil::UrlDecode(const std::string& str, bool space_as_plus)
+{
+   std::string* ss = nullptr;
+   const char* end = str.c_str() + str.length();
+   for(const char* c = str.c_str(); c < end; ++c) {
+    //url编码会将空格编码成+
+       if(*c == '+' && space_as_plus) {
+           if(!ss) {
+               ss = new std::string;
+               ss->append(str.c_str(), c - str.c_str());
+           }
+           ss->append(1, ' ');
+       }
+       //对于汉字的编码：%+utf-8编码内存值   '世'-->%E5%8C%97  其中E5 8C 97对应的就是这个汉字的内存中二进制值     
+       else if(*c == '%' && (c + 2) < end
+                   && isxdigit(*(c + 1)) && isxdigit(*(c + 2))){
+           if(!ss) {
+               ss = new std::string;
+               ss->append(str.c_str(), c - str.c_str());
+           }
+           //%F5 将一个这个两字节F 5 转化成内存中的该字符字面值
+           ss->append(1, (char)(xdigit_chars[(int)*(c + 1)] << 4 | xdigit_chars[(int)*(c + 2)]));
+           c += 2;
+       } else if(ss) {
+           ss->append(1, *c);
+       }
+   }
+   if(!ss) {
+       return str;
+   } else {
+       std::string rt = *ss;
+       delete ss;
+       return rt;
+   }
+}
+  std::string StringUtil::Trim(const std::string& str, const std::string& delimit )
+  {
+        auto begin = str.find_first_not_of(delimit);
+      if(begin == std::string::npos) {
+              return "";
+              }
+      auto end = str.find_last_not_of(delimit);
+      return str.substr(begin, end - begin + 1);
+  }
+    std::string Time2Str(time_t ts, const std::string& format)
+    {
+        struct tm tm;
+        localtime_r(&ts, &tm);
+        char buf[64];
+        strftime(buf, sizeof(buf), format.c_str(), &tm);
+        return buf;
+    }
 }

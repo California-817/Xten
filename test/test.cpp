@@ -4,7 +4,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include<stdlib.h>
+#include <stdlib.h>
 #include <iomanip>
 #include <iostream>
 #include <sys/epoll.h>
@@ -211,10 +211,10 @@ void handle_client(Xten::Socket::ptr client)
             return;
         }
         // std::cout << "client:: " << buffs << std::endl;
-        int i=0;
+        int i = 0;
         char ret[1024];
-        snprintf(ret,1024,"server recv:%d",i);
-        int rt2 = client->Send(ret,1024);
+        snprintf(ret, 1024, "server recv:%d", i);
+        int rt2 = client->Send(ret, 1024);
         if (rt2 <= 0)
         {
             XTEN_LOG_INFO(g_logger) << "send fail rt=" << rt;
@@ -226,127 +226,197 @@ void test_server()
 {
     // Xten::Socket::ptr apt = Xten::Socket::CreateTCPSocket();
     auto addr = Xten::IPv4Address::Create("127.0.0.1", 8080);
-    Xten::TcpServer::ptr tcp_server(new  Xten::TcpServer());
+    Xten::TcpServer::ptr tcp_server(new Xten::TcpServer());
     tcp_server->Bind(addr);
     tcp_server->Start();
     // apt->Bind(addr);
     // apt->Listen();
     // while (true)
     // {
-        // Xten::Socket::ptr client = apt->Accept();
-        // if(!client)
-        // {
-            // return;
-        // }
-        // Xten::Scheduler::GetThis()->Schedule(std::bind(&handle_client, client));
+    // Xten::Socket::ptr client = apt->Accept();
+    // if(!client)
+    // {
+    // return;
+    // }
+    // Xten::Scheduler::GetThis()->Schedule(std::bind(&handle_client, client));
     // }
 }
 void test_assert()
-{ 
+{
     XTEN_ASSERT(false);
 }
 void test_byteArray()
 {
-#define XX(type, len, write_fun, read_fun, base_len) {\
-    std::vector<type> vec; \
-    for(int i = 0; i < len; ++i) { \
-        vec.push_back(rand()); \
-    } \
-    Xten::ByteArray::ptr ba(new Xten::ByteArray(base_len)); \
-    for(auto& i : vec) { \
-        ba->write_fun(i); \
-    } \
-    ba->SetPosition(0); \
-    for(size_t i = 0; i < vec.size(); ++i) { \
-        type v = ba->read_fun(); \
-        XTEN_ASSERT(v == vec[i]); \
-    } \
-    XTEN_ASSERT(ba->GetReadSize() == 0); \
-    XTEN_LOG_INFO(g_logger) << #write_fun "/" #read_fun \
-                    " (" #type " ) len=" << len \
-                    << " base_len=" << base_len \
-                    << " size=" << ba->GetSize(); \
-}
+#define XX(type, len, write_fun, read_fun, base_len)               \
+    {                                                              \
+        std::vector<type> vec;                                     \
+        for (int i = 0; i < len; ++i)                              \
+        {                                                          \
+            vec.push_back(rand());                                 \
+        }                                                          \
+        Xten::ByteArray::ptr ba(new Xten::ByteArray(base_len));    \
+        for (auto &i : vec)                                        \
+        {                                                          \
+            ba->write_fun(i);                                      \
+        }                                                          \
+        ba->SetPosition(0);                                        \
+        for (size_t i = 0; i < vec.size(); ++i)                    \
+        {                                                          \
+            type v = ba->read_fun();                               \
+            XTEN_ASSERT(v == vec[i]);                              \
+        }                                                          \
+        XTEN_ASSERT(ba->GetReadSize() == 0);                       \
+        XTEN_LOG_INFO(g_logger) << #write_fun "/" #read_fun        \
+                                              " (" #type " ) len=" \
+                                << len                             \
+                                << " base_len=" << base_len        \
+                                << " size=" << ba->GetSize();      \
+    }
 
-    XX(int8_t,  100, WriteFint8, ReadFint8, 1);
+    XX(int8_t, 100, WriteFint8, ReadFint8, 1);
     XX(uint8_t, 100, WriteFUint8, ReadFUint8, 1);
-    XX(int16_t,  100, WriteFint16,  ReadFint16, 1);
+    XX(int16_t, 100, WriteFint16, ReadFint16, 1);
     XX(uint16_t, 100, WriteFUint16, ReadFUint16, 1);
-    XX(int32_t,  100, WriteFint32,  ReadFint32, 1);
+    XX(int32_t, 100, WriteFint32, ReadFint32, 1);
     XX(uint32_t, 100, WriteFUint32, ReadFUint32, 1);
-    XX(int64_t,  100, WriteFint64,  ReadFint64, 1);
+    XX(int64_t, 100, WriteFint64, ReadFint64, 1);
     XX(uint64_t, 100, WriteFUint64, ReadFUint64, 1);
 
-    XX(int32_t,  100, WriteVarint32,  ReadVarint32, 1);
+    XX(int32_t, 100, WriteVarint32, ReadVarint32, 1);
     XX(uint32_t, 100, WriteVarUint32, ReadVarUint32, 1);
-    XX(int64_t,  100, WriteVarint64,  ReadVarint64, 1);
+    XX(int64_t, 100, WriteVarint64, ReadVarint64, 1);
     XX(uint64_t, 100, WriteVarUint64, ReadVarUint64, 1);
 #undef XX
-#define XX(type, len, write_fun, read_fun, base_len) {\
-    std::vector<type> vec; \
-    for(int i = 0; i < len; ++i) { \
-        vec.push_back(rand()); \
-    } \
-    Xten::ByteArray::ptr ba(new Xten::ByteArray(base_len)); \
-    for(auto& i : vec) { \
-        ba->write_fun(i); \
-    } \
-    ba->SetPosition(0); \
-    for(size_t i = 0; i < vec.size(); ++i) { \
-        type v = ba->read_fun(); \
-        XTEN_ASSERT(v == vec[i]); \
-    } \
-    XTEN_ASSERT(ba->GetReadSize() == 0); \
-    XTEN_LOG_INFO(g_logger) << #write_fun "/" #read_fun \
-                    " (" #type " ) len=" << len \
-                    << " base_len=" << base_len \
-                    << " size=" << ba->GetSize(); \
-    ba->SetPosition(0); \
-    XTEN_ASSERT(ba->WriteToFile("/tmp/" #type "_" #len "-" #read_fun ".dat.test")); \
-    Xten::ByteArray::ptr ba2(new Xten::ByteArray(base_len * 2)); \
-    XTEN_ASSERT(ba2->ReadFromFile("/tmp/" #type "_" #len "-" #read_fun ".dat.test")); \
-    ba2->SetPosition(0); \
-    XTEN_ASSERT(ba2->WriteToFile("/tmp/" #type "_" #len "-" #read_fun ".dat.bak.test")); \
-    ba2->SetPosition(0); \
-    std::cout<<"same begin"<<std::endl;  \
-    std::cout<<ba->ToHexString()<<std::endl; \
-    std::cout<<ba2->ToHexString()<<std::endl;  \
-    XTEN_ASSERT(ba->ToString() == ba2->ToString());  \
-    std::cout<<"same end"<<std::endl;  \
-    XTEN_ASSERT(ba->GetPosition() == 0); \
-    XTEN_ASSERT(ba2->GetPosition() == 0); \
-}
-    XX(int8_t,  100, WriteFint8, ReadFint8, 3);
+#define XX(type, len, write_fun, read_fun, base_len)                                         \
+    {                                                                                        \
+        std::vector<type> vec;                                                               \
+        for (int i = 0; i < len; ++i)                                                        \
+        {                                                                                    \
+            vec.push_back(rand());                                                           \
+        }                                                                                    \
+        Xten::ByteArray::ptr ba(new Xten::ByteArray(base_len));                              \
+        for (auto &i : vec)                                                                  \
+        {                                                                                    \
+            ba->write_fun(i);                                                                \
+        }                                                                                    \
+        ba->SetPosition(0);                                                                  \
+        for (size_t i = 0; i < vec.size(); ++i)                                              \
+        {                                                                                    \
+            type v = ba->read_fun();                                                         \
+            XTEN_ASSERT(v == vec[i]);                                                        \
+        }                                                                                    \
+        XTEN_ASSERT(ba->GetReadSize() == 0);                                                 \
+        XTEN_LOG_INFO(g_logger) << #write_fun "/" #read_fun                                  \
+                                              " (" #type " ) len="                           \
+                                << len                                                       \
+                                << " base_len=" << base_len                                  \
+                                << " size=" << ba->GetSize();                                \
+        ba->SetPosition(0);                                                                  \
+        XTEN_ASSERT(ba->WriteToFile("/tmp/" #type "_" #len "-" #read_fun ".dat.test"));      \
+        Xten::ByteArray::ptr ba2(new Xten::ByteArray(base_len * 2));                         \
+        XTEN_ASSERT(ba2->ReadFromFile("/tmp/" #type "_" #len "-" #read_fun ".dat.test"));    \
+        ba2->SetPosition(0);                                                                 \
+        XTEN_ASSERT(ba2->WriteToFile("/tmp/" #type "_" #len "-" #read_fun ".dat.bak.test")); \
+        ba2->SetPosition(0);                                                                 \
+        std::cout << "same begin" << std::endl;                                              \
+        std::cout << ba->ToHexString() << std::endl;                                         \
+        std::cout << ba2->ToHexString() << std::endl;                                        \
+        XTEN_ASSERT(ba->ToString() == ba2->ToString());                                      \
+        std::cout << "same end" << std::endl;                                                \
+        XTEN_ASSERT(ba->GetPosition() == 0);                                                 \
+        XTEN_ASSERT(ba2->GetPosition() == 0);                                                \
+    }
+    XX(int8_t, 100, WriteFint8, ReadFint8, 3);
     XX(uint8_t, 100, WriteFUint8, ReadFUint8, 3);
-    XX(int16_t,  100, WriteFint16,  ReadFint16, 3);
+    XX(int16_t, 100, WriteFint16, ReadFint16, 3);
     XX(uint16_t, 100, WriteFUint16, ReadFUint16, 1);
-    XX(int32_t,  100, WriteFint32,  ReadFint32, 1);
+    XX(int32_t, 100, WriteFint32, ReadFint32, 1);
     XX(uint32_t, 100, WriteFUint32, ReadFUint32, 1);
-    XX(int64_t,  100, WriteFint64,  ReadFint64, 1);
+    XX(int64_t, 100, WriteFint64, ReadFint64, 1);
     XX(uint64_t, 100, WriteFUint64, ReadFUint64, 1);
 
-    XX(int32_t,  100, WriteVarint32,  ReadVarint32, 1);
+    XX(int32_t, 100, WriteVarint32, ReadVarint32, 1);
     XX(uint32_t, 100, WriteVarUint32, ReadVarUint32, 5);
-    XX(int64_t,  100, WriteVarint64,  ReadVarint64, 1);
+    XX(int64_t, 100, WriteVarint64, ReadVarint64, 1);
     XX(uint64_t, 100, WriteVarUint64, ReadVarUint64, 1);
 
 #undef XX
 }
 void test_sslSocket()
 {
-    Xten::SSLSocket::ptr sslsk=Xten::SSLSocket::CreateTCPSocket();
-    auto addr=Xten::IPv4Address::Create("0.0.0.0",8080);
+    Xten::SSLSocket::ptr sslsk = Xten::SSLSocket::CreateTCPSocket();
+    auto addr = Xten::IPv4Address::Create("0.0.0.0", 8080);
     sslsk->Bind(addr);
     sslsk->Listen();
     sslsk->Accept();
-    std::cout<<sslsk<<std::endl;
+    std::cout << sslsk << std::endl;
+}
+const char test_request_data[] = "POST / HTTP/1.1\r\n"
+                                 "Host: www.sylar.top\r\n"
+                                 "Content-Length: 10\r\n\r\n"
+                                 "1234567890";
+
+const char test_response_data[] = "HTTP/1.1 200 OK\r\n"
+                                  "Date: Tue, 04 Jun 2019 15:43:56 GMT\r\n"
+                                  "Server: Apache\r\n"
+                                  "Last-Modified: Tue, 12 Jan 2010 13:48:00 GMT\r\n"
+                                  "ETag: \"51-47cf7e6ee8400\"\r\n"
+                                  "Accept-Ranges: bytes\r\n"
+                                  "Content-Length: 81\r\n"
+                                  "Cache-Control: max-age=86400\r\n";
+const char buffer[] =
+                      "Expires: Wed, 05 Jun 2019 15:43:56 GMT\r\n"
+                      "Connection: Close\r\n"
+                      "Content-Type: text/html\r\n\r\n"
+                      "<html>\r\n"
+                      "<meta http-equiv=\"refresh\" content=\"0;url=http://www.baidu.com/\">\r\n"
+                      "</html>\r\n";
+
+void test_http_req()
+{
+    Xten::http::HttpRequestParser parser;
+    std::string tmp = test_request_data;
+    size_t s = parser.Execute(&tmp[0], tmp.size());
+    XTEN_LOG_ERROR(g_logger) << "execute rt=" << s
+                             << "has_error=" << parser.HasError()
+                             << " is_finished=" << parser.IsFinished()
+                             << " total=" << tmp.size()
+                             << " content_length=" << parser.GetBodyLength();
+    tmp.resize(tmp.size() - s);
+    XTEN_LOG_INFO(g_logger) << parser.GetRequest()->toString();
+    XTEN_LOG_INFO(g_logger) << tmp;
+}
+void test_http_rsp()
+{
+    Xten::http::HttpResponseParser parser;
+    std::string tmp = test_response_data;
+    std::cout<<sizeof(test_response_data)<<test_response_data[tmp.size()-1];
+    std::string tmp2 = buffer;
+    size_t s = parser.Execute(&tmp[0], tmp.size(), false);
+    XTEN_LOG_ERROR(g_logger) << "execute rt=" << s
+                             << " has_error=" << parser.HasError()
+                             << " is_finished=" << parser.IsFinished()
+                             << " total=" << tmp.size()
+                             << " content_length=" << parser.GetBodyLength()
+                             << " tmp[s]=" << tmp[s];
+    std::cout<<"nread:"<<httpclient_parser_nread(&parser.GetParser())<<std::endl;
+    size_t s2 = parser.Execute(&tmp2[0], tmp2.size(), false);
+    XTEN_LOG_ERROR(g_logger) << "execute rt=" << s2
+                             << " has_error=" << parser.HasError()
+                             << " is_finished=" << parser.IsFinished()
+                             << " total=" << tmp2.size()
+                             << " content_length=" << parser.GetBodyLength()
+                             << " tmp[s]=" << tmp2[s2];
+    // tmp.resize(tmp.size() - s2);
+    XTEN_LOG_INFO(g_logger) << parser.GetResponse()->toString();
+    // XTEN_LOG_INFO(g_logger) << tmp;
 }
 int main()
 {
     // test_assert();
     // Xten::Config::LoadFromConFDir(".");
     Xten::IOManager iom(2);
-    iom.Schedule(&test_server);
+    iom.Schedule(&test_http_rsp);
     // test_byteArray();
     // test_sslSocket();
     // Xten::TimerManager mgr;
