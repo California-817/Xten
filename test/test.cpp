@@ -353,8 +353,7 @@ void test_sslSocket()
 }
 const char test_request_data[] = "POST / HTTP/1.1\r\n"
                                  "Host: www.sylar.top\r\n"
-                                 "Content-Length: 10\r\n\r\n"
-                                 "1234567890";
+                                 "Content-Leng";
 
 const char test_response_data[] = "HTTP/1.1 200 OK\r\n"
                                   "Date: Tue, 04 Jun 2019 15:43:56 GMT\r\n"
@@ -363,43 +362,86 @@ const char test_response_data[] = "HTTP/1.1 200 OK\r\n"
                                   "ETag: \"51-47cf7e6ee8400\"\r\n"
                                   "Accept-Ranges: bytes\r\n"
                                   "Content-Length: 81\r\n"
-                                  "Cache-Control: max-age=86400\r\n";
+                                  "Cache-Cont";
 const char buffer[] =
-                      "Expires: Wed, 05 Jun 2019 15:43:56 GMT\r\n"
-                      "Connection: Close\r\n"
-                      "Content-Type: text/html\r\n\r\n"
-                      "<html>\r\n"
-                      "<meta http-equiv=\"refresh\" content=\"0;url=http://www.baidu.com/\">\r\n"
-                      "</html>\r\n";
-
+    "th: 10\r\n\r\n"
+    "1234567890\r\n";
+// "rol: max-age=86400\r\n"
+// "Expires: Wed, 05 Jun 2019 15:43:56 GMT\r\n"
+// "Connection: Close\r\n"
+// "Content-Type: text/html\r\n\r\n"
+// "<html>\r\n"
+// "<meta http-equiv=\"refresh\" content=\"0;url=http://www.baidu.com/\">\r\n"
+// "</html>\r\n";
+// 通过这个函数限制读取的长度为\r\n结尾
+static int GetLastRN(const char *begin, int len)
+{
+    // 找到这一段数据的最后的\r\n
+    static const char *sub_str = "\r\n";
+    if (len < 2)
+    {
+        return -1;
+    }
+    for (const char *i = begin + len - 2; i >= begin; i--)
+    {
+        if (strncmp(i, sub_str, (size_t)2) == 0)
+        {
+            // 找到了
+            return i - begin + 2;
+        }
+        // 没找到继续向前查找
+    }
+    // 没有\r\n
+    return -1;
+}
 void test_http_req()
 {
     Xten::http::HttpRequestParser parser;
+    int i = 2;
     std::string tmp = test_request_data;
-    size_t s = parser.Execute(&tmp[0], tmp.size());
-    XTEN_LOG_ERROR(g_logger) << "execute rt=" << s
-                             << "has_error=" << parser.HasError()
-                             << " is_finished=" << parser.IsFinished()
-                             << " total=" << tmp.size()
-                             << " content_length=" << parser.GetBodyLength();
-    tmp.resize(tmp.size() - s);
-    XTEN_LOG_INFO(g_logger) << parser.GetRequest()->toString();
-    XTEN_LOG_INFO(g_logger) << tmp;
+    while (i--)
+    {
+        if (i == 0)
+        {
+            tmp += buffer;
+            std::cout << tmp << std::endl;
+        }
+        std::cout << GetLastRN(&tmp[0], tmp.size()) << std::endl;
+        size_t s = parser.Execute(&tmp[0], tmp.size(), GetLastRN(&tmp[0], tmp.size()));
+        XTEN_LOG_ERROR(g_logger) << "execute rt=" << s
+                                 << "has_error=" << parser.HasError()
+                                 << " is_finished=" << parser.IsFinished()
+                                 << " total=" << tmp.size()
+                                 << " content_length=" << parser.GetBodyLength()
+                                 << "tmp[s]" << tmp[s];
+        // tmp.resize(tmp.size() - s);
+        // size_t s2 = parser.Execute(&tmp2[0], tmp2.size());
+        // XTEN_LOG_ERROR(g_logger) << "execute rt=" << s2
+        //  << "has_error=" << parser.HasError()
+        //  << " is_finished=" << parser.IsFinished()
+        //  << " total=" << tmp2.size()
+        //  << " content_length=" << parser.GetBodyLength();
+        tmp.resize(tmp.size() - s);
+        XTEN_LOG_INFO(g_logger) << parser.GetRequest()->toString();
+        XTEN_LOG_INFO(g_logger) << tmp;
+    }
 }
 void test_http_rsp()
 {
     Xten::http::HttpResponseParser parser;
     std::string tmp = test_response_data;
-    std::cout<<sizeof(test_response_data)<<test_response_data[tmp.size()-1];
+    std::cout << sizeof(test_response_data) << test_response_data[tmp.size() - 1];
     std::string tmp2 = buffer;
-    size_t s = parser.Execute(&tmp[0], tmp.size(), false);
+    int std_len = GetLastRN(&tmp[0], tmp.size());
+    std::cout << std_len << std::endl;
+    size_t s = parser.Execute(&tmp[0], std_len, false);
     XTEN_LOG_ERROR(g_logger) << "execute rt=" << s
                              << " has_error=" << parser.HasError()
                              << " is_finished=" << parser.IsFinished()
                              << " total=" << tmp.size()
                              << " content_length=" << parser.GetBodyLength()
                              << " tmp[s]=" << tmp[s];
-    std::cout<<"nread:"<<httpclient_parser_nread(&parser.GetParser())<<std::endl;
+    std::cout << "nread:" << httpclient_parser_nread(&parser.GetParser()) << std::endl;
     size_t s2 = parser.Execute(&tmp2[0], tmp2.size(), false);
     XTEN_LOG_ERROR(g_logger) << "execute rt=" << s2
                              << " has_error=" << parser.HasError()
@@ -407,16 +449,50 @@ void test_http_rsp()
                              << " total=" << tmp2.size()
                              << " content_length=" << parser.GetBodyLength()
                              << " tmp[s]=" << tmp2[s2];
-    // tmp.resize(tmp.size() - s2);
+    tmp.resize(tmp.size() - s);
     XTEN_LOG_INFO(g_logger) << parser.GetResponse()->toString();
-    // XTEN_LOG_INFO(g_logger) << tmp;
+    XTEN_LOG_INFO(g_logger) << tmp;
+}
+void test_http_session()
+{
+    auto addr = Xten::IPv4Address::Create("0.0.0.0", 8080);
+    auto socket = Xten::Socket::CreateTCPSocket();
+    socket->Bind(addr);
+    socket->Listen();
+    auto newsocket = socket->Accept();
+    Xten::http::HttpSession session(newsocket);
+    while (true)
+    {
+        std::cout << "loop" << std::endl;
+        auto req = session.RecvRequest();
+        std::cout << "end read" << std::endl;
+        // std::cout<<Xten::http::HttpMethodToString(req->getMethod())<<std::endl;
+        std::cout << req->toString() << std::endl;
+        std::cout << "-----------------------" << std::endl;
+        Xten::http::HttpResponse::ptr rsp = req->createResponse();
+        rsp->setBody("hello Xten/http/1.1");
+        std::cout << rsp->toString() << std::endl;
+        std::cout << "-----------------------" << std::endl;
+        int ret = session.SendResponse(rsp);
+        std::cout << "send size" << ret << std::endl;
+    }
+}
+void test_http_server()
+{
+    Xten::http::HttpServer::ptr server(new Xten::http::HttpServer());
+    auto addr = Xten::IPv4Address::Create("0.0.0.0", 8080);
+
+    while(!server->Bind(addr)){
+        continue;
+    }
+    server->Start();
 }
 int main()
 {
     // test_assert();
     // Xten::Config::LoadFromConFDir(".");
     Xten::IOManager iom(2);
-    iom.Schedule(&test_http_rsp);
+    iom.Schedule(&test_http_server);
     // test_byteArray();
     // test_sslSocket();
     // Xten::TimerManager mgr;

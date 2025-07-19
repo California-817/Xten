@@ -117,6 +117,7 @@ namespace Xten
         // 请求字段kv解析回调
         void on_http_field(void *data, const char *field, size_t flen, const char *value, size_t vlen)
         {
+            // std::cout << "field:" << std::string(field, flen) << "  value:" << std::string(value, vlen) << std::endl;
             HttpRequestParser *parser = static_cast<HttpRequestParser *>(data);
             if (flen == 0)
             {
@@ -142,9 +143,9 @@ namespace Xten
             _parser.data = (void *)this; // 传入一个data指针，这个指针会在回调中作为参数传入
         }
         // 开始解析
-        size_t HttpRequestParser::Execute(char *data, size_t len)
+        size_t HttpRequestParser::Execute(char *data, size_t len,size_t std_len)
         {
-            size_t offset = http_parser_execute(&_parser, data, len, 0);
+            size_t offset = http_parser_execute(&_parser, data, std_len, 0);
             if (offset >= 0)
             {
                 memmove(data, data + offset, len - offset);
@@ -210,8 +211,6 @@ namespace Xten
         }
         void on_response_http_field(void *data, const char *field, size_t flen, const char *value, size_t vlen)
         {
-            std::cout << "field:" << std::string(field, flen) << "  value:" << std::string(value, vlen) << std::endl;
-
             HttpResponseParser *parser = static_cast<HttpResponseParser *>(data);
             if (flen == 0)
             {

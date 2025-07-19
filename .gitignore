@@ -2,3 +2,5 @@
 /build/
 #忽略bin路径下编译的测试文件
 /bin/
+#忽略rl生成的文件
+/include/http/*.rl.cc

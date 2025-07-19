@@ -14,7 +14,7 @@ namespace Xten
             typedef std::shared_ptr<HttpRequestParser> ptr;
             HttpRequestParser();
             // 开始解析(返回值是本次解析长度)
-            size_t Execute(char *data, size_t len);
+            size_t Execute(char *data, size_t len,size_t std_len);
             // 判断是否解析完成
             //  1--->解析完成 0--->解析未完成 -1--->解析出错
             int IsFinished();

@@ -35,7 +35,7 @@ namespace Xten
         bool IsConnected();
         //系统层面检查是否连接
         bool CheckConnected();
-    private:
+    protected:
         Socket::ptr _socket; // socket结构
         uint64_t _id : 63;   // 这个socket对应id（63bit）  位域
         bool _owner : 1;     // 是否主控(1bit)

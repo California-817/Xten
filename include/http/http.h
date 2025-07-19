@@ -595,7 +595,7 @@ namespace Xten
              * @return 字符串
              */
             std::string toString() const;
-
+            //进行长短连接初始化
             void init();
             // 将 请求参数，正文，cookies以kv形式解析到map中
             void initParam();

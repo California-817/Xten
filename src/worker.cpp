@@ -42,6 +42,7 @@ namespace Xten
     // 初始化
     bool WorkerManager::Init()
     {
+        //在这里可以直接获取，因为这个函数不会频繁调用且配置启动后不需要修改
         auto conf = g_workers_conf->GetValue();
         return Init(conf);
     }
