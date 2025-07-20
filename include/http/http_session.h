@@ -12,7 +12,7 @@ namespace Xten
         public:
             typedef std::shared_ptr<HttpSession> ptr;
             HttpSession(Socket::ptr socket, bool is_owner = true);
-            ~HttpSession()=default;
+            virtual ~HttpSession()=default;
             // 接受一个完整http请求并生成http请求结构体
             HttpRequest::ptr RecvRequest();
             // 发送一个完整http响应(ret<0失败)

@@ -98,5 +98,10 @@ namespace Xten
         }
         return ss.str();
     }
+    //生成哈希摘要函数
+    std::string sha1sum(const void* data,size_t len);
+    std::string sha1sum(std::string data);
+    //进行base64编码
+    std::string base64encode(const std::string& data);
 }
 #endif

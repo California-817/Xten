@@ -3,6 +3,8 @@
 #include "log.h"
 #include "fiber.h"
 #include <sys/time.h>
+#include<openssl/md5.h>
+#include<openssl/sha.h>
 namespace Xten
 {
     static Xten::Logger::ptr g_logger = XTEN_LOG_NAME("system");
@@ -372,5 +374,68 @@ namespace Xten
         char buf[64];
         strftime(buf, sizeof(buf), format.c_str(), &tm);
         return buf;
+    }
+    std::string sha1sum(std::string data)
+    {
+        return sha1sum(data.c_str(),data.size());
+    }
+    std::string sha1sum(const void* data,size_t len)
+    {
+        SHA_CTX ctx;
+        SHA1_Init(&ctx);
+        SHA1_Update(&ctx,data,len);
+        std::string ret;
+        ret.resize(SHA_DIGEST_LENGTH);
+        SHA1_Final((unsigned char*)&ret[0],&ctx);
+        return ret;
+    }
+
+    std::string base64encode(const std::string& data)
+    {
+        // base64编码的字符集
+        const char* base64="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        std::string ret;
+        // 经过base64编码后的字符串的长度（减少扩容次数）
+        ret.reserve(data.size()*4/3+2); // 注意!!!：不能使用resize 导致是在这些空间之后追加数据
+        const unsigned char* begin=(const unsigned char*)data.c_str();
+        const unsigned char* end=begin+data.size();
+        while(begin<end)
+        {
+            unsigned int packed=0; //存放一组3字节数据
+            int i=0; //i表示当前组的字节个数(不一定满3字节)
+            int append=0; //表示要追加的=的数量
+            for( ;i<3 && begin<end ; i++,begin++) //每次遍历最多3字节数据
+            {
+                packed = (packed<<8) | *begin;   
+            }
+            if(i==1)
+            {
+                // 这一组只有一个字节数据
+                append=2;
+            }
+            else if(i==2)
+            {
+                // 这一组只有两字节数据
+                append=1;
+            }
+            for( ; i<3 ;i++)
+            {
+                packed =packed <<8; //保证即使不满3字节，也会将对应字节数据放到指定位置处
+            }
+            // 将packed的三字节数据转成4个6位的base64字符
+            ret.append(1,base64[packed>>18]); //最高6位转字符
+            ret.append(1,base64[(packed>>12) & 0x3F]); //次高6位
+            if(append !=2 )
+            {
+                ret.append(1,base64[(packed>>6) & 0x3F]);
+            }
+            if(append==0)
+            {
+                ret.append(1,base64[packed&0x3F]);
+            }
+            // 在根据append进行追加=
+            ret.append(append,'=');
+        }
+        return ret;
     }
 }

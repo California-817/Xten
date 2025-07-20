@@ -84,14 +84,14 @@ namespace Xten
                 Close();
                 return nullptr;
             }
-            //请求头中是否有：Expect: 100-continue（客户端等待服务器确认后再发送请求体）
-            std::string except=parser->GetRequest()->getHeader("Expect");
-            if(strcasecmp(except.c_str(),"100-continue")==0)
+            // 请求头中是否有：Expect: 100-continue（客户端等待服务器确认后再发送请求体）
+            std::string except = parser->GetRequest()->getHeader("Expect");
+            if (strcasecmp(except.c_str(), "100-continue") == 0)
             {
-                //客户端先发请求头，待服务端确定后再决定是否发生请求体
-                static const char* s_data="HTTP/1.1 100 Continue\r\n\r\n";
-                ssize_t ret=WriteFixSize(s_data,strlen(s_data));
-                if(ret<=0)
+                // 客户端先发请求头，待服务端确定后再决定是否发生请求体
+                static const char *s_data = "HTTP/1.1 100 Continue\r\n\r\n";
+                ssize_t ret = WriteFixSize(s_data, strlen(s_data));
+                if (ret <= 0)
                 {
                     Close();
                     return nullptr;
@@ -107,31 +107,31 @@ namespace Xten
                 // 请求解析后残留字段
                 if (offset > body_size)
                 {
-                    //残留字段大于body长度
+                    // 残留字段大于body长度
                     memcpy(&body[copyed], data, body_size);
-                    copyed+=body_size;
+                    copyed += body_size;
                 }
                 else
                 {
-                    //残留字段小于body长度
-                    memcpy(&body[copyed],data,offset);
-                    copyed+=offset;
+                    // 残留字段小于body长度
+                    memcpy(&body[copyed], data, offset);
+                    copyed += offset;
                 }
-                body_size-=copyed;
-                if(body_size>0)
+                body_size -= copyed;
+                if (body_size > 0)
                 {
-                    //再次读取剩余长度body
-                    ssize_t ret=ReadFixSize(&body[copyed],body_size);
-                    if(ret<=0)
+                    // 再次读取剩余长度body
+                    ssize_t ret = ReadFixSize(&body[copyed], body_size);
+                    if (ret <= 0)
                     {
                         Close();
                         return nullptr;
                     }
                 }
-                //将body放入请求结构体
+                // 将body放入请求结构体
                 parser->GetRequest()->setBody(body);
             }
-            //读取一个完整请求
+            // 读取一个完整请求
             parser->GetRequest()->init();
             parser->GetRequest()->initParam();
             return parser->GetRequest();

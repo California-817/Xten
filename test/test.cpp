@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <iomanip>
+#include <bitset>
 #include <iostream>
 #include <sys/epoll.h>
 static Xten::Logger::ptr g_logger = XTEN_LOG_ROOT();
@@ -482,17 +483,44 @@ void test_http_server()
     Xten::http::HttpServer::ptr server(new Xten::http::HttpServer());
     auto addr = Xten::IPv4Address::Create("0.0.0.0", 8080);
 
-    while(!server->Bind(addr)){
+    while (!server->Bind(addr))
+    {
         continue;
     }
     server->Start();
+}
+void test_websocker_session()
+{
+    Xten::http::WSFrameHead head;
+    head.fin = 1;
+    head.rsv1 = 0;
+    head.rsv2 = 1;
+    head.rsv3 = 0;
+    head.opcode = Xten::http::WSFrameHead::OPCODE::PING;
+    head.mask = 1;
+    head.payload = 126;
+    std::cout << "size" << sizeof(head) << std::endl;
+    const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&head);
+    for (size_t i = 0; i < sizeof(head); ++i)
+    {
+        std::bitset<8> bits(bytes[i]);
+        std::cout << "Byte " << i << ": " << bits << std::endl;
+    }
+}
+void test_websocket_server()
+{
+    Xten::http::WSServer::ptr ws=std::make_shared<Xten::http::WSServer>();
+    auto addr=Xten::IPv4Address::Create("0.0.0.0",8080);
+    
+    while(!ws->Bind(addr)){}
+    ws->Start();
 }
 int main()
 {
     // test_assert();
     // Xten::Config::LoadFromConFDir(".");
     Xten::IOManager iom(2);
-    iom.Schedule(&test_http_server);
+    iom.Schedule(&test_websocket_server);
     // test_byteArray();
     // test_sslSocket();
     // Xten::TimerManager mgr;
