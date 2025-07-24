@@ -15,17 +15,22 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 find_package(yaml-cpp REQUIRED)
 
 # 添加头文件目录
-include_directories(${PROJECT_SOURCE_DIR}/include  ${YAML_CPP_INCLUDE_DIRS})
+include_directories(${PROJECT_SOURCE_DIR}/src  ${YAML_CPP_INCLUDE_DIRS})
 
 # 源文件列表
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB SOURCES src/*.cpp)
+file(GLOB HTTP_SOURCES src/http/*.cpp)
+file(GLOB WEBSOCKET_SOURCES src/websocket/*.cpp)
+file(GLOB STREAMS_SOURCES src/streams/*.cpp)
 
+# 合并所有源文件
+list(APPEND SOURCES ${HTTP_SOURCES} ${WEBSOCKET_SOURCES} ${STREAMS_SOURCES})
 #添加.rl文件的cpp文件
-ragelmaker(include/http/http11_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/include/http)
-ragelmaker(include/http/httpclient_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/include/http)
+ragelmaker(src/http/http11_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/http)
+ragelmaker(src/http/httpclient_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/http)
 
 # 添加汇编源文件
-file(GLOB ASM_SOURCES "include/fcontext/*.S")
+file(GLOB ASM_SOURCES "src/fcontext/*.S")
 
 # 构建动态库，包含 C++ 和汇编源文件
 add_library(Xten SHARED ${SOURCES} ${ASM_SOURCES})

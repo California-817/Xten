@@ -1,9 +1,9 @@
-#include "../include/socket.h"
-#include "../include/log.h"
-#include "../include/macro.h"
-#include "../include/fdmanager.h"
-#include "../include/iomanager.h"
-#include "../include/hook.h"
+#include "socket.h"
+#include "log.h"
+#include "macro.h"
+#include "fdmanager.h"
+#include "iomanager.h"
+#include "hook.h"
 namespace Xten
 {
     static Logger::ptr g_logger = XTEN_LOG_NAME("system");

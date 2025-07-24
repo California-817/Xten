@@ -1,5 +1,5 @@
-#include "../include/thread.h"
-#include "../include/log.h"
+#include "thread.h"
+#include "log.h"
 namespace Xten
 {
     static Xten::Logger::ptr g_logger = XTEN_LOG_NAME("system");

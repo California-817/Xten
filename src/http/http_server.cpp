@@ -1,5 +1,5 @@
-#include "../include/http/http_server.h"
-#include "../include/log.h"
+#include "http_server.h"
+#include "log.h"
 namespace Xten
 {
     namespace http

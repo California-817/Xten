@@ -1,6 +1,6 @@
-#include "../include/http/http_parser.h"
-#include "../include/log.h"
-#include "../include/config.h"
+#include "http/http_parser.h"
+#include "log.h"
+#include "config.h"
 namespace Xten
 {
     namespace http

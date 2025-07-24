@@ -1,4 +1,4 @@
-#include "../include/http/http_session.h"
+#include "http_session.h"
 namespace Xten
 {
     namespace http

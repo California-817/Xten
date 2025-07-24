@@ -1,4 +1,4 @@
-#include"../include/http/servlet.h"
+#include"http/servlet.h"
 #include <fnmatch.h>
 
 namespace Xten {

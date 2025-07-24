@@ -1,6 +1,6 @@
-#include "../include/mutex.h"
-#include "../include/macro.h"
-#include "../include/scheduler.h"
+#include "mutex.h"
+#include "macro.h"
+#include "scheduler.h"
 namespace Xten
 {
     Semaphore::Semaphore(uint32_t count)
@@ -99,14 +99,80 @@ namespace Xten
         SpinLock::Lock lock(_mutex);
         for (auto &fiber : _waitQueue)
         {
-            //调度所有等待协程
+            // 调度所有等待协程
             fiber.first->Schedule(fiber.second);
         }
         _waitQueue.clear();
     }
     FiberSemphore::~FiberSemphore()
     {
-        //析构的时候需要保证没有等待协程
+        // 析构的时候需要保证没有等待协程
+        XTEN_ASSERT(_waitQueue.empty());
+    }
+    FiberMutex::FiberMutex()
+        : _lock(true)
+    {
+    }
+    // 加锁
+    void FiberMutex::lock()
+    {
+        XTEN_ASSERT(Scheduler::GetThis());
+        if (_lock == true)
+        {
+            // 获取锁并返回
+            _lock = false;
+            return;
+        }
+        else
+        {
+            // 未获取到锁,在等待队列上挂起
+            {
+                SpinLock::Lock lock(_mutex);
+                _waitQueue.push_back(std::make_pair(Scheduler::GetThis(), Fiber::GetThis()));
+            }
+            Fiber::YieldToHold();
+        }
+    }
+
+    // 尝试加锁
+    bool FiberMutex::tryLock()
+    {
+        XTEN_ASSERT(Scheduler::GetThis());
+        if (_lock == true)
+        {
+            // 获取锁并返回
+            _lock = false;
+            return true;
+        }
+        else
+        {
+            // 未获取到锁
+            return false;
+        }
+    }
+    // 解锁
+    void FiberMutex::unlock()
+    {
+        XTEN_ASSERT(_lock == false);
+        std::pair<Scheduler*,Fiber::ptr> waitEntry(nullptr,nullptr);
+        {
+            SpinLock::Lock lock(_mutex);
+            if (_waitQueue.empty())
+            {
+                // 没有协程在等待锁
+                _lock = true;
+                return;
+            }
+            else
+            {
+                waitEntry = _waitQueue.front();
+                _waitQueue.pop_front();
+            }
+        }
+        waitEntry.first->Schedule(waitEntry.second);
+    }
+    FiberMutex::~FiberMutex()
+    {
         XTEN_ASSERT(_waitQueue.empty());
     }
 }

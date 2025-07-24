@@ -1,5 +1,5 @@
-#include "../include/tcp_server.h"
-#include "../include/log.h"
+#include "tcp_server.h"
+#include "log.h"
 namespace Xten
 {
     static Logger::ptr g_logger = XTEN_LOG_NAME("system");

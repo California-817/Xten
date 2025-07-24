@@ -1,7 +1,7 @@
-#include "../include/websocket/ws_session.h"
-#include "../include/log.h"
+#include "ws_session.h"
+#include "log.h"
 #include <endian.h>
-#include "../include/config.h"
+#include "config.h"
 namespace Xten
 {
     namespace http

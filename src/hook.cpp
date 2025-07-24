@@ -1,9 +1,9 @@
-#include "../include/hook.h"
-#include "../include/log.h"
-#include "../include/config.h"
-#include "../include/iomanager.h"
-#include "../include/fdmanager.h"
-#include "../include/timer.h"
+#include "hook.h"
+#include "log.h"
+#include "config.h"
+#include "iomanager.h"
+#include "fdmanager.h"
+#include "timer.h"
 #include <dlfcn.h>
 #include <time.h>
 #include <sys/types.h>

@@ -1,5 +1,5 @@
-#include "../include/bytearray.h"
-#include "../include/log.h"
+#include "bytearray.h"
+#include "log.h"
 #include <arpa/inet.h>
 #include <endian.h>
 #include <iomanip>

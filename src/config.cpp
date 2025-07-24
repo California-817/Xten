@@ -1,4 +1,4 @@
-#include "../include/config.h"
+#include "config.h"
 namespace Xten
 {
     static Xten::Logger::ptr g_logger=XTEN_LOG_NAME("system");

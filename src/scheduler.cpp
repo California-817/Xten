@@ -1,6 +1,6 @@
-#include "../include/scheduler.h"
-#include "../include/macro.h"
-#include"../include/hook.h"
+#include "scheduler.h"
+#include "macro.h"
+#include"hook.h"
 #include "log.h"
 namespace Xten
 {

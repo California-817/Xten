@@ -1,4 +1,4 @@
-#include "../include/websocket/ws_servlet.h"
+#include "ws_servlet.h"
 namespace Xten
 {
     namespace http

@@ -1,6 +1,6 @@
-#include "../include/stream.h"
-#include "../include/log.h"
-#include "../include/config.h"
+#include "stream.h"
+#include "log.h"
+#include "config.h"
 namespace Xten
 {
     static Logger::ptr g_logger = XTEN_LOG_NAME("system");

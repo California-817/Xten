@@ -1,5 +1,5 @@
-#include "../include/streams/socket_stream.h"
-#include "../include/log.h"
+#include "socket_stream.h"
+#include "log.h"
 #include <atomic>
 namespace Xten
 {

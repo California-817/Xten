@@ -1,5 +1,5 @@
-#include "../include/websocket/ws_server.h"
-#include "../include/log.h"
+#include "ws_server.h"
+#include "log.h"
 namespace Xten
 {
     namespace http

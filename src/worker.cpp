@@ -1,5 +1,5 @@
-#include "../include/worker.h"
-#include "../include/config.h"
+#include "worker.h"
+#include "config.h"
 namespace Xten
 {
     static ConfigVar<std::unordered_map<std::string, std::unordered_map<std::string, std::string>>>::ptr g_workers_conf = Config::LookUp("workers",

@@ -1,5 +1,5 @@
-#include "../include/http/http.h"
-#include"../include/util.h"
+#include "http.h"
+#include"util.h"
 #include<unicode/unistr.h>
 namespace Xten
 {

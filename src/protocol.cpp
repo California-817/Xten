@@ -1,5 +1,5 @@
-#include "../include/protocol.h"
-#include "../include/util.h"
+#include "protocol.h"
+#include "util.h"
 namespace Xten
 {
     // 直接转成bytearray
