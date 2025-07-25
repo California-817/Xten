@@ -9,6 +9,17 @@ project(Xten VERSION 1.0)
 
 include(cmake/utils.cmake)
 
+#添加宏编译选项来定制fiber上下文结构类型
+set(FIBER_TYPE "FIBER_FCONTEXT" CACHE STRING "Fiber implementation type")
+set_property(CACHE FIBER_TYPE PROPERTY STRINGS "FIBER_UCONTEXT" "FIBER_FCONTEXT")
+# 验证FIBER_TYPE的值是否有效
+if(NOT FIBER_TYPE STREQUAL "FIBER_UCONTEXT" AND NOT FIBER_TYPE STREQUAL "FIBER_FCONTEXT")
+    message(FATAL_ERROR "FIBER_TYPE must be either FIBER_UCONTEXT or FIBER_FCONTEXT, but got: ${FIBER_TYPE}")
+endif()
+
+# 添加编译定义
+add_compile_definitions(FIBER_TYPE=${FIBER_TYPE})
+
 # 设置输出库路径为当前项目的 lib 目录
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 # 查找依赖库
@@ -22,9 +33,15 @@ file(GLOB SOURCES src/*.cpp)
 file(GLOB HTTP_SOURCES src/http/*.cpp)
 file(GLOB WEBSOCKET_SOURCES src/websocket/*.cpp)
 file(GLOB STREAMS_SOURCES src/streams/*.cpp)
+file(GLOB ROCK_SOURCES src/rock/*.cpp)
 
 # 合并所有源文件
-list(APPEND SOURCES ${HTTP_SOURCES} ${WEBSOCKET_SOURCES} ${STREAMS_SOURCES})
+list(APPEND SOURCES 
+                    ${HTTP_SOURCES} 
+                    ${WEBSOCKET_SOURCES} 
+                    ${STREAMS_SOURCES}
+                    ${ROCK_SOURCES}
+)
 #添加.rl文件的cpp文件
 ragelmaker(src/http/http11_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/http)
 ragelmaker(src/http/httpclient_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/http)

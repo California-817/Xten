@@ -25,9 +25,9 @@ namespace Xten
         // 转字符串
         virtual std::string ToString() const = 0;
         // 获取name
-        virtual std::string GetName() const = 0;
+        virtual const std::string& GetName() const = 0;
         // 获取消息类型
-        virtual int GetMessageType() const = 0;
+        virtual uint8_t GetMessageType() const = 0;
     };
     // 消息编解码器
     class MessageDecoder
@@ -83,7 +83,7 @@ namespace Xten
 
     protected:
         uint32_t _sn;   // 请求的唯一序列号
-        uint32_t _cmd;  // 用于标识这个请求的类型（不同类型对应不同处理）
+        uint32_t _cmd;  // 用于标识这个请求的方法类型（不同方法类型对应不同处理）
         uint64_t _time; // 开始当前请求的的当前时间 us
     };
     // 响应消息
