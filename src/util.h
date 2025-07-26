@@ -112,6 +112,11 @@ namespace Xten
         {
             return __sync_bool_compare_and_swap(&t, (T)old_val, (T)new_val);
         }
+        template <class T, class S = T>
+        static T addFetch(volatile T &t, S v = 1)
+        {
+            return __sync_add_and_fetch(&t, (T)v);
+        }
     };
 }
 #endif

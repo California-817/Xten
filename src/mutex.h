@@ -374,7 +374,10 @@ namespace Xten
         size_t _concurrency;                                      // 当前信号量的值
         std::list<std::pair<Scheduler *, Fiber::ptr>> _waitQueue; // 协程未获取到信号量的等待队列
     };
-    //协程锁
+    // 协程锁(相比于线程锁的优点)
+    // 1.协程环境友好：框架本身就是基于协程的网络框架，协程锁在协程环境中比线程锁更轻量级
+    // 2.避免线程阻塞：协程锁在等待时只会挂起当前协程，不会阻塞整个线程
+    // 3.更好的并发性能：在高并发场景下，协程锁的切换开销比线程锁小得多
     class Scheduler;
     class FiberMutex : public NoCopyable
     {
