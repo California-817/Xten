@@ -4,3 +4,4 @@
 /bin/
 #忽略rl生成的文件
 /include/http/*.rl.cc
+/src/http/*.rl.cc

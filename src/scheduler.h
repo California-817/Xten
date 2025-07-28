@@ -8,7 +8,16 @@
 #include <list>
 #include <atomic>
 #include "macro.h"
+#include <random>
 #include <vector>
+
+#define OFF 0
+#define ON 1
+
+#ifndef OPTIMIZE
+#define OPTIMIZE ON
+#endif
+
 namespace Xten
 {
     /// @brief  基类协程调度器
@@ -16,6 +25,13 @@ namespace Xten
     {
     public:
         typedef std::shared_ptr<Scheduler> ptr;
+        // 任务分配策略
+        enum DistributePolicy
+        {
+            ROUND_ROBIN,  // 轮询分配
+            LEAST_LOADED, // 最少队列分配
+            RANDOM        // 随机分配
+        };
         // 默认让创建线程参与协程调度
         Scheduler(int threadNum = 1, bool use_caller = true, const std::string &name = "");
         virtual ~Scheduler();
@@ -31,6 +47,7 @@ namespace Xten
         {
             bool tickle_me = false;
             FuncOrFiber fcb(std::forward<Task>(task), threadId); // 这里的forward完美转发是必须的 保持原始语义
+#if OPTIMIZE == OFF
             {
                 RWMutex::WriteLock lock(_mutex);
                 if (_fun_fibers.empty())
@@ -40,6 +57,21 @@ namespace Xten
                 XTEN_ASSERT((fcb.fiber != nullptr || fcb.func != nullptr));
                 _fun_fibers.push_back(fcb);
             }
+#elif OPTIMIZE == ON
+            int bestQueue = selectBestQueue(threadId);
+            tickle_me = true;
+            XTEN_ASSERT((fcb.fiber != nullptr || fcb.func != nullptr));
+            {
+                // 向bestQueue队列中放入任务
+                RWMutex::WriteLock lock(*_localMtx[bestQueue]);
+                for (int i = 0; i < _queueSizes.size(); i++)
+                {
+                    tickle_me &= (_queueSizes[i].load()==0);
+                }
+                _localQueues[bestQueue].push_back(fcb);
+                _queueSizes[bestQueue]++;
+            }
+#endif
             if (tickle_me)
             {
                 Tickle();
@@ -49,6 +81,7 @@ namespace Xten
         void Schedule(InputIterator begin, InputIterator end, int threadId = -1)
         {
             bool tickle_me = false;
+#if OPTIMIZE == OFF
             {
                 RWMutex::WriteLock lock(_mutex);
                 if (_fun_fibers.empty())
@@ -63,6 +96,26 @@ namespace Xten
                     begin++;
                 }
             }
+#elif OPTIMIZE == ON
+            int bestQueue = selectBestQueue(threadId);
+            tickle_me = true;
+            {
+                // 向bestQueue队列中放入任务
+                RWMutex::WriteLock lock(*_localMtx[bestQueue]);
+                for (int i = 0; i < _queueSizes.size(); i++)
+                {
+                    tickle_me &= (_queueSizes[i].load() == 0);
+                }
+                while (begin != end)
+                {
+                    FuncOrFiber fcb(std::move(*begin),threadId);
+                    XTEN_ASSERT((fcb.fiber != nullptr || fcb.func != nullptr));
+                    _localQueues[bestQueue].push_back(fcb);
+                    _queueSizes[bestQueue]++;
+                    begin++;
+                }
+            }
+#endif
             if (tickle_me)
             {
                 Tickle();
@@ -174,14 +227,79 @@ namespace Xten
             Xten::Fiber::ptr fiber;     // 协程
             int threadId = -1;          // 任务指定的线程id
         };
-
+#if OPTIMIZE == ON
+        // 优化队列需要用到的函数集合
+        // 挑选合适的队列
+        int selectBestQueue(int threadId)
+        {
+            if (threadId != -1 && threadId < _localQueues.size())
+            {
+                // 指定了执行线程
+                return threadId;
+            }
+            // 未指定(根据不同的分配策略执行不同分配)
+            switch (_policy)
+            {
+            case DistributePolicy::ROUND_ROBIN:
+            {
+                size_t index = _roundRobinCounter.fetch_add(1) % _localQueues.size();
+                return static_cast<int>(index);
+            }
+            break;
+            case DistributePolicy::RANDOM:
+            {
+                static thread_local std::random_device rd;
+                static thread_local std::mt19937 gen(rd());
+                std::uniform_int_distribution<> dis(0, _localQueues.size() - 1);
+                return dis(gen);
+            }
+            break;
+            case DistributePolicy::LEAST_LOADED:
+            default:
+            {
+                int bestQueue = 0;
+                size_t min = _queueSizes[0].load();
+                for (size_t i = 1; i < _queueSizes.size(); i++)
+                {
+                    if (min > _queueSizes[i].load())
+                    {
+                        // 找到了更少任务队列
+                        min = _queueSizes[i].load();
+                        bestQueue = i;
+                    }
+                }
+                return bestQueue;
+            }
+            break;
+            }
+            return 0;
+        }
+#endif
     private:
-        Xten::RWMutex _mutex;                    // 任务队列互斥锁
         std::string _name;                       // 调度器name
         std::vector<Xten::Thread::ptr> _threads; // 工作线程
+#if OPTIMIZE == OFF
         // 性能优化点---多线程对这个任务队列的操作需要加全局锁（锁的粒度比较大:考虑使用  多个任务队列 + 任务窃取 ）
         std::list<FuncOrFiber> _fun_fibers; // 任务队列
-        Xten::Fiber::ptr _root_fiber;       // 创建线程的调度协程
+        Xten::RWMutex _mutex;               // 任务队列互斥锁
+#elif OPTIMIZE == ON
+public:
+        // 使用多线程多任务队列+任务窃取进行优化
+        std::unordered_map<int,int>    _threadIdToIndex; //线程id与队列下标映射关系
+        Xten::RWMutex _mapMtx;  //保证这个映射map的线程安全
+        std::vector<std::list<FuncOrFiber>> _localQueues;          // 线程本地队列
+        std::vector<std::unique_ptr<Xten::RWMutex>> _localMtx;      // 线程本地锁
+        DistributePolicy _policy = DistributePolicy::LEAST_LOADED; // 分配策略（默认最低负载分配策略）
+        std::vector<std::atomic<size_t>> _queueSizes;              // 每个队列的负载情况
+        std::atomic<size_t> _roundRobinCounter = {0};              // 轮询分配的计数器
+
+        // 工作统计
+        std::atomic<uint64_t> _localHits = {0};     // 本地队列命中总数
+        std::atomic<uint64_t> _steals = {0};        // 窃取成功任务数量
+        std::atomic<uint64_t> _stealAttempts = {0}; // 尝试窃取次数
+
+#endif
+        Xten::Fiber::ptr _root_fiber; // 创建线程的调度协程
     protected:
         std::vector<int> _thread_ids;             // 所有线程id
         int _threads_num;                         // 总线程数

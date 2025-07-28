@@ -1,6 +1,6 @@
 #include "scheduler.h"
 #include "macro.h"
-#include"hook.h"
+#include "hook.h"
 #include "log.h"
 namespace Xten
 {
@@ -8,8 +8,13 @@ namespace Xten
 
 	static thread_local Scheduler *t_scheduler = nullptr;	// 线程所属协程调度器
 	static thread_local Fiber *t_scheduler_fiber = nullptr; // 线程的调度协程
+	static thread_local int t_queue_index = -1;				// 线程的队列所在下标
 	Scheduler::Scheduler(int threadNum, bool use_caller, const std::string &name)
 		: _name(name), _threads_num(threadNum)
+#if OPTIMIZE == ON
+		  ,
+		  _queueSizes(threadNum) // 只指定大小，不指定初始值
+#endif
 	{
 		XTEN_ASSERTINFO(_threads_num > 0, "scheduler threads num<0");
 		if (use_caller)
@@ -29,6 +34,23 @@ namespace Xten
 			_thread_ids.push_back(_root_threadId);
 			// Xten::set_hook_enable(true);
 		}
+#if OPTIMIZE == ON
+		_localQueues.resize(threadNum);
+		_localMtx.resize(threadNum);
+		for (auto &item : _queueSizes)
+		{
+			item.store(0);
+		}
+		for (int i = 0; i < _localMtx.size(); i++)
+		{
+			_localMtx[i] = std::make_unique<Xten::RWMutex>();
+		}
+		if (use_caller)
+		{
+			t_queue_index = 0;
+			_threadIdToIndex.insert(std::make_pair(_root_threadId, 0));
+		}
+#endif
 	}
 	Scheduler::~Scheduler()
 	{
@@ -41,7 +63,9 @@ namespace Xten
 	// 启动
 	void Scheduler::Start()
 	{
+#if OPTIMIZE == OFF
 		RWMutex::WriteLock lock(_mutex);
+#endif
 		if (!_stopping)
 		{ // 已经启动
 			return;
@@ -49,21 +73,38 @@ namespace Xten
 		XTEN_ASSERT(_threads.empty());
 		_stopping = false;
 		_threads.resize(_threads_num);
-		for (int i = 0; i < _threads_num; i++)
 		{
-			// 创建线程绑定run方法
-			_threads[i] = std::make_shared<Xten::Thread>(std::bind(&Scheduler::Run, this),
-														 _name + "_" + std::to_string(i));
-			_thread_ids.push_back(_threads[i]->getId()); // 存放线程id
+#if OPTIMIZE == ON
+			RWMutex::WriteLock wlock(_mapMtx);
+#endif
+			for (int i = 0; i < _threads_num; i++)
+			{
+				// 创建线程绑定run方法
+				_threads[i] = std::make_shared<Xten::Thread>(std::bind(&Scheduler::Run, this),
+															 _name + "_" + std::to_string(i));
+				_thread_ids.push_back(_threads[i]->getId()); // 存放线程id
+#if OPTIMIZE == ON
+				_threadIdToIndex.insert(std::make_pair(_threads[i]->getId(), i + (_root_threadId != -1 ? 1 : 0)));
+#endif
+			}
 		}
 	}
-	// 运行函数
+	// 运行函数(工作线程执行函数)
 	void Scheduler::Run()
 	{
 		// 设置线程所属调度器
 		SetThis();
 		// 设置hook属性
 		Xten::set_hook_enable(true);
+#if OPTIMIZE == ON
+		// 设置当前线程的队列index
+		if (t_queue_index == -1)
+		{
+			RWMutex::ReadLock rlock(_mapMtx);
+			t_queue_index = _threadIdToIndex[Xten::ThreadUtil::GetThreadId()];
+		}
+		XTEN_LOG_DEBUG(g_logger) << "thread: " << Xten::ThreadUtil::GetThreadId() << " ,index: " << t_queue_index;
+#endif
 		// 设置当前线程的调度协程
 		if (Xten::ThreadUtil::GetThreadId() != _root_threadId)
 		{
@@ -80,8 +121,9 @@ namespace Xten
 			fcb.Reset();
 			bool tickle_me = false;
 			bool is_active = false;
+#if OPTIMIZE == OFF
 			{
-				RWMutex::WriteLock lock(_mutex); //加一把全局锁保证多线程访问任务队列的线程安全（锁的粒度是比较大的）
+				RWMutex::WriteLock lock(_mutex); // 加一把全局锁保证多线程访问任务队列的线程安全（锁的粒度是比较大的）
 				auto iter = _fun_fibers.begin();
 				while (iter != _fun_fibers.end())
 				{
@@ -109,6 +151,87 @@ namespace Xten
 				// 不为空也通知
 				tickle_me |= !_fun_fibers.empty();
 			}
+#elif OPTIMIZE == ON
+			int currentQueueIndex = t_queue_index;
+			XTEN_ASSERTINFO(t_queue_index != -1, "thread queue index not init");
+			// 1.从自己线程队列中获取任务
+			{
+				RWMutex::WriteLock wlock(*_localMtx[currentQueueIndex]);
+				if (_localQueues[currentQueueIndex].empty())
+				{
+					// 当前队列没有任务
+					is_active = false;
+				}
+				else
+				{
+					fcb = _localQueues[currentQueueIndex].front();
+					_localQueues[currentQueueIndex].pop_front();
+					if (--_queueSizes[currentQueueIndex] > 0)
+					{
+						tickle_me |= true;
+					}
+					_localHits++;
+					is_active = true;
+					_active_threadNum++;
+				}
+			}
+			// 2.自己队列未获取到任务，尝试窃取任务
+			if (!is_active)
+			{
+				_stealAttempts++;
+				// 选择任务最多的队列进行窃取
+				int bestQueue = -1;
+				size_t max = 0;
+				// 筛选出符合条件队列下标
+				for (int i = 0; i < _queueSizes.size(); i++)
+				{
+					if (i == currentQueueIndex)
+					{
+						continue;
+					}
+					size_t curcount = _queueSizes[i].load();
+					if (curcount > max && curcount > 1)
+					{
+						tickle_me = true;
+						max = curcount;
+						bestQueue = i;
+					}
+				}
+				if (bestQueue != -1)
+				{
+					// 找到目的窃取队列
+					RWMutex::WriteLock wlock(*_localMtx[bestQueue]);
+					auto iter = _localQueues[bestQueue].rbegin();
+					while (iter != _localQueues[bestQueue].rend())
+					{
+						if (iter->threadId == -1)
+						{
+							// 可以窃取该任务
+							fcb = *iter;
+							_localQueues[bestQueue].erase(std::next(iter).base());
+							_queueSizes[bestQueue]--;
+							is_active = true;
+							_active_threadNum++;
+							_steals++;
+							iter++;
+							break;
+						}
+						else
+						{
+							// 这个任务指定了就是在当前队列执行 不能窃取
+							iter++;
+							continue;
+						}
+					}
+				}
+				else
+				{
+					// 窃取失败
+					tickle_me |= false;
+					is_active = false;
+				}
+			}
+#endif
 			if (tickle_me) // 通知
 			{
 				Tickle();
@@ -185,7 +308,7 @@ namespace Xten
 				}
 				_idle_threadNum++;
 				idle_fiber->SwapIn();
-        		XTEN_LOG_DEBUG(g_logger) << "idle out";
+				XTEN_LOG_DEBUG(g_logger) << "idle out";
 				_idle_threadNum--;
 				if (idle_fiber->GetStatus() != Fiber::Status::TERM &&
 					idle_fiber->GetStatus() != Fiber::Status::EXCEPT)
@@ -257,9 +380,20 @@ namespace Xten
 	// 返回是否可以终止 ---子类实现
 	bool Scheduler::IsStopping()
 	{
+#if OPTIMIZE == OFF
 		RWMutex::ReadLock lock(_mutex);
 		return _stopping && _auto_stopping &&
 			   _fun_fibers.empty() && !_active_threadNum;
+#elif OPTIMIZE == ON
+		bool allEmpty = true;
+		for (int i = 0; i < _localQueues.size(); i++)
+		{
+			RWMutex::ReadLock rlock(*_localMtx[i]);
+			allEmpty &= _localQueues[i].empty();
+		}
+		return _stopping && _auto_stopping &&
+			   allEmpty && !_active_threadNum;
+#endif
 	}
 	// 停止
 	void Scheduler::Stop()
@@ -302,13 +436,21 @@ namespace Xten
 		// 等待工作线程退出
 		std::vector<Thread::ptr> ths;
 		{
+#if OPTIMIZE == OFF
 			RWMutex::WriteLock lock(_mutex);
+#endif
 			ths.swap(_threads);
 		}
 		for (auto &th : ths)
 		{
 			th->join();
 		}
+#if OPTIMIZE == ON
+		// 输出整个任务的执行情况
+		XTEN_LOG_INFO(g_logger) << "[Localqueue hit Sum: " << _localHits << " ] "
+								<< "[Attempt steal Task Sum: " << _stealAttempts << " ] "
+								<< "[Success steal Task Sum: " << _steals << " ]";
+#endif
 	}
 	// 线程无任务执行idle空闲协程  ---子类实现
 	void Scheduler::Idle()

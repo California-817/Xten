@@ -1,4 +1,4 @@
-#include "../include/Xten.h"
+#include "../src/Xten.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <bitset>
 #include <iostream>
+#include <thread>
 #include <sys/epoll.h>
 static Xten::Logger::ptr g_logger = XTEN_LOG_ROOT();
 int sock = 0;
@@ -509,18 +510,59 @@ void test_websocker_session()
 }
 void test_websocket_server()
 {
-    Xten::http::WSServer::ptr ws=std::make_shared<Xten::http::WSServer>();
-    auto addr=Xten::IPv4Address::Create("0.0.0.0",8080);
-    
-    while(!ws->Bind(addr)){}
+    Xten::http::WSServer::ptr ws = std::make_shared<Xten::http::WSServer>();
+    auto addr = Xten::IPv4Address::Create("0.0.0.0", 8080);
+
+    while (!ws->Bind(addr))
+    {
+    }
     ws->Start();
+}
+static std::atomic<int> count = 0;
+void test_queue()
+{
+    Xten::IOManager sche(5, false);
+    std::thread t1 = std::thread([&sche]()
+                                 {
+ for (int i = 0; i < 300000; i++)
+ {
+     sche.Schedule([]()
+                   { XTEN_LOG_DEBUG(g_logger) << "task " << count++; });
+ } });
+    std::thread t2 = std::thread([&sche]()
+                                 {
+ for (int i = 0; i < 300000; i++)
+ {
+     sche.Schedule([]()
+                   { XTEN_LOG_DEBUG(g_logger) << "task " << count++; });
+ } });
+    std::thread t3 = std::thread([&sche]()
+                                 {
+ for (int i = 0; i < 400000; i++)
+ {
+     sche.Schedule([]()
+                   { XTEN_LOG_DEBUG(g_logger) << "task " << count++; });
+ } });
+    t1.join();
+    t2.join();
+    t3.join();
+    for (int i = 0; i < 3; i++)
+    {
+        std::cout << "queuesize: " << std::endl;
+        std::cout << "local size " << std::endl;
+    }
 }
 int main()
 {
+    uint64_t begin = Xten::TimeUitl::GetCurrentMS();
+    test_queue();
+    uint64_t end = Xten::TimeUitl::GetCurrentMS();
+    std::cout << "---------------------100万个任务总耗时----------------" << std::endl;
+    std::cout << "---------------------" << end - begin << " ms--------------" << std::endl;
     // test_assert();
     // Xten::Config::LoadFromConFDir(".");
-    Xten::IOManager iom(2);
-    iom.Schedule(&test_websocket_server);
+    // Xten::IOManager iom(2);
+    // iom.Schedule(&test_websocket_server);
     // test_byteArray();
     // test_sslSocket();
     // Xten::TimerManager mgr;
