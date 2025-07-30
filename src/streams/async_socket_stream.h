@@ -180,7 +180,7 @@ namespace Xten
         // 锁保证多线程下reqCtxs和senCtxQue的线程安全
         RWMutex _queMtx;
         RWMutex _ctxsMtx;
-        uint32_t _sn;              // 异步socket的序列号!=请求ctx的sn
+        uint32_t _sn;              // 该异步socket的请求序列号ctx的sn
         bool _autoConnect;         // 是否自动重连
         uint32_t _tryConnectCount; // 重连次数
         Timer::ptr _timer;         // 重连定时器

@@ -552,21 +552,50 @@ void test_queue()
         std::cout << "local size " << std::endl;
     }
 }
-int main()
+static Xten::Timer::ptr timer;
+static int i=0;
+int test(int argc, char **argv)
 {
-    uint64_t begin = Xten::TimeUitl::GetCurrentMS();
-    test_queue();
-    uint64_t end = Xten::TimeUitl::GetCurrentMS();
-    std::cout << "---------------------100万个任务总耗时----------------" << std::endl;
-    std::cout << "---------------------" << end - begin << " ms--------------" << std::endl;
-    // test_assert();
-    // Xten::Config::LoadFromConFDir(".");
-    // Xten::IOManager iom(2);
-    // iom.Schedule(&test_websocket_server);
-    // test_byteArray();
-    // test_sslSocket();
-    // Xten::TimerManager mgr;
-    //     XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"add";
+    Xten::Env::GetInstance()->AddHelp("s","sss");
+    Xten::Env::GetInstance()->AddHelp("a","aaa");
+    Xten::Env::GetInstance()->AddHelp("b","bbb");
+    Xten::Env::GetInstance()->AddHelp("c","ccc");
+    bool ret=Xten::Env::GetInstance()->Init(argc,argv);
+    if(!ret)
+    {
+        //解析失败
+        std::cout<<Xten::Env::GetInstance()->PrintHelps();
+        return -1;
+    }
+    else
+    {
+        //成功
+        std::cout<<"解析成功 Xten框架启动"<<std::endl;
+        std::cout<<Xten::Env::GetInstance()->GetExe()<<std::endl;
+        std::cout<<Xten::Env::GetInstance()->GetCwd()<<std::endl;
+        std::cout<<Xten::Env::GetInstance()->GetConfigPath()<<std::endl;
+    }
+    return 0;
+}
+int main(int argc, char **argv)
+{
+    // iom.addTimer(1000,[](){
+    // std::cout<<"on timer"<<std::endl;
+    // },true);
+    Xten::xten_start(argc,argv,&test,false);
+    //  uint64_t begin = Xten::TimeUitl::GetCurrentMS();
+    //  test_queue();
+    //  uint64_t end = Xten::TimeUitl::GetCurrentMS();
+    //  std::cout << "---------------------100万个任务总耗时----------------" << std::endl;
+    //  std::cout << "---------------------" << end - begin << " ms--------------" << std::endl;
+    //  test_assert();
+    //  Xten::Config::LoadFromConFDir(".");
+    //  Xten::IOManager iom(2);
+    //  iom.Schedule(&test_websocket_server);
+    //  test_byteArray();
+    //  test_sslSocket();
+    //  Xten::TimerManager mgr;
+    //      XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"add";
 
     // tm=mgr.AddTimer(5000,[&mgr](){
     //     XTEN_LOG_INFO(XTEN_LOG_ROOT())<<"hello";

@@ -13,11 +13,9 @@
 
 #define OFF 0
 #define ON 1
-
 #ifndef OPTIMIZE
 #define OPTIMIZE ON
 #endif
-
 namespace Xten
 {
     /// @brief  基类协程调度器
@@ -40,9 +38,11 @@ namespace Xten
         // 停止
         void Stop();
         // 放任务  Task表示任务类型  1.fiber::ptr  2.std::function
-        template <class Task>
         // Task &&task 这里的 T&&是万能引用 ---只有在模板类型推导的情况下才是万能引用（否则是普通右值引用）
         // 引用折叠规则 传入左值--左值引用   传入右值--右值引用
+        // 对于 OPTIMIZE=ON threadId为线程的下标[use_caller 0 thread_0 1 thread_2 1 ....] or [thread_0 0 thread_1 1 thread_2 2 ....]
+        // 对于 OPTIMIZE=OFF threadId为线程的LWP进程id
+        template <class Task>
         void Schedule(Task &&task, int threadId = -1)
         {
             bool tickle_me = false;
@@ -66,7 +66,7 @@ namespace Xten
                 RWMutex::WriteLock lock(*_localMtx[bestQueue]);
                 for (int i = 0; i < _queueSizes.size(); i++)
                 {
-                    tickle_me &= (_queueSizes[i].load()==0);
+                    tickle_me &= (_queueSizes[i].load() == 0);
                 }
                 _localQueues[bestQueue].push_back(fcb);
                 _queueSizes[bestQueue]++;
@@ -77,6 +77,8 @@ namespace Xten
                 Tickle();
             }
         }
+        // 对于 OPTIMIZE=ON threadId为线程的下标[use_caller 0 thread_0 1 thread_2 1 ....] or [thread_0 0 thread_1 1 thread_2 2 ....]
+        // 对于 OPTIMIZE=OFF threadId为线程的LWP进程id
         template <class InputIterator>
         void Schedule(InputIterator begin, InputIterator end, int threadId = -1)
         {
@@ -108,7 +110,7 @@ namespace Xten
                 }
                 while (begin != end)
                 {
-                    FuncOrFiber fcb(std::move(*begin),threadId);
+                    FuncOrFiber fcb(std::move(*begin), threadId);
                     XTEN_ASSERT((fcb.fiber != nullptr || fcb.func != nullptr));
                     _localQueues[bestQueue].push_back(fcb);
                     _queueSizes[bestQueue]++;
@@ -228,7 +230,6 @@ namespace Xten
             int threadId = -1;          // 任务指定的线程id
         };
 #if OPTIMIZE == ON
-        // 优化队列需要用到的函数集合
         // 挑选合适的队列
         int selectBestQueue(int threadId)
         {
@@ -261,10 +262,11 @@ namespace Xten
                 size_t min = _queueSizes[0].load();
                 for (size_t i = 1; i < _queueSizes.size(); i++)
                 {
-                    if (min > _queueSizes[i].load())
+                    size_t cur = _queueSizes[i].load();
+                    if (min > cur)
                     {
                         // 找到了更少任务队列
-                        min = _queueSizes[i].load();
+                        min = cur;
                         bestQueue = i;
                     }
                 }
@@ -274,6 +276,8 @@ namespace Xten
             }
             return 0;
         }
+        //进行定期的自动负载均衡
+
 #endif
     private:
         std::string _name;                       // 调度器name
@@ -283,15 +287,15 @@ namespace Xten
         std::list<FuncOrFiber> _fun_fibers; // 任务队列
         Xten::RWMutex _mutex;               // 任务队列互斥锁
 #elif OPTIMIZE == ON
-public:
+    public:
         // 使用多线程多任务队列+任务窃取进行优化
-        std::unordered_map<int,int>    _threadIdToIndex; //线程id与队列下标映射关系
-        Xten::RWMutex _mapMtx;  //保证这个映射map的线程安全
-        std::vector<std::list<FuncOrFiber>> _localQueues;          // 线程本地队列
-        std::vector<std::unique_ptr<Xten::RWMutex>> _localMtx;      // 线程本地锁
-        DistributePolicy _policy = DistributePolicy::LEAST_LOADED; // 分配策略（默认最低负载分配策略）
-        std::vector<std::atomic<size_t>> _queueSizes;              // 每个队列的负载情况
-        std::atomic<size_t> _roundRobinCounter = {0};              // 轮询分配的计数器
+        std::unordered_map<int, int> _threadIdToIndex;            // 线程id与队列下标映射关系
+        Xten::RWMutex _mapMtx;                                    // 保证这个映射map的线程安全
+        std::vector<std::list<FuncOrFiber>> _localQueues;         // 线程本地队列
+        std::vector<std::unique_ptr<Xten::RWMutex>> _localMtx;    // 线程本地锁
+        DistributePolicy _policy = DistributePolicy::ROUND_ROBIN; // 分配策略（默认最低负载分配策略）
+        std::vector<std::atomic<size_t>> _queueSizes;             // 每个队列的负载情况
+        std::atomic<size_t> _roundRobinCounter = {0};             // 轮询分配的计数器
 
         // 工作统计
         std::atomic<uint64_t> _localHits = {0};     // 本地队列命中总数

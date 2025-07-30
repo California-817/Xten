@@ -5,9 +5,9 @@
 #define FIBER_UCONTEXT 0 // ucontext
 #define FIBER_FCONTEXT 1 // fcontext
 
-// #ifndef FIBER_TYPE
-// #define FIBER_TYPE FIBER_FCONTEXT // 默认使用boost库的fcontext
-// #endif
+#ifndef FIBER_TYPE
+#define FIBER_TYPE FIBER_FCONTEXT // 默认使用boost库的fcontext
+#endif
 #if FIBER_TYPE == FIBER_UCONTEXT
 #include <ucontext.h>
 #elif FIBER_TYPE == FIBER_FCONTEXT

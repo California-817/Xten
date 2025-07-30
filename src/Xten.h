@@ -24,4 +24,6 @@
 #include"stream.h"
 #include"socket.h"
 #include"address.h"
+#include"system/env.h"
+#include"system/daemon.h"
 #endif

@@ -123,11 +123,9 @@ namespace Xten
     static void OnTimer(std::weak_ptr<void> weak_cond, std::function<void()> cb)
     {
         std::shared_ptr<void> tmp = weak_cond.lock();
-            std::cout<<"            cb();"<<tmp<<std::endl;
         if (tmp)
         {
             cb();
-            std::cout<<"            cb();"<<std::endl;
         }
     }
 
