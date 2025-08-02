@@ -136,6 +136,10 @@ namespace Xten
         // 初始化fdcontexts
         FdContextsResize(32);
         Scheduler::Start();
+        //开启定时器 定期进行多任务队列的负载均衡
+#if OPTIMIZE==ON
+        // addTimer(150,std::bind(&Scheduler::autoLoadBalance,this),true);
+#endif
     }
     IOManager::~IOManager()
     {

@@ -49,7 +49,6 @@ namespace Xten
                 // 子进程(可以看到与父进程一样的ProcessInfo,不是同一个ProcessInfo,设置值后对父进程不可见)
                 ProcessInfo::GetInstance()->main_id = getpid();
                 ProcessInfo::GetInstance()->main_start_time = time(0);
-                std::cout<<ProcessInfo::GetInstance()->ToString();
                 //子进程真正执行框架代码
                 return mainCb(argc, argv);
             }

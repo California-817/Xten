@@ -12,7 +12,7 @@ namespace Xten
     ██╗  ██╗████████╗███████╗███╗   ██╗   
     ╚██╗██╔╝╚══██╔══╝██╔════╝████╗  ██║             
      ╚███╔╝    ██║   █████╗  ██╔██╗ ██║               Xten Server Framework version 1.0.0
-     ██╔██╗    ██║   ██╔══╝  ██║╚██╗██║               Project link: {https://github.com/California-817/Xten}
+     ██╔██╗    ██║   ██╔══╝  ██║╚██╗██║               Github link: {https://github.com/California-817/Xten}
     ██╔╝ ██╗   ██║   ███████╗██║ ╚████║  
     ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═══╝  )"
                       << std::endl;

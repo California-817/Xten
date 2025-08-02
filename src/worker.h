@@ -13,6 +13,7 @@ namespace Xten
     // 单例WorkerManager通过智能指针管理整个程序的所有调度器（通过配置文件读取配置初始化程序的所有调度器）
     class WorkerManager : public singleton<WorkerManager>
     {
+    public:
         WorkerManager();
         // 添加调度器
         void Add(Scheduler::ptr sche);
@@ -91,7 +92,7 @@ namespace Xten
         {
             auto workgp = std::make_shared<TimedWorkGroup>(batchSize, timeoutMs, iomanager);
             // 根据超时时间开启一个超时定时器 (在当前创建该group的调度器中)
-            workgp->_timer = IOManager::GetThis()->addTimer(timeoutMs, std::bind(&TimedWorkGroup::OnTimer, workgp.get(),workgp), false);
+            workgp->_timer = IOManager::GetThis()->addTimer(timeoutMs, std::bind(&TimedWorkGroup::OnTimer, workgp.get(), workgp), false);
             return workgp;
         }
         TimedWorkGroup(uint32_t batchSize, uint64_t timeoutMs, IOManager *iomanager = IOManager::GetThis());

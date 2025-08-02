@@ -527,21 +527,21 @@ void test_queue()
  for (int i = 0; i < 300000; i++)
  {
      sche.Schedule([]()
-                   { XTEN_LOG_DEBUG(g_logger) << "task " << count++; });
+                   { count++; });
  } });
     std::thread t2 = std::thread([&sche]()
                                  {
  for (int i = 0; i < 300000; i++)
  {
      sche.Schedule([]()
-                   { XTEN_LOG_DEBUG(g_logger) << "task " << count++; });
+                   { count++; });
  } });
     std::thread t3 = std::thread([&sche]()
                                  {
  for (int i = 0; i < 400000; i++)
  {
      sche.Schedule([]()
-                   { XTEN_LOG_DEBUG(g_logger) << "task " << count++; });
+                   {  count++; });
  } });
     t1.join();
     t2.join();
@@ -577,17 +577,306 @@ int test(int argc, char **argv)
     }
     return 0;
 }
+// 性能测试：递归并行快速排序 + 混合任务负载
+class HighPerformanceTest {
+private:
+    std::atomic<uint64_t> m_taskCount{0};
+    std::atomic<uint64_t> m_completedTasks{0};
+    std::atomic<uint64_t> m_totalLatency{0};
+    
+public:
+    // 测试1：递归分治算法（最适合工作窃取）
+    void testParallelQuickSort(Xten::Scheduler& scheduler, std::vector<int>& data) {
+        auto start = std::chrono::high_resolution_clock::now();
+        
+        std::atomic<bool> done{false};
+        parallelQuickSort(scheduler, data, 0, data.size() - 1, 0, done);
+        
+        // 等待完成
+        while(!done.load()) {
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+        }
+        
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        
+        XTEN_LOG_INFO(g_logger) << "QuickSort completed in: " << duration.count() << "ms";
+        XTEN_LOG_INFO(g_logger) << "Tasks created: " << m_taskCount.load();
+    }
+    
+private:
+    void parallelQuickSort(Xten::Scheduler& scheduler, std::vector<int>& arr, 
+                          int left, int right, int depth, std::atomic<bool>& done) {
+        if(left >= right) {
+            if(depth == 0) done.store(true);
+            return;
+        }
+        
+        m_taskCount++;
+        
+        if(depth < 6) { // 前6层并行化，产生不均匀负载
+            std::atomic<int> subTaskCount{2};
+            
+            int pivot = partition(arr, left, right);
+            
+            // 左子任务
+            scheduler.Schedule([this, &scheduler, &arr, left, pivot, depth, &subTaskCount, &done](){
+                parallelQuickSort(scheduler, arr, left, pivot - 1, depth + 1, done);
+                if(subTaskCount.fetch_sub(1) == 1 && depth == 0) {
+                    done.store(true);
+                }
+            });
+            
+            // 右子任务
+            scheduler.Schedule([this, &scheduler, &arr, pivot, right, depth, &subTaskCount, &done](){
+                parallelQuickSort(scheduler, arr, pivot + 1, right, depth + 1, done);
+                if(subTaskCount.fetch_sub(1) == 1 && depth == 0) {
+                    done.store(true);
+                }
+            });
+        } else {
+            // 深层递归转为串行，避免过度并行
+            quickSortSerial(arr, left, right);
+            if(depth == 0) done.store(true);
+        }
+    }
+    
+    int partition(std::vector<int>& arr, int left, int right) {
+        int pivot = arr[right];
+        int i = left - 1;
+        
+        for(int j = left; j < right; j++) {
+            if(arr[j] <= pivot) {
+                i++;
+                std::swap(arr[i], arr[j]);
+            }
+        }
+        std::swap(arr[i + 1], arr[right]);
+        return i + 1;
+    }
+    
+    void quickSortSerial(std::vector<int>& arr, int left, int right) {
+        if(left >= right) return;
+        int pivot = partition(arr, left, right);
+        quickSortSerial(arr, left, pivot - 1);
+        quickSortSerial(arr, pivot + 1, right);
+    }
+
+public:
+    // 测试2：混合负载场景（最能体现工作窃取优势）
+    void testMixedWorkload(Xten::Scheduler& scheduler, int iterations) {
+        auto start = std::chrono::high_resolution_clock::now();
+        
+        std::atomic<int> remainingTasks{iterations};
+        
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> taskTypeDist(1, 4);
+        std::uniform_int_distribution<> computeDist(1, 100);
+        
+        for(int i = 0; i < iterations; ++i) {
+            int taskType = taskTypeDist(gen);
+            int computeIntensity = computeDist(gen);
+            
+            switch(taskType) {
+                case 1: // 快速任务 (1-5ms) - 70%概率
+                    if(computeIntensity <= 70) {
+                        scheduler.Schedule([this, &remainingTasks, i](){
+                            auto taskStart = std::chrono::high_resolution_clock::now();
+                            
+                            // 轻量计算
+                            volatile int sum = 0;
+                            for(int j = 0; j < 10000; ++j) {
+                                sum += j * j;
+                            }
+                            
+                            auto taskEnd = std::chrono::high_resolution_clock::now();
+                            auto latency = std::chrono::duration_cast<std::chrono::microseconds>(
+                                taskEnd - taskStart).count();
+                            
+                            m_totalLatency.fetch_add(latency);
+                            m_completedTasks++;
+                            remainingTasks--;
+                        });
+                    }
+                    break;
+                    
+                case 2: // 中等任务 (10-50ms) - 20%概率  
+                    if(computeIntensity > 70 && computeIntensity <= 90) {
+                        scheduler.Schedule([this, &remainingTasks, i](){
+                            auto taskStart = std::chrono::high_resolution_clock::now();
+                            
+                            // 中等计算 + 模拟IO
+                            volatile int sum = 0;
+                            for(int j = 0; j < 500000; ++j) {
+                                sum += j * j;
+                            }
+                            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                            
+                            auto taskEnd = std::chrono::high_resolution_clock::now();
+                            auto latency = std::chrono::duration_cast<std::chrono::microseconds>(
+                                taskEnd - taskStart).count();
+                            
+                            m_totalLatency.fetch_add(latency);
+                            m_completedTasks++;
+                            remainingTasks--;
+                        });
+                    }
+                    break;
+                    
+                case 3: // 重型任务 (100-200ms) - 8%概率
+                    if(computeIntensity > 90 && computeIntensity <= 98) {
+                        scheduler.Schedule([this, &remainingTasks, i](){
+                            auto taskStart = std::chrono::high_resolution_clock::now();
+                            
+                            // 重型计算
+                            volatile double result = 0.0;
+                            for(int j = 0; j < 5000000; ++j) {
+                                result += std::sin(j) * std::cos(j);
+                            }
+                            
+                            auto taskEnd = std::chrono::high_resolution_clock::now();
+                            auto latency = std::chrono::duration_cast<std::chrono::microseconds>(
+                                taskEnd - taskStart).count();
+                            
+                            m_totalLatency.fetch_add(latency);
+                            m_completedTasks++;
+                            remainingTasks--;
+                        });
+                    }
+                    break;
+                    
+                case 4: // 超重型任务 (500ms+) - 2%概率
+                    if(computeIntensity > 98) {
+                        scheduler.Schedule([this, &remainingTasks, i](){
+                            auto taskStart = std::chrono::high_resolution_clock::now();
+                            
+                            // 超重型计算
+                            volatile double result = 0.0;
+                            for(int j = 0; j < 20000000; ++j) {
+                                result += std::sqrt(j) * std::log(j + 1);
+                            }
+                            
+                            auto taskEnd = std::chrono::high_resolution_clock::now();
+                            auto latency = std::chrono::duration_cast<std::chrono::microseconds>(
+                                taskEnd - taskStart).count();
+                            
+                            m_totalLatency.fetch_add(latency);
+                            m_completedTasks++;
+                            remainingTasks--;
+                        });
+                    }
+                    break;
+            }
+        }
+        
+        // 等待所有任务完成
+        while(remainingTasks.load() > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        
+        auto end = std::chrono::high_resolution_clock::now();
+        auto totalTime = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        
+        XTEN_LOG_INFO(g_logger) << "Mixed workload completed:";
+        XTEN_LOG_INFO(g_logger) << "  Total time: " << totalTime.count() << "ms";
+        XTEN_LOG_INFO(g_logger) << "  Completed tasks: " << m_completedTasks.load();
+        XTEN_LOG_INFO(g_logger) << "  Average latency: " 
+                                << (m_totalLatency.load() / m_completedTasks.load()) << "μs";
+        XTEN_LOG_INFO(g_logger) << "  Throughput: " 
+                                << (m_completedTasks.load() * 1000 / totalTime.count()) << " tasks/sec";
+    }
+
+    // 测试3：突发负载场景
+    void testBurstWorkload(Xten::Scheduler& scheduler) {
+        auto start = std::chrono::high_resolution_clock::now();
+        
+        std::atomic<int> remainingTasks{0};
+        
+        // 模拟3波突发负载
+        for(int wave = 0; wave < 10; ++wave) {
+            int burstSize = 10000 + wave * 5000;
+            remainingTasks.fetch_add(burstSize);
+            
+            // 在短时间内提交大量任务
+            for(int i = 0; i < burstSize; ++i) {
+                scheduler.Schedule([this, &remainingTasks, wave, i](){
+                    // 模拟不同复杂度的任务
+                    int complexity = (wave * 1000 + i) % 100;
+                    
+                    volatile int sum = 0;
+                    for(int j = 0; j < complexity * 1000; ++j) {
+                        sum += j;
+                    }
+                    
+                    m_completedTasks++;
+                    remainingTasks--;
+                });
+            }
+            
+            // 波次间隔
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        
+        // 等待完成
+        while(remainingTasks.load() > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        
+        XTEN_LOG_INFO(g_logger) << "Burst workload completed in: " << duration.count() << "ms";
+        XTEN_LOG_INFO(g_logger) << "Tasks processed: " << m_completedTasks.load();
+    }
+    
+    void reset() {
+        m_taskCount.store(0);
+        m_completedTasks.store(0);
+        m_totalLatency.store(0);
+    }
+};
+
+// 性能对比测试
+void performanceComparison() {
+    const int THREAD_COUNT = std::thread::hardware_concurrency()*2;
+    
+    XTEN_LOG_INFO(g_logger) << "=== Performance Comparison (Threads: " << THREAD_COUNT << ") ===";
+    
+    // 测试工作窃取调度器
+    {
+        XTEN_LOG_INFO(g_logger) << "\n--- Work Stealing Scheduler ---";
+        Xten::IOManager workStealScheduler(THREAD_COUNT, false, "work_steal");
+        HighPerformanceTest test;
+        
+        // 测试1：快速排序
+        // std::vector<int> data1(100000);
+        // std::iota(data1.rbegin(), data1.rend(), 1); // 逆序数据，最坏情况
+        // test.testParallelQuickSort(workStealScheduler, data1);
+        
+        // test.reset();
+        
+        // 测试2：混合负载
+        // test.testMixedWorkload(workStealScheduler, 5);
+        
+        // test.reset();
+        
+        // 测试3：突发负载
+        test.testBurstWorkload(workStealScheduler);
+        
+    }
+}
 int main(int argc, char **argv)
 {
     // iom.addTimer(1000,[](){
     // std::cout<<"on timer"<<std::endl;
     // },true);
-    Xten::xten_start(argc,argv,&test,false);
-    //  uint64_t begin = Xten::TimeUitl::GetCurrentMS();
-    //  test_queue();
-    //  uint64_t end = Xten::TimeUitl::GetCurrentMS();
-    //  std::cout << "---------------------100万个任务总耗时----------------" << std::endl;
-    //  std::cout << "---------------------" << end - begin << " ms--------------" << std::endl;
+    // Xten::xten_start(argc,argv,&test,false);
+     uint64_t begin = Xten::TimeUitl::GetCurrentMS();
+     performanceComparison();
+     uint64_t end = Xten::TimeUitl::GetCurrentMS();
+     std::cout << "---------------------100万个任务总耗时----------------" << std::endl;
+     std::cout << "---------------------" << end - begin << " ms--------------" << std::endl;
     //  test_assert();
     //  Xten::Config::LoadFromConFDir(".");
     //  Xten::IOManager iom(2);

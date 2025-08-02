@@ -133,6 +133,6 @@ namespace Xten
     // 获取配置文件的绝对路径
     std::string Env::GetConfigPath()
     {
-        return GetAbsolutePath(Get("c","./config"));
+        return GetAbsolutePath(Get("c","./conf"));
     }
 }

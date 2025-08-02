@@ -506,7 +506,7 @@ namespace Xten
     // 设置读超时时间
     bool Socket::SetRecvTimeOut(int64_t timeout)
     {
-        struct timeval val{timeout / 1000, timeout % 1000 * 1000};
+        struct timeval val{int(timeout / 1000), int(timeout % 1000 * 1000)};
         return Setsockopt(SOL_SOCKET, SO_RCVTIMEO, val);
     }
     // 获取写超时时间

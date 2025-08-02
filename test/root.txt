@@ -1,4 +1,0 @@
-L2025-06-15 21:03:55	3207774	main_thread	0	[DEBUG]	[root]	./test.cpp:8	hello log
-L2025-06-15 21:03:55	3207774	main_thread	0	[DEBUG]	[root]	./test.cpp:9	hello fmt
-L2025-06-15 21:03:55	3207774	fiber_thread	1	[DEBUG]	[root]	./test.cpp:14	hello fiber log
-L2025-06-15 21:03:55	3207774	fiber_thread	1	[DEBUG]	[root]	./test.cpp:15	hello fiber fmt

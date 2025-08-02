@@ -1,0 +1,13 @@
+logs:
+    - name: root
+      level: debug
+      sinkers:
+          - type: StdoutLogAppender
+            name: root_stdout
+            level: debug
+    - name: system
+      level: debug
+      sinkers:
+          - type: StdoutLogAppender
+            name: system_stdout
+            level: debug

@@ -1,7 +1,10 @@
-#忽略build路径下的临时文件
 /build/
-#忽略bin路径下编译的测试文件
-/bin/
-#忽略rl生成的文件
-/include/http/*.rl.cc
-/src/http/*.rl.cc
+*.rl.cc
+*.exe
+*.so
+*.bin
+*.lib
+*.a
+a
+*.txt
+main

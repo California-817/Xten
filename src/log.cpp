@@ -1,4 +1,5 @@
 #include "log.h"
+#include "system/env.h"
 #include "config.h"
 namespace Xten
 {
@@ -984,11 +985,13 @@ namespace Xten
                     if(a._type == SinkType::FILE) {
                         ap.reset(new FileLogsinker(a._file));
                     } else if(a._type == SinkType::STDOUT) {
-                        // if(!Xten::EnvMgr::GetInstance()->has("d")) {
+                        if(!Xten::Env::GetInstance()->Has("d")) {
+                            //命令行运行
                             ap.reset(new StdoutLogsinker());
-                        // } else {
-                        //     continue;
-                        // }
+                        } else {
+                            //守护进程运行
+                            continue;
+                        }
                     }
                     ap->SetLevelLimit(a._level_limit);
                     if(!a._formatter.empty()) {

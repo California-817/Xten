@@ -26,11 +26,11 @@ namespace Xten
         std::string io_worker;                             // 网络io调度器
         std::string process_worker;                        // 逻辑处理调度器
         std::unordered_map<std::string, std::string> args; // 参数
-        bool IsVaild()
+        bool IsVaild() const
         {
             return !address.empty();
         }
-        bool operator==(const TcpServerConf &oth)
+        bool operator==(const TcpServerConf &oth) const
         {
             return address == oth.address &&
                    keepalive == oth.keepalive &&
@@ -52,6 +52,7 @@ namespace Xten
     template <>
     class lexicalCast<std::string, TcpServerConf>
     {
+        public:
         TcpServerConf operator()(const std::string &str)
         {
             YAML::Node node = YAML::Load(str);
@@ -82,6 +83,7 @@ namespace Xten
     template <>
     class lexicalCast<TcpServerConf, std::string>
     {
+        public:
         std::string operator()(const TcpServerConf &conf)
         {
             YAML::Node node;

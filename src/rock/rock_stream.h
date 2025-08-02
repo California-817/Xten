@@ -44,7 +44,7 @@ namespace Xten
         typedef std::function<bool(RockRequest::ptr request, RockResponse::ptr response,
                                    RockStream::ptr stream)>
             requestCb;
-        typedef std::function<bool(RockNotify::ptr request, RockStream::ptr stream)>
+        typedef std::function<bool(RockNotify::ptr notify, RockStream::ptr stream)>
             notifyCb;
 
         RockStream(Socket::ptr socket, bool is_owner = true, bool auto_connect = false);
@@ -111,7 +111,7 @@ namespace Xten
         void handleNotify(RockStream::ptr self, RockNotify::ptr notify);
         RockMessageDecoder::ptr _decoder; // rock协议报文编解码器
         requestCb _requestHandleCb;       // 请求处理函数
-        notifyCb _notifyHandleCb;         // 响应处理函数
+        notifyCb _notifyHandleCb;         // 通知处理函数
     };
     // 分布式服务端的RockSession
     class RockSession : public RockStream

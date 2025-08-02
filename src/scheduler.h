@@ -276,7 +276,69 @@ namespace Xten
             }
             return 0;
         }
-        //进行定期的自动负载均衡
+public:
+        // 进行定期的自动负载均衡
+        void autoLoadBalance()
+        {
+            // 1.找到任务最多和最少的队列
+            int maxQueue = -1;
+            int minQueue = -1;
+            size_t maxTask = _queueSizes[0].load();
+            size_t minTask = maxTask;
+            for (int i = 1; i < _queueSizes.size(); i++)
+            {
+                size_t cur = _queueSizes[i].load();
+                if (cur > maxTask)
+                {
+                    maxQueue = i;
+                    maxTask = cur;
+                    continue;
+                }
+                if (cur < minTask)
+                {
+                    minQueue = i;
+                    minTask = cur;
+                    continue;
+                }
+            }
+            // 判断差值是否大于阈值
+            if (maxQueue > -1 && minQueue > -1 && maxTask - minTask > 10)
+            {
+                // 进行负载均衡
+                std::vector<FuncOrFiber> tasks;
+                tasks.reserve(5);
+                {
+                    RWMutex::WriteLock wlock(*_localMtx[maxQueue]);
+                    auto it = _localQueues[maxQueue].rbegin();
+                    size_t moved = 0;
+                    while (it != _localQueues[maxQueue].rend() && moved < 5)
+                    {
+                        // 检查任务是否指定了特定线程执行
+                        if (it->threadId == -1)
+                        { // 只移动未指定线程的任务
+                            tasks.push_back(*it);
+                            it = std::reverse_iterator(_localQueues[maxQueue].erase(std::next(it).base()));
+                            _queueSizes[maxQueue]--;
+                            moved++;
+                        }
+                        else
+                        {
+                            ++it;
+                        }
+                    }
+                }
+                // 移动到最闲队列
+                if (!tasks.empty())
+                {
+                    RWMutex::WriteLock wlock(*_localMtx[minQueue]);
+                    for (auto &task : tasks)
+                    {
+                        _localQueues[minQueue].push_back(task);
+                        _queueSizes[minQueue]++;
+                    }
+                }
+            }
+        }
 
 #endif
     private:
@@ -293,7 +355,7 @@ namespace Xten
         Xten::RWMutex _mapMtx;                                    // 保证这个映射map的线程安全
         std::vector<std::list<FuncOrFiber>> _localQueues;         // 线程本地队列
         std::vector<std::unique_ptr<Xten::RWMutex>> _localMtx;    // 线程本地锁
-        DistributePolicy _policy = DistributePolicy::ROUND_ROBIN; // 分配策略（默认最低负载分配策略）
+        DistributePolicy _policy = DistributePolicy::ROUND_ROBIN; // 分配策略（默认轮询分配策略）
         std::vector<std::atomic<size_t>> _queueSizes;             // 每个队列的负载情况
         std::atomic<size_t> _roundRobinCounter = {0};             // 轮询分配的计数器
 

@@ -27,6 +27,7 @@ namespace Xten
                 HttpRequest::ptr req = session->RecvRequest();
                 if (req == nullptr)
                 {
+                    //这里出现错误是常见的,一般是由于接受请求timeout超时触发了导致recv超时返回
                     XTEN_LOG_DEBUG(g_logger) << "recv http request fail, errno="
                                              << errno << " errstr=" << strerror(errno)
                                              << " cliet:" << *client
