@@ -77,6 +77,8 @@ namespace Xten
         }
 #elif FIBER_TYPE == FIBER_FCONTEXT
         //默认主协程的fcontext不需要初始化
+#elif FIBER_TYPE == FIBER_COCTX
+        coctx_init(&_ctx);
 #endif
         SetThis(this); // 设置当前运行协程
         s_total_num++;
@@ -112,7 +114,17 @@ namespace Xten
         {
             _ctx =Xten::make_fcontext((char *)_stack + _stack_size, _stack_size, &Fiber::MainFunc);
         }
-
+#elif FIBER_TYPE == FIBER_COCTX
+        _ctx.ss_size=_stack_size;
+        _ctx.ss_sp=(char*)_stack;
+        if (_user_caller)
+        {
+            coctx_make(&_ctx,&Fiber::CallerMainFunc,0,0);
+        } // 这里栈空间的首地址是低地址
+        else
+        {
+            coctx_make(&_ctx,&Fiber::MainFunc,0,0);
+        }
 #endif
         s_total_num++;
         XTEN_LOG_DEBUG(g_logger) << "Fiber::id=" << _fiber_id << " create success";
@@ -156,6 +168,8 @@ namespace Xten
 #elif FIBER_TYPE == FIBER_FCONTEXT
             //第三个参数为需要传入协程执行函数的用户数据
             Xten::jump_fcontext(&Scheduler::GetScheduleFiber()->_ctx,_ctx,0);
+#elif FIBER_TYPE == FIBER_COCTX
+        coctx_swap(&Scheduler::GetScheduleFiber()->_ctx,&_ctx);
 #endif
     }
 
@@ -172,6 +186,9 @@ namespace Xten
 #elif FIBER_TYPE == FIBER_FCONTEXT
             // 这里切进去不会为 t_main_fiber->_ctx 赋值 仍为nullptr    从里面切出来的时候才会赋值
             Xten::jump_fcontext(&t_main_fiber->_ctx,_ctx,0);
+#elif FIBER_TYPE == FIBER_COCTX
+        coctx_swap(&t_main_fiber->_ctx,&_ctx);
+
 #endif
     }
 
@@ -187,6 +204,8 @@ namespace Xten
         }
 #elif FIBER_TYPE == FIBER_FCONTEXT
         Xten::jump_fcontext(&_ctx,Scheduler::GetScheduleFiber()->_ctx, 0);
+#elif FIBER_TYPE == FIBER_COCTX
+        coctx_swap(&_ctx,&Scheduler::GetScheduleFiber()->_ctx);
 #endif
     }
 
@@ -219,6 +238,8 @@ namespace Xten
         }
 #elif FIBER_TYPE == FIBER_FCONTEXT
         Xten::jump_fcontext(&_ctx,t_main_fiber->_ctx, 0);
+#elif FIBER_TYPE == FIBER_COCTX
+        coctx_swap(&_ctx,&t_main_fiber->_ctx);
 #endif
     }
 
@@ -255,7 +276,15 @@ namespace Xten
         {
             _ctx = Xten::make_fcontext((char *)_stack + _stack_size, _stack_size, &Fiber::MainFunc);
         }
-
+#elif FIBER_TYPE == FIBER_COCTX
+        if (_user_caller)
+        {
+            coctx_make(&_ctx,&Fiber::CallerMainFunc,0,0);
+        } // 这里栈空间的首地址是高地址
+        else
+        {
+            coctx_make(&_ctx,&Fiber::MainFunc,0,0);
+        }
 #endif
         _status = Status::INIT;
     }
@@ -281,6 +310,8 @@ namespace Xten
     void Fiber::MainFunc() {
 #elif FIBER_TYPE == FIBER_FCONTEXT
     void Fiber::MainFunc(intptr_t t){
+#elif FIBER_TYPE == FIBER_COCTX
+    void* Fiber::MainFunc(void* s1,void* s2){
 #endif
         // 获取当前协程
         Fiber::ptr cur = GetThis();
@@ -320,6 +351,8 @@ namespace Xten
     void Fiber::CallerMainFunc(){
 #elif FIBER_TYPE == FIBER_FCONTEXT
     void Fiber::CallerMainFunc(intptr_t t){
+#elif FIBER_TYPE == FIBER_COCTX
+    void* Fiber::CallerMainFunc(void* s1,void* s2){
 #endif
         // 获取当前协程
         Fiber::ptr cur = GetThis();

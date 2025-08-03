@@ -13,9 +13,9 @@
 
 #define OFF 0
 #define ON 1
-#ifndef OPTIMIZE
-#define OPTIMIZE ON
-#endif
+// #ifndef OPTIMIZE
+// #define OPTIMIZE ON
+// #endif
 namespace Xten
 {
     /// @brief  基类协程调度器
