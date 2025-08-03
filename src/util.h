@@ -118,5 +118,6 @@ namespace Xten
             return __sync_add_and_fetch(&t, (T)v);
         }
     };
+    std::string GetHostName();
 }
 #endif

@@ -187,7 +187,7 @@ namespace Xten
            << " name=" << _name << " ssl=" << _isSSL <<" timewheel="<<_timeWheel
            << " worker=" << (_processWorker ? _processWorker->GetName() : "")
            << " accept=" << (_acceptWorker ? _acceptWorker->GetName() : "")
-           << " recv_timeout=" << _recvTimeout << "]" << std::endl;
+           << " recv_timeout=" << _recvTimeout << "ms]" << std::endl;
         std::string pfx = prefix.empty() ? "    " : prefix;
         for (auto &i : _listenSockets)
         {

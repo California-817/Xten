@@ -1,5 +1,6 @@
 #include "http_server.h"
 #include "log.h"
+#include"servlets/status_servlet.h"
 namespace Xten
 {
     namespace http
@@ -15,7 +16,8 @@ namespace Xten
             }
             _dispatch = std::make_shared<ServletDispatch>();
             _dispatch->setDefault(std::make_shared<NotFoundServlet>(_name));
-            // 添加两个默认的servlet来获取服务器的状态信息
+            // 添加默认的servlet来获取服务器的状态信息
+            _dispatch->addServlet("/_/status",std::make_shared<StatusServlet>());
         }
 
         void HttpServer::handleClient(TcpServer::ptr self, Socket::ptr client)
@@ -34,7 +36,7 @@ namespace Xten
                                              << " keep_alive=" << _is_keepAlive;
                     break;
                 }
-                std::cout<<req->toString()<<std::endl;
+                // std::cout<<req->toString()<<std::endl;
                 HttpResponse::ptr rsp = req->createResponse();
                 rsp->setClose(req->isClose() || !_is_keepAlive);
                 rsp->setHeader("Server",GetName());

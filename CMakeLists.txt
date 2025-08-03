@@ -41,7 +41,7 @@ file(GLOB STREAMS_SOURCES src/streams/*.cpp)
 file(GLOB ROCK_SOURCES src/rock/*.cpp)
 file(GLOB SYSTEM_SOURCES src/system/*.cpp)
 file(GLOB MODULE_SOURCES src/module/*.cpp)
-
+file(GLOB SERVLETS_SOURCES src/http/servlets/*.cpp)
 list(APPEND SOURCES 
                     ${HTTP_SOURCES} 
                     ${WEBSOCKET_SOURCES} 
@@ -49,6 +49,7 @@ list(APPEND SOURCES
                     ${ROCK_SOURCES}
                     ${SYSTEM_SOURCES}
                     ${MODULE_SOURCES}
+                    ${SERVLETS_SOURCES}
                     "src/libco/coctx.cpp"
 )
 list(REMOVE_ITEM SOURCES ${PROJECT_SOURCE_DIR}/src/system/main.cpp)

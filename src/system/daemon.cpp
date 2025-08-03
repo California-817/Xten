@@ -29,7 +29,7 @@ namespace Xten
     // daemon启动函数
     static int on_daemon(int argc, char **argv, main_cb mainCb)
     {
-        // daemon(1, 0);
+        daemon(1, 0);
         ProcessInfo::GetInstance()->parent_id = getpid();
         ProcessInfo::GetInstance()->parent_start_time = time(0);
         while (true)

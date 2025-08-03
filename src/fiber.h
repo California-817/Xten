@@ -7,7 +7,7 @@
 #define FIBER_COCTX 2    // coctx
 
 // #ifndef FIBER_TYPE
-// #define FIBER_TYPE FIBER_COCTX // 默认使用boost库的fcontext
+// #define FIBER_TYPE FIBER_FCONTEXT // 默认使用boost库的fcontext
 // #endif
 #if FIBER_TYPE == FIBER_UCONTEXT
 #include <ucontext.h>

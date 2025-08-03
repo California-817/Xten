@@ -26,4 +26,9 @@
 #include"address.h"
 #include"system/env.h"
 #include"system/daemon.h"
+#include"system/application.h"
+#include"module/module.h"
+#include"rock/rock_server.h"
+#include"rock/rock_stream.h"
+#include"rock/rock_protocol.h"
 #endif

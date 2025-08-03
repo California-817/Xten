@@ -438,4 +438,11 @@ namespace Xten
         }
         return ret;
     }
+    std::string GetHostName()
+    {
+        std::shared_ptr<char> buf(new char[512],[](char* ptr){delete[] ptr;});
+        memset(buf.get(),0,512);
+        gethostname(buf.get(),511);
+        return buf.get();
+    }
 }
