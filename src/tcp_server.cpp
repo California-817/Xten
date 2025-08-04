@@ -28,7 +28,7 @@ namespace Xten
         if (_timeWheel)
         {
             // 创建时间轮定时器，由_processWorker处理定时事件
-            _timeWheelMgr = std::make_shared<TimerWheelManager>(_processWorker);
+            _timeWheelMgr = std::make_shared<TimerWheelManager>();
         }
     }
     // 绑定一个地址

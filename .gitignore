@@ -1,4 +1,5 @@
 /build/
+/template/build/
 *.rl.cc
 *.exe
 *.so
@@ -6,5 +7,4 @@
 *.lib
 *.a
 a
-*.txt
 main

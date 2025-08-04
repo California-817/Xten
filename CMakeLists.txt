@@ -8,6 +8,10 @@ enable_language(ASM)
 project(Xten VERSION 1.0.0)
 
 include(cmake/utils.cmake)
+#静态库代码是位置无关码fPIC (需要链接到libXxModule.so动态库中)
+set(CMAKE_CXX_FLAGS "$ENV{CXXFLAGS} -rdynamic -O3 -fPIC -ggdb -std=c++11 -Wall -Wno-deprecated  -Wno-unused-function -Wno-builtin-macro-redefined -Wno-deprecated-declarations")
+set(CMAKE_C_FLAGS "$ENV{CXXFLAGS} -rdynamic -O3 -fPIC -ggdb -std=c11 -Wall -Wno-deprecated  -Wno-unused-function -Wno-builtin-macro-redefined -Wno-deprecated-declarations")
+
 
 set(FIBER_TYPE "FIBER_FCONTEXT" CACHE STRING "Fiber implementation type")
 set_property(CACHE FIBER_TYPE PROPERTY STRINGS "FIBER_UCONTEXT" "FIBER_FCONTEXT" "FIBER_COCTX")
