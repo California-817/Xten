@@ -50,7 +50,47 @@ cmake ..
 16. 实现基于动态库加载的模块化管理框架，支持运行时动态加载.so模块并统一管理，提供模块生命周期控制、类型分类管理和批量操作等功能。
 17. 封装服务器应用框架核心模块Application，提供命令行参数解析、配置管理、守护进程运行、模块加载和多协议服务器统一管理等功能。
 ## 核心架构图
-![](./docs/Xten_main.png)
+![Xten架构图](./docs/Xten_main.png)
 ## 性能测试
+* 机器: 2核心4g内存
+* 压测工具：ab（ApacheBench）
+* 对比程序： Nginx
+* 压测方法：在同一台虚拟机上启动ab与Nginx，Xten进行压测，对于压测http请求仅简单返回一个响应，不做复杂处理。（Xten与Nginx工作线程数均等于核心数）
+### 1.短连接
+```sh
+ab -n 1000000 -c 200 http://127.0.0.1:port/
+```
+| Ngnix | Qps | Time Per Request |
+|----|----|----|
+| 1 | 21298.12 [#/sec] (mean) | 9.391 [ms] (mean) |
+| 2 | 21925.68 [#/sec] (mean) |  9.122 [ms] (mean) |
+| 3 | 22951.71 [#/sec] (mean) | 8.714 [ms] (mean) |
 
+| Xten | Qps | Time Per Request |
+|----|----|----|
+| 1 | 22984.40 [#/sec] (mean) | 8.702 [ms] (mean) |
+| 2 | 23645.41 [#/sec] (mean) | 8.458 [ms] (mean) |
+| 3 | 22677.50 [#/sec] (mean) |  8.819 [ms] (mean) |
+
+### 2.长连接(keepalive)
+```sh
+ab -n 1000000 -c 200 -k http://127.0.0.1:port/
+```
+| Ngnix | Qps | Time Per Request |
+|----|----|----|
+| 1 | 59944.15 [#/sec] (mean) | 3.336 [ms] (mean) |
+| 2 | 56603.63 [#/sec] (mean) |  3.533 [ms] (mean) |
+| 3 | 52329.21 [#/sec] (mean) | 3.822 [ms] (mean) |
+
+| Xten | Qps | Time Per Request |
+|----|----|----|
+| 1 | 67586.85 [#/sec] (mean) | 2.959 [ms] (mean) |
+| 2 | 67773.33 [#/sec] (mean) |  2.951 [ms] (mean) |
+| 3 | 64928.48 [#/sec] (mean) | 3.080 [ms] (mean) |
+## 交流方式
+QQ：1876439531
+
+QQ邮箱：1876439531@qq.com
+
+Auther：California-817
 
