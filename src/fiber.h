@@ -27,6 +27,7 @@ namespace Xten
         class Fiber : public std::enable_shared_from_this<Fiber>
         {
         public:
+                friend void FreeFiber(Fiber *ptr);
                 friend class Scheduler;
                 typedef std::shared_ptr<Fiber> ptr;
                 enum Status

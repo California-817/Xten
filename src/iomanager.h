@@ -72,7 +72,7 @@ namespace Xten
         int _epfd;                            // eventpoll结构对应的fd
         int _pipeTicklefd[2];                 // 用于通知操作的管道读写fd
         std::atomic<int> _pendingEventNum{0}; // 要处理的任务数量
-        RWMutex _mutex;                       // 读写锁
+        RWMutex _mutex;                       // 读写锁（保护事件队列的线程安全性）
         std::vector<FdContext *> _fdContexts; // io事件上下文
     };
 }

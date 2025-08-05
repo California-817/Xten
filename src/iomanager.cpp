@@ -170,7 +170,7 @@ namespace Xten
                 rlock.unlock();
                 RWMutex::WriteLock wlock(_mutex);
                 // 扩容
-                FdContextsResize(fd * 1.5);
+                FdContextsResize(fd * 2);
                 fd_ctx = _fdContexts[fd];
             }
             else
@@ -321,8 +321,8 @@ namespace Xten
             RWMutex::ReadLock rlock(_mutex);
             if (XTEN_UNLIKELY(fd >= _fdContexts.size()))
             {
-                XTEN_LOG_ERROR(g_logger) << "cancel all event assert fd=" << fd;
-                return false;
+                XTEN_LOG_DEBUG(g_logger) << "cancel all event assert fd=" << fd<<" size="<<_fdContexts.size();
+                return true;
             }
             fd_ctx = _fdContexts[fd];
         }

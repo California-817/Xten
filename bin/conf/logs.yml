@@ -1,12 +1,12 @@
 logs:
     - name: root
-      level: debug
+      level: info
       sinkers:
           - type: StdoutLogAppender
             name: root_stdout
             level: debug
     - name: system
-      level: debug
+      level: info
       sinkers:
           - type: StdoutLogAppender
             name: system_stdout

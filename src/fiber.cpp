@@ -62,7 +62,7 @@ namespace Xten
     void FreeFiber(Fiber *ptr)
     {
         ptr->~Fiber();
-        StackAllocatorType::Dealloc(ptr, 0);
+        StackAllocatorType::Dealloc(ptr, sizeof(Fiber)+ptr->_stack_size);
     }
 
     // 线程主协程默认构造
