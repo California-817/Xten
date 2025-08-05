@@ -38,7 +38,7 @@ cmake ..
 4. 实现非对称有栈协程Fiber，可通过cmake编译选项选择glibc库的ucontext，boost库的fcontext，libco库的coctx三种协程上下文结构实现协程的上下文的保存与切换。协程栈内存不可伸缩，默认为128KB，可通过配置文件修改栈内存。
 5. 实现非抢占式协程调度器，调度器 : 线程 : 协程=1:N:M，每个工作线程对应一个协程运行队列，并且实现了任务窃取与定期负载均衡功能。工作线程在调度协程，任务协程，空闲协程中不断切换。
 6. 继承协程调度器实现基于epoll封装的IO协程调度器，用于在网络io场景下的高效协程调度。
-7. 实现两种定时器方案，基于红黑树+epoll_wait超时参数配合IO协程调度器使用;基于多层级时间轮+usleep用于处理业务场景下的海量高精度定时任务。
+7. 实现两种定时器方案，基于红黑树+epoll_wait超时参数配合IO协程调度器使用 ；基于多层级时间轮+usleep用于处理业务场景下的海量高精度定时任务。
 8. 对网络I/O和文件I/O，socket相关的系统调用接口进行hook重定向，从而达到IO或连接条件不就绪自动挂起协程，条件就绪后唤醒协程的目的。
 9. 基于面向对象的思想封装了地址类Address与套接字类Socket，并提供了静态工厂方法快速创建指定功能及类型的Address与Socket对象
 10. 实现二进制序列化数组结构ByteArray，支持定长编码与varint变长编码以减少数据体积。
@@ -60,13 +60,13 @@ cmake ..
 ```sh
 ab -n 1000000 -c 200 http://127.0.0.1:port/
 ```
-| Ngnix | Qps | Time Per Request |
+| Nginx | QPS | Time Per Request |
 |----|----|----|
 | 1 | 21298.12 [#/sec] (mean) | 9.391 [ms] (mean) |
 | 2 | 21925.68 [#/sec] (mean) |  9.122 [ms] (mean) |
 | 3 | 22951.71 [#/sec] (mean) | 8.714 [ms] (mean) |
 
-| Xten | Qps | Time Per Request |
+| Xten | QPS | Time Per Request |
 |----|----|----|
 | 1 | 22984.40 [#/sec] (mean) | 8.702 [ms] (mean) |
 | 2 | 23645.41 [#/sec] (mean) | 8.458 [ms] (mean) |
@@ -76,13 +76,13 @@ ab -n 1000000 -c 200 http://127.0.0.1:port/
 ```sh
 ab -n 1000000 -c 200 -k http://127.0.0.1:port/
 ```
-| Ngnix | Qps | Time Per Request |
+| Nginx | QPS | Time Per Request |
 |----|----|----|
 | 1 | 59944.15 [#/sec] (mean) | 3.336 [ms] (mean) |
 | 2 | 56603.63 [#/sec] (mean) |  3.533 [ms] (mean) |
 | 3 | 52329.21 [#/sec] (mean) | 3.822 [ms] (mean) |
 
-| Xten | Qps | Time Per Request |
+| Xten | QPS | Time Per Request |
 |----|----|----|
 | 1 | 67586.85 [#/sec] (mean) | 2.959 [ms] (mean) |
 | 2 | 67773.33 [#/sec] (mean) |  2.951 [ms] (mean) |
