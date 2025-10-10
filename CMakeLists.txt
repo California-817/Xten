@@ -69,9 +69,9 @@ add_library(Xten STATIC ${SOURCES} ${ASM_SOURCES})
 set_target_properties(Xten PROPERTIES
                         ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
-add_executable(main src/system/main.cpp)
+add_executable(Xten src/system/main.cpp)
 
-target_link_libraries(main
+target_link_libraries(Xten
                     Xten
                     ${YAML_CPP_LIBRARIES}
                     ssl

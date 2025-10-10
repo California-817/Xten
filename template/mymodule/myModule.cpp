@@ -1,9 +1,9 @@
-#include "mymodule.h"
+#include "myModule.h"
 namespace name_space
 {
     static Xten::Logger::ptr g_logger = XTEN_LOG_NAME("root");
     MyModule::MyModule()
-        : Module("Mymodule", "libMymodule.so", "1.0.0")
+        : Module("project_name", "libproject_name.so", "1.0.0")
     {
     }
     // 命令行参数解析前后执行

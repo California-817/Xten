@@ -1,6 +1,6 @@
 #ifndef __XTEN_MYMODULE_H__
 #define __XTEN_MYMODULE_H__
-#include "../../include/Xten.h"
+#include "Xten/include/Xten.h"
 namespace name_space
 {
     class MyModule : public Xten::Module

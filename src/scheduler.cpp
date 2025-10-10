@@ -343,9 +343,11 @@ namespace Xten
 			}
 			os << _thread_ids[i];
 		}
+#if OPTIMIZE == ON
 		os << "[Localqueue hit Sum: " << _localHits << " ] "
 									   << "[Attempt steal Task Sum: " << _stealAttempts << " ] "
 									   << "[Success steal Task Sum: " << _steals << " ]";
+#endif
 		return os;
 	}
 	// 切换执行线程(或者调度器)

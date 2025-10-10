@@ -61,6 +61,7 @@ namespace Xten
     // 子协程的空间是比Fiber的空间更大的 并且不是new出来的 而是用空间开辟器开出来的
     void FreeFiber(Fiber *ptr)
     {
+        //对于placement new创建的对象 需要手动调用析构函数并释放空间
         ptr->~Fiber();
         StackAllocatorType::Dealloc(ptr, sizeof(Fiber)+ptr->_stack_size);
     }
