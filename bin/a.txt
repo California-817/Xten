@@ -1,5 +1,0 @@
-catch load
-  commands
-    bt
-    info args
-  end

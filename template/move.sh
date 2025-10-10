@@ -8,5 +8,5 @@ else
     unlink bin/module/libproject_name.so
 fi
 
-cp Xten/bin/Xten bin/project_name
+cp Xten/bin/XtenFrame bin/project_name
 cp lib/libproject_name.so bin/module/
