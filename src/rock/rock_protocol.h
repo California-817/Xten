@@ -35,7 +35,7 @@ namespace Xten
                 return nullptr;
             }
             std::shared_ptr<T> pbData = std::make_shared<T>();
-            pbData.ParseFromString(_data);
+            pbData->ParseFromString(_data);
             return pbData;
         }
         // 序列化到bytearray中
