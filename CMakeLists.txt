@@ -37,6 +37,9 @@ find_package(yaml-cpp REQUIRED)
 include_directories(${PROJECT_SOURCE_DIR}/src 
                     ${YAML_CPP_INCLUDE_DIRS}
 )
+include_directories("/usr/local/include")
+
+link_directories("/usr/local/lib" "/usr/local/lib64")
 
 file(GLOB SOURCES src/*.cpp)
 file(GLOB HTTP_SOURCES src/http/*.cpp)
@@ -46,6 +49,7 @@ file(GLOB ROCK_SOURCES src/rock/*.cpp)
 file(GLOB SYSTEM_SOURCES src/system/*.cpp)
 file(GLOB MODULE_SOURCES src/module/*.cpp)
 file(GLOB SERVLETS_SOURCES src/http/servlets/*.cpp)
+file(GLOB DB_SOURCES src/db/*.cpp)
 list(APPEND SOURCES 
                     ${HTTP_SOURCES} 
                     ${WEBSOCKET_SOURCES} 
@@ -54,6 +58,7 @@ list(APPEND SOURCES
                     ${SYSTEM_SOURCES}
                     ${MODULE_SOURCES}
                     ${SERVLETS_SOURCES}
+                    ${DB_SOURCES}
                     "src/libco/coctx.cpp"
 )
 list(REMOVE_ITEM SOURCES ${PROJECT_SOURCE_DIR}/src/system/main.cpp)
@@ -71,12 +76,18 @@ set_target_properties(Xten PROPERTIES
 
 add_executable(XtenFrame src/system/main.cpp)
 
+set(COMMON_LIBS    
+                ssl
+                crypto
+                pthread
+                dl
+                z
+                event
+                hiredis
+)
+
 target_link_libraries(XtenFrame
                     Xten
                     ${YAML_CPP_LIBRARIES}
-                    ssl
-                    crypto
-                    pthread
-                    dl
-                    z
+                    ${COMMON_LIBS}
 )   

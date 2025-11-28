@@ -866,6 +866,53 @@ void performanceComparison() {
         
     }
 }
+
+
+Xten::RockConnection::ptr conn(new Xten::RockConnection);
+void run()
+{
+    Xten::Address::ptr addr = Xten::Address::LookupAny("127.0.0.1:8061");
+    if (!conn->Connect(addr))
+    {
+        XTEN_LOG_INFO(g_logger) << "connect " << *addr << " false";
+    }
+
+    Xten::IOManager::GetThis()->addTimer(1000, []()
+                                         {
+        // Ensure Request executes in a fiber: schedule the actual work
+            Xten::RockRequest::ptr req(new Xten::RockRequest);
+            static uint32_t s_sn = 0;
+            req->SetCmd(100);
+            req->SetData("hello world sn=" + std::to_string(s_sn++));
+
+            auto rt = conn->Request(req,300);
+            XTEN_LOG_INFO(g_logger) << "[result="
+                        << rt->resultCode << " response="
+                        << (rt->response ? rt->response->ToString() : "null")
+                        << "usedTIme="<<rt->usedTime <<"ms ]";
+    }, true);
+    conn->Start();
+}
+void run2()
+{
+    Xten::Address::ptr addr = Xten::Address::LookupAny("127.0.0.1:8061");
+    for (int i = 0; i < 500; ++i)
+    {
+        Xten::RockConnection::ptr conn(new Xten::RockConnection);
+        conn->Connect(addr);
+        Xten::IOManager::GetThis()->addTimer(2000, [conn, i]()
+                                             {
+                    Xten::RockRequest::ptr req(new Xten::RockRequest);
+                    req->SetCmd(100);
+
+                    auto rt = conn->Request(req, 100);
+                    XTEN_LOG_INFO(g_logger) << "[result="
+                        << rt->resultCode << " response="
+                        << (rt->response ? rt->response->ToString() : "null")
+                        << "usedTIme="<<rt->usedTime <<"ms ]"; }, true);
+        conn->Start();
+    }
+}
 int main(int argc, char **argv)
 {
     // iom.addTimer(1000,[](){

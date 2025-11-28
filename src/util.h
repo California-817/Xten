@@ -58,6 +58,7 @@ namespace Xten
             static const char *ty_str = abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, nullptr);
             return ty_str;
         }
+        static int64_t Atoi(const std::string &str);
     };
     // T类的构造函数是protected保护的 通过这个函数绕过保护实现创建shared_ptr智能指针 <模板函数定义内联在调用处直接展开，防止多重定义>
     template <class T, class... Args>
@@ -117,7 +118,40 @@ namespace Xten
         {
             return __sync_add_and_fetch(&t, (T)v);
         }
+        template <class T, class S = T>
+        static T subFetch(volatile T &t, S v = 1)
+        {
+            return __sync_sub_and_fetch(&t, (T)v);
+        }
     };
     std::string GetHostName();
+
+    template <class T>
+    void nop(T *t)
+    {
+        (void *)t;
+    }
+
+    template <class V, class Map, class K>
+    V GetParamValue(const Map &m, const K &k, const V &def = V())
+    {
+        auto it = m.find(k);
+        if (it == m.end())
+        {
+            return def;
+        }
+        try
+        {
+            return boost::lexical_cast<V>(it->second);
+        }
+        catch (...)
+        {
+        }
+        return def;
+    }
+
+    std::string replace(const std::string &str, char find, char replaceWith);
+    std::string replace(const std::string &str, char find, const std::string &replaceWith);
+    std::string replace(const std::string &str, const std::string &find, const std::string &replaceWith);
 }
 #endif

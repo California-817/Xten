@@ -445,4 +445,41 @@ namespace Xten
         gethostname(buf.get(),511);
         return buf.get();
     }
+
+    int64_t TypeUtil::Atoi(const std::string& str) {
+        if(str.empty()) {
+            return 0;
+        }
+        return strtoull(str.c_str(), nullptr, 10);
+}
+
+std::string replace(const std::string &str1, char find, char replaceWith) {
+    auto str = str1;
+    size_t index = str.find(find);
+    while (index != std::string::npos) {
+        str[index] = replaceWith;
+        index = str.find(find, index + 1);
+    }
+    return str;
+}
+
+std::string replace(const std::string &str1, char find, const std::string &replaceWith) {
+    auto str = str1;
+    size_t index = str.find(find);
+    while (index != std::string::npos) {
+        str = str.substr(0, index) + replaceWith + str.substr(index + 1);
+        index = str.find(find, index + replaceWith.size());
+    }
+    return str;
+}
+
+std::string replace(const std::string &str1, const std::string &find, const std::string &replaceWith) {
+    auto str = str1;
+    size_t index = str.find(find);
+    while (index != std::string::npos) {
+        str = str.substr(0, index) + replaceWith + str.substr(index + find.size());
+        index = str.find(find, index + replaceWith.size());
+    }
+    return str;
+}
 }

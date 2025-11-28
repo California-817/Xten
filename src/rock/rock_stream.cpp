@@ -51,7 +51,7 @@ namespace Xten
             // 创建rockresult
             RockResult::ptr result = std::make_shared<RockResult>(reqctx->req, reqctx->rsp,
                                                                   reqctx->result, reqctx->resultStr,
-                                                                  TimeUitl::GetCurrentMS());
+                                                                  TimeUitl::GetCurrentMS()-begin_reqtime_ms);
             result->server = GetPeerAddrString();
             return result;
         }
