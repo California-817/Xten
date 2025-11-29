@@ -1,0 +1,5 @@
+fox_thread:
+    redis:
+        name: redis
+        num: 2  #一个foxthread线程池
+        advance: 0

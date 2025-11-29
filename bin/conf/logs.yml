@@ -4,9 +4,9 @@ logs:
       sinkers:
           - type: StdoutLogAppender
             name: root_stdout
-            level: debug
+            level: info
     - name: system
-      level: info
+      level: debug
       sinkers:
           - type: StdoutLogAppender
             name: system_stdout

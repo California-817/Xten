@@ -388,6 +388,7 @@ void FoxRedis::TimeCb(int fd, short event, void* d) {
     XTEN_ASSERT(ar->m_thread == Xten::FoxThread::GetThis());
     //异步执行ping命令保活--->心跳机制
     redisAsyncCommand(ar->m_context.get(), CmdCb, nullptr, "ping"); 
+    XTEN_LOG_DEBUG(g_logger)<<"ping server: address="<<ar->m_host<<":"<<ar->m_port;
 }
 
 // no use
@@ -1180,7 +1181,7 @@ IRedis::ptr RedisManager::get(const std::string& name) {
     if(r->getType() == IRedis::FOX_REDIS
             || r->getType() == IRedis::FOX_REDIS_CLUSTER) {
         //如果是异步的redis客户端连接，则多线程可以复用这一个连接，因为异步redis命令的执行是由内部的foxthread单线程异步执行的
-        it->second.push_back(r); //重新放回，保证上层可以多线程同时使用
+        it->second.push_back(r); //重新放回队列尾部，保证上层可以多线程同时使用
         return std::shared_ptr<IRedis>(r, Xten::nop<IRedis>); //智能指针析构函数不需要做任何事情
     }
     lock.unlock();
@@ -1202,6 +1203,7 @@ IRedis::ptr RedisManager::get(const std::string& name) {
                         ,this, std::placeholders::_1));
 }
 
+//连接放回
 void RedisManager::freeRedis(IRedis* r) {
     Xten::RWMutex::WriteLock lock(m_mutex);
     m_datas[r->getName()].push_back(r);
@@ -1237,6 +1239,8 @@ void RedisManager::init() {
             } else if(type == "fox_redis") {
                 auto conf = i.second;
                 auto name = i.first;
+                //多个 FoxRedis 绑定到同一个 FoxThread 是允许且常见的（同一 event_base 管理多个连接）
+                //不需要严格规定redis配置连接个数要和foxthread线程个数相同，完全可以出现一个foxthread处理多个redis连接的情况--->是合法并且框架支持
                 Xten::FoxThreadManager::GetInstance()->dispatch("redis", [this, conf, name, &done](){
                     Xten::FoxRedis* rds(new Xten::FoxRedis(Xten::FoxThread::GetThis(), conf));
                     rds->init();

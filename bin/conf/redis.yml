@@ -1,0 +1,8 @@
+redis:
+    config:
+        test:
+            host: 127.0.0.1:6379
+            type: fox_redis
+            pool: 5   #test这个name的redis有五个连接
+            timeout: 5000
+    desc: "type: redis,redis_cluster,fox_redis,fox_redis_cluster"

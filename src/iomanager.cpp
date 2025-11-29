@@ -406,7 +406,7 @@ namespace Xten
             int ret = 0;
             do
             {
-                static const int MAX_TIMEOUT = 30; // 3s
+                static const int MAX_TIMEOUT = 3000; // 3s
                 uint64_t next_time = 0;
                 // 超时时间由定时器最早过期时间和MAX_TIMEOUT的较小值决定
                 if (timeout != ~0ull)

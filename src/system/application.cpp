@@ -8,6 +8,8 @@
 #include "../websocket/ws_server.h"
 #include "../rock/rock_server.h"
 #include "../module/module.h"
+#include "../db/fox_thread.h"
+#include "../db/redis.h"
 #include "../util.h"
 #include <signal.h>
 namespace Xten
@@ -114,7 +116,13 @@ namespace Xten
     {
         // 根据配置文件初始化Worker 创建所有调度器
         Xten::WorkerManager::GetInstance()->Init();
+        //初始化foxthread
+        Xten::FoxThreadManager::GetInstance()->init();
+        Xten::FoxThreadManager::GetInstance()->start();
 
+        //初始化所有redis连接
+        Xten::RedisManager::GetInstance();
+        
         // 获取所有Module
         std::vector<Module::ptr> modules;
         Xten::ModuleMgr::GetInstance()->ListAll(modules);

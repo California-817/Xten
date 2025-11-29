@@ -50,6 +50,8 @@ file(GLOB SYSTEM_SOURCES src/system/*.cpp)
 file(GLOB MODULE_SOURCES src/module/*.cpp)
 file(GLOB SERVLETS_SOURCES src/http/servlets/*.cpp)
 file(GLOB DB_SOURCES src/db/*.cpp)
+file(GLOB EMAIL_SOURCES src/email/*.cpp)
+
 list(APPEND SOURCES 
                     ${HTTP_SOURCES} 
                     ${WEBSOCKET_SOURCES} 
@@ -59,6 +61,7 @@ list(APPEND SOURCES
                     ${MODULE_SOURCES}
                     ${SERVLETS_SOURCES}
                     ${DB_SOURCES}
+                    ${EMAIL_SOURCES}
                     "src/libco/coctx.cpp"
 )
 list(REMOVE_ITEM SOURCES ${PROJECT_SOURCE_DIR}/src/system/main.cpp)
@@ -85,6 +88,17 @@ set(COMMON_LIBS
                 event
                 hiredis
 )
+
+find_library(HIREDIS_CLUSTER_LIB
+    NAMES hiredis_vip hiredis_cluster hiredis-vip
+    PATHS /usr/local/lib /usr/lib /usr/lib64 /usr/local/lib64
+)
+if(HIREDIS_CLUSTER_LIB)
+    message(STATUS "Found hiredis cluster lib: ${HIREDIS_CLUSTER_LIB}")
+    list(APPEND COMMON_LIBS ${HIREDIS_CLUSTER_LIB})
+else()
+    message(STATUS "hiredis cluster library not found during CMake configure. If you need Redis Cluster support, please install hiredis-vip / hiredis-cluster (providing redisCluster* symbols) and re-run CMake.")
+endif()
 
 target_link_libraries(XtenFrame
                     Xten

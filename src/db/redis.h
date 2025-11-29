@@ -44,7 +44,9 @@ protected:
     Type m_type;
     bool m_logEnable; //是否日志输出，当redis命令错误时输出
 };
-//同步的redis连接接口实现
+
+
+//同步的redis连接客户端实现
 class ISyncRedis : public IRedis {
 public:
     typedef std::shared_ptr<ISyncRedis> ptr;
@@ -193,7 +195,7 @@ private:
 };
 
 
-
+//同步redis集群操作客户端
 class RedisCluster : public ISyncRedis {
 public:
     typedef std::shared_ptr<RedisCluster> ptr;
@@ -222,7 +224,7 @@ private:
     std::shared_ptr<redisClusterContext> m_context;
 };
 
-
+//异步redis集群操作客户端
 class FoxRedisCluster : public IRedis {
 public:
     typedef std::shared_ptr<FoxRedisCluster> ptr;

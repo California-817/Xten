@@ -165,6 +165,20 @@ namespace Xten
         uint64_t timestamp_uint64 = static_cast<uint64_t>(timestamp);
         return timestamp_uint64;
     }
+
+    std::string FileUtil::Basename(const std::string& filename) {
+    if(filename.empty()) {
+        return filename;
+    }
+    auto pos = filename.rfind('/');
+    if(pos == std::string::npos) {
+        return filename;
+    } else {
+        return filename.substr(pos + 1);
+    }
+}
+
+
     static std::string demangle(const char *str)
     {
         size_t size = 0;
@@ -482,4 +496,18 @@ std::string replace(const std::string &str1, const std::string &find, const std:
     }
     return str;
 }
+
+std::string random_string(size_t len, const std::string& chars) {
+    if(len == 0 || chars.empty()) {
+        return "";
+    }
+    std::string rt;
+    rt.resize(len);
+    int count = chars.size();
+    for(size_t i = 0; i < len; ++i) {
+        rt[i] = chars[rand() % count];
+    }
+    return rt;
+}
+
 }

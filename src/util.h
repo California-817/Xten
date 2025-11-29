@@ -17,6 +17,7 @@ namespace Xten
         static void ListAllFile(std::vector<std::string> &files, const std::string &path, const std::string &subfix);
         // 删除指定的文件
         static bool UnLink(const std::string &name, bool exist = false);
+        static std::string Basename(const std::string& filename);
     };
     class BackTraceUtil
     {
@@ -153,5 +154,8 @@ namespace Xten
     std::string replace(const std::string &str, char find, char replaceWith);
     std::string replace(const std::string &str, char find, const std::string &replaceWith);
     std::string replace(const std::string &str, const std::string &find, const std::string &replaceWith);
+
+    std::string random_string(size_t len
+        ,const std::string& chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
 }
 #endif
