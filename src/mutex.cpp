@@ -109,70 +109,175 @@ namespace Xten
         // 析构的时候需要保证没有等待协程
         XTEN_ASSERT(_waitQueue.empty());
     }
-    FiberMutex::FiberMutex()
-        : _lock(true)
+
+
+
+
+
+
+
+    FiberMutex::~FiberMutex()
     {
+#ifndef NDEBUG
+        Xten::Mutex::Lock scopeLock(m_mutex);
+        XTEN_ASSERT(!m_owner);
+        XTEN_ASSERT(m_waiters.empty());
+#endif
     }
-    // 加锁
-    void FiberMutex::lock()
+
+    void
+    FiberMutex::lock()
     {
         XTEN_ASSERT(Scheduler::GetThis());
-        if (_lock == true)
         {
-            // 获取锁并返回
-            _lock = false;
-            return;
-        }
-        else
-        {
-            // 未获取到锁,在等待队列上挂起
+            Xten::Mutex::Lock scopeLock(m_mutex);
+            XTEN_ASSERT(m_owner != Fiber::GetThis());
+            XTEN_ASSERT(std::find(m_waiters.begin(), m_waiters.end(),
+                                  std::make_pair(Scheduler::GetThis(), Fiber::GetThis())) == m_waiters.end());
+            if (!m_owner)
             {
-                SpinLock::Lock lock(_mutex);
-                _waitQueue.push_back(std::make_pair(Scheduler::GetThis(), Fiber::GetThis()));
+                // 无协程持有锁
+                m_owner = Fiber::GetThis();
+                return;
             }
-            Fiber::YieldToHold();
+            // 已有协程持有锁，当前协程加入等待队列
+            m_waiters.push_back(std::make_pair(Scheduler::GetThis(),
+                                               Fiber::GetThis()));
+        }
+        Fiber::YieldToHold();
+#ifndef NDEBUG
+        Xten::Mutex::Lock scopeLock(m_mutex);
+        XTEN_ASSERT(m_owner == Fiber::GetThis());
+        XTEN_ASSERT(std::find(m_waiters.begin(), m_waiters.end(),
+                              std::make_pair(Scheduler::GetThis(), Fiber::GetThis())) == m_waiters.end());
+#endif
+    }
+
+    void
+    FiberMutex::unlock()
+    {
+        Xten::Mutex::Lock lock(m_mutex);
+        unlockNoLock();
+    }
+
+    bool
+    FiberMutex::unlockIfNotUnique()
+    {
+        Xten::Mutex::Lock lock(m_mutex);
+        XTEN_ASSERT(m_owner == Fiber::GetThis());
+        if (!m_waiters.empty())
+        {
+            unlockNoLock();
+            return true;
+        }
+        return false;
+    }
+
+    void
+    FiberMutex::unlockNoLock()
+    {
+        XTEN_ASSERT(m_owner == Fiber::GetThis());
+        m_owner.reset();
+        if (!m_waiters.empty())
+        {
+            std::pair<Scheduler *, Fiber::ptr> next = m_waiters.front();
+            m_waiters.pop_front();
+            m_owner = next.second;
+            next.first->Schedule(next.second);
         }
     }
 
-    // 尝试加锁
-    bool FiberMutex::tryLock()
+
+
+
+    FiberCondition::~FiberCondition()
+    {
+#ifndef NDEBUG
+        Xten::Mutex::Lock lock(m_mutex);
+        XTEN_ASSERT(m_waiters.empty());
+#endif
+    }
+
+    void
+    FiberCondition::wait()
     {
         XTEN_ASSERT(Scheduler::GetThis());
-        if (_lock == true)
         {
-            // 获取锁并返回
-            _lock = false;
-            return true;
+            Xten::Mutex::Lock lock(m_mutex); //保证只有一个线程上的协程能操作等待队列
+            Xten::Mutex::Lock lock2(m_fiberMutex.m_mutex); //保证协程锁中的状态正确
+            XTEN_ASSERT(m_fiberMutex.m_owner == Fiber::GetThis());
+            //将当前协程放入等待队列
+            m_waiters.push_back(std::make_pair(Scheduler::GetThis(),
+                                               Fiber::GetThis()));
+            //释放协程锁
+            m_fiberMutex.unlockNoLock();
+        }
+        //挂起协程
+        Fiber::YieldToHold();
+#ifndef NDEBUG
+        Xten::Mutex::Lock lock2(m_fiberMutex.m_mutex);
+        XTEN_ASSERT(m_fiberMutex.m_owner == Fiber::GetThis());
+#endif
+    }
+
+    void
+    FiberCondition::signal()
+    {
+        //获取一个等待的协程
+        std::pair<Scheduler *, Fiber::ptr> next;
+        {
+            Xten::Mutex::Lock lock(m_mutex);
+            if (m_waiters.empty())
+                return;
+            next = m_waiters.front();
+            m_waiters.pop_front();
+        }
+        Xten::Mutex::Lock lock2(m_fiberMutex.m_mutex);
+        //查看协程锁状态
+        XTEN_ASSERT(m_fiberMutex.m_owner != next.second); //该等待协程不能持有锁且不能等待锁
+        XTEN_ASSERT(std::find(m_fiberMutex.m_waiters.begin(),
+                              m_fiberMutex.m_waiters.end(), next) == m_fiberMutex.m_waiters.end());
+        if (!m_fiberMutex.m_owner)
+        {
+            //协程锁没被获取，直接获取锁并调度该协程
+            m_fiberMutex.m_owner = next.second;
+            next.first->Schedule(next.second);
         }
         else
         {
-            // 未获取到锁
-            return false;
+            //协程锁已被获取，将该协程加入锁的等待队列----->记住这是条件变量的定义
+            m_fiberMutex.m_waiters.push_back(next);
         }
     }
-    // 解锁
-    void FiberMutex::unlock()
+
+    void
+    FiberCondition::broadcast()
     {
-        XTEN_ASSERT(_lock == false);
-        std::pair<Scheduler*,Fiber::ptr> waitEntry(nullptr,nullptr);
+        Xten::Mutex::Lock lock(m_mutex);
+        if (m_waiters.empty())
+            return;
+        Xten::Mutex::Lock lock2(m_fiberMutex.m_mutex);
+
+        std::list<std::pair<Scheduler *, Fiber::ptr>>::iterator it;
+        for (it = m_waiters.begin();
+             it != m_waiters.end();
+             ++it)
         {
-            SpinLock::Lock lock(_mutex);
-            if (_waitQueue.empty())
+            std::pair<Scheduler *, Fiber::ptr> &next = *it;
+            XTEN_ASSERT(m_fiberMutex.m_owner != next.second);
+            XTEN_ASSERT(std::find(m_fiberMutex.m_waiters.begin(),
+                                  m_fiberMutex.m_waiters.end(), next) == m_fiberMutex.m_waiters.end());
+            if (!m_fiberMutex.m_owner)
             {
-                // 没有协程在等待锁
-                _lock = true;
-                return;
+                m_fiberMutex.m_owner = next.second;
+                next.first->Schedule(next.second);
             }
             else
             {
-                waitEntry = _waitQueue.front();
-                _waitQueue.pop_front();
+                m_fiberMutex.m_waiters.push_back(next);
             }
         }
-        waitEntry.first->Schedule(waitEntry.second);
+        m_waiters.clear();
     }
-    FiberMutex::~FiberMutex()
-    {
-        XTEN_ASSERT(_waitQueue.empty());
-    }
+
 }

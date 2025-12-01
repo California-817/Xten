@@ -340,6 +340,8 @@ namespace Xten
     private:
         pthread_spinlock_t _spin_lock; // 自旋锁
     };
+    
+    class Scheduler;
     // 4.信号量(线程级别)
     class Semaphore : public NoCopyable
     {
@@ -374,28 +376,80 @@ namespace Xten
         size_t _concurrency;                                      // 当前信号量的值
         std::list<std::pair<Scheduler *, Fiber::ptr>> _waitQueue; // 协程未获取到信号量的等待队列
     };
+
     // 协程锁(相比于线程锁的优点)
     // 1.协程环境友好：框架本身就是基于协程的网络框架，协程锁在协程环境中比线程锁更轻量级
     // 2.避免线程阻塞：协程锁在等待时只会挂起当前协程，不会阻塞整个线程
     // 3.更好的并发性能：在高并发场景下，协程锁的切换开销比线程锁小得多
-    class Scheduler;
+    /// Mutex for use by Fibers that yields to a Scheduler instead of blocking
+    /// if the mutex cannot be immediately acquired.  It also provides the
+    /// additional guarantee that it is strictly FIFO, instead of random which
+    /// Fiber will acquire the mutex next after it is released.
     class FiberMutex : public NoCopyable
     {
+        friend struct FiberCondition;
+
     public:
         typedef XtenLockguard<FiberMutex> Lock;
-        FiberMutex();
-        // 加锁
-        void lock();
-        // 尝试加锁
-        bool tryLock();
-        // 解锁
-        void unlock();
+
+    public:
         ~FiberMutex();
 
+        /// @brief Locks the mutex
+        /// Note that it is possible for this Fiber to switch threads after this
+        /// method, though it is guaranteed to still be on the same Scheduler
+        /// @pre Scheduler::getThis() != NULL
+        /// @pre Fiber::getThis() does not own this mutex
+        /// @post Fiber::getThis() owns this mutex
+        void lock();
+        /// @brief Unlocks the mutex
+        /// @pre Fiber::getThis() owns this mutex
+        void unlock();
+
+        /// Unlocks the mutex if there are other Fibers waiting for the mutex.
+        /// This is useful if there is extra work should be done if there is no one
+        /// else waiting (such as flushing a buffer).
+        /// @return If the mutex was unlocked 有其他协程等待锁则释放锁，否则不释放继续持有[完成一些额外工作]
+        bool unlockIfNotUnique();
+
     private:
-        SpinLock _mutex;
-        std::list<std::pair<Scheduler *, Fiber::ptr>> _waitQueue;
-        std::atomic_bool _lock;
+        void unlockNoLock();
+
+    private:
+        Xten::Mutex m_mutex;
+        std::shared_ptr<Fiber> m_owner; // 当前拥有锁的协程
+        std::list<std::pair<Scheduler *, std::shared_ptr<Fiber>>> m_waiters;
+    };
+
+
+    // 协程条件变量---->并发基本单位是协程的场景下使用(与协程锁共同使用实现协程之间的同步与互斥)
+    class FiberCondition : public NoCopyable
+    {
+    public:
+        /// @param mutex The mutex to associate with the Condition
+        FiberCondition(FiberMutex &mutex)
+            : m_fiberMutex(mutex)
+        {
+        }
+        ~FiberCondition();
+
+        /// @brief Wait for the Condition to be signalled
+        /// @details
+        /// Atomically unlock mutex, and wait for the Condition to be signalled.
+        /// Once released, the mutex is locked again.
+        /// @pre Scheduler::getThis() != NULL
+        /// @pre Fiber::getThis() owns mutex
+        /// @post Fiber::getThis() owns mutex 在等待队列上挂起
+        void wait();
+        /// Release a single Fiber from wait() 唤醒一个等待协程
+        void signal();
+        /// Release all waiting Fibers 唤醒所有协程
+        void broadcast();
+
+    private:
+        Xten::Mutex m_mutex;
+        FiberMutex &m_fiberMutex;
+        std::list<std::pair<Scheduler *, std::shared_ptr<Fiber>>> m_waiters;
     };
 }
 #endif
