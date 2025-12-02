@@ -118,7 +118,7 @@ namespace Xten
 
     FiberMutex::~FiberMutex()
     {
-#ifndef NDEBUG
+#ifdef DEBUG
         Xten::Mutex::Lock scopeLock(m_mutex);
         XTEN_ASSERT(!m_owner);
         XTEN_ASSERT(m_waiters.empty());
@@ -145,7 +145,7 @@ namespace Xten
                                                Fiber::GetThis()));
         }
         Fiber::YieldToHold();
-#ifndef NDEBUG
+#ifdef DEBUG
         Xten::Mutex::Lock scopeLock(m_mutex);
         XTEN_ASSERT(m_owner == Fiber::GetThis());
         XTEN_ASSERT(std::find(m_waiters.begin(), m_waiters.end(),
@@ -192,7 +192,7 @@ namespace Xten
 
     FiberCondition::~FiberCondition()
     {
-#ifndef NDEBUG
+#ifdef DEBUG
         Xten::Mutex::Lock lock(m_mutex);
         XTEN_ASSERT(m_waiters.empty());
 #endif
@@ -214,7 +214,7 @@ namespace Xten
         }
         //挂起协程
         Fiber::YieldToHold();
-#ifndef NDEBUG
+#ifdef DEBUG
         Xten::Mutex::Lock lock2(m_fiberMutex.m_mutex);
         XTEN_ASSERT(m_fiberMutex.m_owner == Fiber::GetThis());
 #endif
