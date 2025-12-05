@@ -124,7 +124,9 @@ namespace Xten
         //初始化所有redis连接
         Xten::RedisManager::GetInstance();
 
-        Xten::MySQLUtil::Query("default","SELECT 1"); //test
+        //初始化mysql库
+        Xten::MySQLManager::GetInstance();
+        // Xten::MySQLUtil::Query("default","SELECT 1"); //test
         
         // 获取所有Module
         std::vector<Module::ptr> modules;

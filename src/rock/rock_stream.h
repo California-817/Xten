@@ -136,7 +136,7 @@ namespace Xten
         RockConnectionPool(const std::string& ip,uint16_t port,const std::string &realType = "RockConnection", size_t maxSize = 10, 
             unsigned long long idleTolerace_ms = 0);
         // 添加一个连接---添加的是业务实现的子类连接
-        void Add(RockConnection::ptr stream);
+        void Add(RockConnection::ptr conn);
         ~RockConnectionPool();
         // 获取一个连接
         RockConnection::ptr Get();

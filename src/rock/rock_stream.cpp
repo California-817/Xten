@@ -200,12 +200,12 @@ namespace Xten
                                 << realType << " maxSize=" << maxSize
                                 << " idleTolerace=" << idleTolerace;
     }
-    void RockConnectionPool::Add(RockConnection::ptr stream)
+    void RockConnectionPool::Add(RockConnection::ptr conn)
     {
         FiberMutex::Lock lock(_mutex);
         Address::ptr address = IPv4Address::Create(_ip.c_str(), _port);
-        stream->Connect(address);
-        _freeConns.push_back(std::make_pair(stream, TimeUitl::GetCurrentMS()));
+        conn->Connect(address);
+        _freeConns.push_back(std::make_pair(conn, TimeUitl::GetCurrentMS()));
     }
     RockConnectionPool::~RockConnectionPool()
     {

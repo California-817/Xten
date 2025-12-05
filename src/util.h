@@ -130,6 +130,7 @@ namespace Xten
     };
     std::string GetHostName();
 
+    //作为智能指针的自定义删除器------不做任何回收工作
     template <class T>
     void nop(T *t)
     {

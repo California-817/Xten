@@ -531,7 +531,7 @@ void FoxRedis::pcmd(FCtx* fctx) {
         //连接还没有正常建立
         XTEN_LOG_INFO(g_logger) << "redis (" << m_host << ":" << m_port << ") unconnected "
                    << fctx->cmd;
-        init(); //建立连接
+        init(); //建立连接----重连过程
         if(fctx->fiber) {
             //唤醒上层请求的协程---->协程的这次请求失败
             fctx->scheduler->Schedule(std::move(fctx->fiber));
@@ -1200,7 +1200,7 @@ IRedis::ptr RedisManager::get(const std::string& name) {
     //更新上次活跃时间
     rr->setLastActiveTime(time(0));
     return std::shared_ptr<IRedis>(r, std::bind(&RedisManager::freeRedis
-                        ,this, std::placeholders::_1));
+                        ,this, std::placeholders::_1)); //智能指针析构函数回收连接
 }
 
 //连接放回
