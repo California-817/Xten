@@ -510,4 +510,39 @@ std::string random_string(size_t len, const std::string& chars) {
     return rt;
 }
 
+std::string StringUtil::Format(const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    auto v = Formatv(fmt, ap);
+    va_end(ap);
+    return v;
+}
+
+std::string StringUtil::Formatv(const char* fmt, va_list ap) {
+    char* buf = nullptr;
+    auto len = vasprintf(&buf, fmt, ap);
+    if(len == -1) {
+        return "";
+    }
+    std::string ret(buf, len);
+    free(buf);
+    return ret;
+}
+
+double  TypeUtil::Atof(const char* str) {
+    if(str == nullptr) {
+        return 0;
+    }
+    return atof(str);
+}
+
+
+time_t Str2Time(const char* str, const char* format) {
+    struct tm t;
+    memset(&t, 0, sizeof(t));
+    if(!strptime(str, format, &t)) {
+        return 0;
+    }
+    return mktime(&t);
+}
 }

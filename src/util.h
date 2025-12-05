@@ -60,6 +60,7 @@ namespace Xten
             return ty_str;
         }
         static int64_t Atoi(const std::string &str);
+        static double Atof(const char* str);
     };
     // T类的构造函数是protected保护的 通过这个函数绕过保护实现创建shared_ptr智能指针 <模板函数定义内联在调用处直接展开，防止多重定义>
     template <class T, class... Args>
@@ -83,9 +84,11 @@ namespace Xten
         // 对浏览器的url编码后的字符串进行解码
         static std::string UrlDecode(const std::string &str, bool space_as_plus = true);
         static std::string Trim(const std::string &str, const std::string &delimit = " \t\r\n");
+        static std::string Format(const char* fmt, ...);
+        static std::string Formatv(const char* fmt, va_list ap);
     };
     // 时间转化成字符串
-    std::string Time2Str(time_t ts, const std::string &format);
+    std::string Time2Str(time_t ts, const std::string &format="%Y-%m-%d %H:%M:%S");
     template <class Iter>
     inline std::string MapJoin(Iter begin, Iter end, const std::string &tag1 = "=", const std::string &tag2 = "&")
     {
@@ -157,5 +160,8 @@ namespace Xten
 
     std::string random_string(size_t len
         ,const std::string& chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+
+
+    time_t Str2Time(const char* str, const char* format = "%Y-%m-%d %H:%M:%S");
 }
 #endif

@@ -75,5 +75,8 @@ namespace Xten
         RWMutex _mutex;                       // 读写锁（保护事件队列的线程安全性）
         std::vector<FdContext *> _fdContexts; // io事件上下文
     };
+
+    //封装添加定时器接口----给业务module.so使用 [因为unknown错误无法直接使用addTimer接口]
+    Timer::ptr AddTimerToIOManager(uint64_t ms, std::function<void()> cb, bool recurring = false);
 }
 #endif

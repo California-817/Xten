@@ -11,6 +11,7 @@
 #include "../db/fox_thread.h"
 #include "../db/redis.h"
 #include "../util.h"
+#include "../db/mysql.h"
 #include <signal.h>
 namespace Xten
 {
@@ -122,6 +123,8 @@ namespace Xten
 
         //初始化所有redis连接
         Xten::RedisManager::GetInstance();
+
+        Xten::MySQLUtil::Query("default","SELECT 1"); //test
         
         // 获取所有Module
         std::vector<Module::ptr> modules;

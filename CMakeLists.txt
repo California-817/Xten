@@ -49,7 +49,7 @@ file(GLOB ROCK_SOURCES src/rock/*.cpp)
 file(GLOB SYSTEM_SOURCES src/system/*.cpp)
 file(GLOB MODULE_SOURCES src/module/*.cpp)
 file(GLOB SERVLETS_SOURCES src/http/servlets/*.cpp)
-file(GLOB DB_SOURCES src/db/*.cpp)
+file(GLOB DB_SOURCES src/db/*.cpp src/db/*.cc)
 file(GLOB EMAIL_SOURCES src/email/*.cpp)
 
 list(APPEND SOURCES 
@@ -87,6 +87,7 @@ set(COMMON_LIBS
                 z
                 event
                 hiredis
+                mysqlclient
 )
 
 find_library(HIREDIS_CLUSTER_LIB

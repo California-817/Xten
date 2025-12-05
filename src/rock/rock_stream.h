@@ -142,7 +142,7 @@ namespace Xten
         RockConnection::ptr Get();
         size_t GetMaxSize() const { return _totalSize; }
         unsigned long long GetIdleTolerance() const { return _idleTolerance; }
-
+        std::string GetRealType() const { return _realType; }
     private:
         // 自定义删除器释放连接
         void releaseDeleter(RockConnection *ptr);
