@@ -12,6 +12,8 @@
 #include "../db/redis.h"
 #include "../util.h"
 #include "../db/mysql.h"
+#include"../xftp/xftp_server.h"
+#include"../xftp/xftp_worker.h"
 #include <signal.h>
 namespace Xten
 {
@@ -126,6 +128,8 @@ namespace Xten
 
         //初始化mysql库
         Xten::MySQLManager::GetInstance();
+        //初始化xftpWorker
+        Xten::xftp::XftpWorker::GetInstance();
         // Xten::MySQLUtil::Query("default","SELECT 1"); //test
         
         // 获取所有Module

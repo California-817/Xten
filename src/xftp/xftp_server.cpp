@@ -7,12 +7,12 @@ namespace Xten
     {
         static Logger::ptr g_logger = XTEN_LOG_NAME("system");
         XftpServer::XftpServer(IOManager *accept, IOManager *io,
-                   IOManager *process, TcpServerConf::ptr config)
+                               IOManager *process, TcpServerConf::ptr config)
             : TcpServer(accept, io, process, config),
               _dispatcher(std::make_shared<XftpServletDispatch>())
         {
-            _dispatcher->addXftpServlet(0,std::make_shared<UpLoadServlet>());
-            _dispatcher->addXftpServlet(1,std::make_shared<DownLoadServlet>());
+            _dispatcher->addXftpServlet(0, std::make_shared<UpLoadServlet>());
+            _dispatcher->addXftpServlet(1, std::make_shared<DownLoadServlet>());
         }
         void XftpServer::handleClient(TcpServer::ptr self, Socket::ptr client)
         {

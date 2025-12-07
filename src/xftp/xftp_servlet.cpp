@@ -1,4 +1,7 @@
 #include "xftp_servlet.h"
+#include "../db/redis.h"
+#include "xftp_worker.h"
+#include "../util.h"
 namespace Xten
 {
     namespace xftp
@@ -6,6 +9,11 @@ namespace Xten
 
         FunctionXftpServlet::FunctionXftpServlet(callback cb, std::string cmd)
             : XftpServlet(cmd), m_cb(cb)
+        {
+        }
+
+        FunctionXftpServlet::FunctionXftpServlet(callback cb)
+            : XftpServlet(""), m_cb(cb)
         {
         }
 
@@ -90,14 +98,27 @@ namespace Xten
         int32_t UpLoadServlet::handle(Xten::xftp::XftpRequest::ptr request, Xten::xftp::XftpResponse::ptr response,
                                       Xten::SocketStream::ptr session)
         {
-            //todo
-            (void*)response.get();
+            // todo
+            (void *)response.get();
+            do
+            {
+                // 各种校验操作成功---允许存储文件
+                auto xftpsession = std::dynamic_pointer_cast<XftpSession>(session);
+                XTEN_ASSERT(xftpsession);
+                XftpTask::ptr task = std::make_shared<XftpTask>();
+                task->iom = Xten::IOManager::GetThis();
+                task->req = request;
+                task->session = std::weak_ptr<XftpSession>(xftpsession);
+                uint32_t index = uint32_from_string(request->GetFileName().c_str());
+                Xten::xftp::XftpWorker::GetInstance()->dispatch(task, request->GetCmd(), index);
+            } while (false);
+            return 0;
         }
         int32_t DownLoadServlet::handle(Xten::xftp::XftpRequest::ptr request, Xten::xftp::XftpResponse::ptr response,
                                         Xten::SocketStream::ptr session)
         {
-            //todo
-            (void*)response.get();
+            // todo
+            (void *)response.get();
         }
     }
 }

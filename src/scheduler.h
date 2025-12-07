@@ -276,7 +276,8 @@ namespace Xten
             }
             return 0;
         }
-public:
+
+    public:
         // 进行定期的自动负载均衡
         void autoLoadBalance()
         {
@@ -388,6 +389,11 @@ public:
     private:
         Scheduler *_caller; // 原始协程调度器
     };
+    // 封装调度协程接口
+    typedef std::function<void(void)> Func;
+    void ScheduleFiber(Func task, int threadId = -1);
+
+    void ScheduleFiber(std::vector<Func> tasks, int threadId = -1);
 }
 
 // std::cout << scheduler << std::endl; ---方便调用dump输出调度器状态信息

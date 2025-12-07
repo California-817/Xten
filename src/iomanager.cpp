@@ -538,7 +538,7 @@ namespace Xten
                Scheduler::IsStopping();
     }
 
-    Timer::ptr AddTimerToIOManager(uint64_t ms, std::function<void()> cb, bool recurring = false)
+    Timer::ptr AddTimerToIOManager(uint64_t ms, std::function<void()> cb, bool recurring)
     {
         return Xten::IOManager::GetThis()->addTimer(ms, cb, recurring);
     }

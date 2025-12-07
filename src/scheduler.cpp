@@ -345,8 +345,8 @@ namespace Xten
 		}
 #if OPTIMIZE == ON
 		os << "[Localqueue hit Sum: " << _localHits << " ] "
-									   << "[Attempt steal Task Sum: " << _stealAttempts << " ] "
-									   << "[Success steal Task Sum: " << _steals << " ]";
+		   << "[Attempt steal Task Sum: " << _stealAttempts << " ] "
+		   << "[Success steal Task Sum: " << _steals << " ]";
 #endif
 		return os;
 	}
@@ -490,6 +490,14 @@ namespace Xten
 		{
 			_caller->SwitchTo();
 		}
+	}
+	void ScheduleFiber(Func task, int threadId)
+	{
+		Xten::Scheduler::GetThis()->Schedule(task, threadId);
+	}
+	void ScheduleFiber(std::vector<Func> tasks, int threadId)
+	{
+		Xten::Scheduler::GetThis()->Schedule(tasks.begin(), tasks.end(), threadId);
 	}
 }
 std::ostream &operator<<(std::ostream &os, const Xten::Scheduler &scheduler)

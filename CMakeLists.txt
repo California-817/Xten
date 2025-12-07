@@ -8,7 +8,7 @@ enable_language(ASM)
 project(Xten VERSION 1.0.0)
 
 include(cmake/utils.cmake)
-#静态库代码是位置无关码fPIC (需要链接到libXxModule.so动态库中)
+
 set(CMAKE_CXX_FLAGS "$ENV{CXXFLAGS} -rdynamic -O3 -fPIC -ggdb -std=c++11 -Wall -Wno-deprecated  -Wno-unused-function -Wno-builtin-macro-redefined -Wno-deprecated-declarations")
 set(CMAKE_C_FLAGS "$ENV{CXXFLAGS} -rdynamic -O3 -fPIC -ggdb -std=c11 -Wall -Wno-deprecated  -Wno-unused-function -Wno-builtin-macro-redefined -Wno-deprecated-declarations")
 
@@ -51,6 +51,7 @@ file(GLOB MODULE_SOURCES src/module/*.cpp)
 file(GLOB SERVLETS_SOURCES src/http/servlets/*.cpp)
 file(GLOB DB_SOURCES src/db/*.cpp src/db/*.cc)
 file(GLOB EMAIL_SOURCES src/email/*.cpp)
+file(GLOB XFTP_SOURCES src/xftp/*.cpp)
 
 list(APPEND SOURCES 
                     ${HTTP_SOURCES} 
@@ -62,6 +63,7 @@ list(APPEND SOURCES
                     ${SERVLETS_SOURCES}
                     ${DB_SOURCES}
                     ${EMAIL_SOURCES}
+                    ${XFTP_SOURCES}
                     "src/libco/coctx.cpp"
 )
 list(REMOVE_ITEM SOURCES ${PROJECT_SOURCE_DIR}/src/system/main.cpp)

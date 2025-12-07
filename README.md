@@ -2,9 +2,9 @@
 [![Language](https://img.shields.io/badge/language-c++-red.svg)](https://en.cppreference.com/)
 ![Platform](https://img.shields.io/badge/platform-linux-lightgrey.svg)
 ## 项目简介
-Xten是一个基于协程网络库实现的C++高性能服务器框架，旨在使用协程简化异步网络编程，解决异步编程时面临的回调地狱问题，同时在Server层使用同步的编程方式实现异步回调编程的性能。
+Xten是一个使用协程技术实现的C++高性能服务器框架，旨在使用协程简化异步网络编程，解决异步编程时面临的回调地狱问题，同时在Server层使用同步的编程方式实现异步回调编程的性能。
 
-核心协程网络库的实现类似go语言的GMP+net包的实现，为每一个线程M都分配了一个协程运行队列P，协程G放入运行队列中被线程调度获取cpu执行时间，并实现了基于epoll封装的协程调度策略用于在网络io场景下高效调度协程。目前的服务器框架封装了http协议，websocket协议，自定义分布式Rock协议，并在Server层实现了httpServer，websocketServer，分布式rpc服务器RockServer。
+核心协程网络模块的实现类似go语言的GMP+net包的实现，为每一个线程M都分配了一个协程运行队列P，协程G放入运行队列中被线程调度获取cpu执行时间，并实现了基于epoll封装的协程调度策略用于在网络io场景下高效调度协程。目前的服务器框架封装了http协议，websocket协议，自定义分布式Rock协议，并在Server层实现了httpServer，websocketServer，分布式rpc服务器RockServer。目前正在持续开发中，后续打算实现自定义文件服务器，支持kcp协议的kcp服务器等......
 
 Xten将动态库封装成Module模块，支持以运行时显式链接动态库的方式加载具体的业务代码到Xten服务器框架中。在使用Xten服务器框架进行业务开发时，只需要继承服务器提供的Module模块实现具体的业务模块并编译成动态库，启动Xten服务器框架后自动链接该动态库即可完成业务模块的注册。
 ## 编译运行

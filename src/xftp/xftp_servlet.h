@@ -70,6 +70,8 @@ namespace Xten
              * @param[in] cb 回调函数
              */
             FunctionXftpServlet(callback cb, std::string name);
+            // convenience ctor when only a callback is provided
+            FunctionXftpServlet(callback cb);
             virtual int32_t handle(Xten::xftp::XftpRequest::ptr request, Xten::xftp::XftpResponse::ptr response,
                                    Xten::SocketStream::ptr session) override;
 
@@ -127,7 +129,7 @@ namespace Xten
 
             std::string getname() const override
             {
-                return TypeUtil::TypeToName<T>();
+                return "TypeUtil::TypeToName<T>()";  //bug
             }
         };
 
@@ -250,7 +252,7 @@ namespace Xten
              * @return 是否处理成功
              */
             virtual int32_t handle(Xten::xftp::XftpRequest::ptr request, Xten::xftp::XftpResponse::ptr response,
-                                   Xten::SocketStream::ptr session) = 0;
+                                   Xten::SocketStream::ptr session) override;
         };
         // 下载文件servlet
         class DownLoadServlet : public XftpServlet
@@ -270,7 +272,7 @@ namespace Xten
              * @return 是否处理成功
              */
             virtual int32_t handle(Xten::xftp::XftpRequest::ptr request, Xten::xftp::XftpResponse::ptr response,
-                                   Xten::SocketStream::ptr session) = 0;
+                                   Xten::SocketStream::ptr session) override;
         };
     } // namespace xftp
 

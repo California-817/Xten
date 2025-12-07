@@ -1,5 +1,14 @@
 fox_thread:
-    redis:
+    redis: #进行异步redis操作的线程池
         name: redis
-        num: 2  #一个foxthread线程池
+        num: 2  #foxthread线程池 2thread
+        advance: 0 #是否有优化任务分配逻辑
+    xftp_worker_upload: #进行xftp上传文件的线程池
+        name: xftp_worker_upload
+        num: 4 
         advance: 0
+    xftp_worker_download: #进行xftp下载文件的线程池
+        name: xftp_worker_download
+        num: 4 
+        advance: 0
+    

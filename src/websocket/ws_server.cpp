@@ -25,7 +25,7 @@ namespace Xten
                     break;
                 }
                 // 握手成功---获取servlet（根据握手请求的uri来获取servlet）
-                WSServlet::ptr servlet = _dispatch->getWSServlet(shake_req->getPath());
+                WSServlet::ptr servlet = _dispatch->getWSServlet("/_/pushReq"); //后面会修改整个wsServer的收，处理，发包的架构 todo....
                 if (!servlet)
                 {
                     XTEN_LOG_DEBUG(g_logger) << "no match Servlet";

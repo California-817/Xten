@@ -5,7 +5,8 @@ namespace Xten
     namespace xftp
     {
         static Logger::ptr g_logger = XTEN_LOG_NAME("system");
-        XftpSession::XftpSession(Socket::ptr socket, bool is_owner = true)
+
+        XftpSession::XftpSession(Socket::ptr socket, bool is_owner)
             : SocketStream(socket, is_owner),
               _cond(_mutex)
         {

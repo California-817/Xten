@@ -17,7 +17,7 @@ namespace Xten
         static void ListAllFile(std::vector<std::string> &files, const std::string &path, const std::string &subfix);
         // 删除指定的文件
         static bool UnLink(const std::string &name, bool exist = false);
-        static std::string Basename(const std::string& filename);
+        static std::string Basename(const std::string &filename);
     };
     class BackTraceUtil
     {
@@ -60,7 +60,7 @@ namespace Xten
             return ty_str;
         }
         static int64_t Atoi(const std::string &str);
-        static double Atof(const char* str);
+        static double Atof(const char *str);
     };
     // T类的构造函数是protected保护的 通过这个函数绕过保护实现创建shared_ptr智能指针 <模板函数定义内联在调用处直接展开，防止多重定义>
     template <class T, class... Args>
@@ -84,11 +84,11 @@ namespace Xten
         // 对浏览器的url编码后的字符串进行解码
         static std::string UrlDecode(const std::string &str, bool space_as_plus = true);
         static std::string Trim(const std::string &str, const std::string &delimit = " \t\r\n");
-        static std::string Format(const char* fmt, ...);
-        static std::string Formatv(const char* fmt, va_list ap);
+        static std::string Format(const char *fmt, ...);
+        static std::string Formatv(const char *fmt, va_list ap);
     };
     // 时间转化成字符串
-    std::string Time2Str(time_t ts, const std::string &format="%Y-%m-%d %H:%M:%S");
+    std::string Time2Str(time_t ts, const std::string &format = "%Y-%m-%d %H:%M:%S");
     template <class Iter>
     inline std::string MapJoin(Iter begin, Iter end, const std::string &tag1 = "=", const std::string &tag2 = "&")
     {
@@ -130,7 +130,7 @@ namespace Xten
     };
     std::string GetHostName();
 
-    //作为智能指针的自定义删除器------不做任何回收工作
+    // 作为智能指针的自定义删除器------不做任何回收工作
     template <class T>
     void nop(T *t)
     {
@@ -159,10 +159,27 @@ namespace Xten
     std::string replace(const std::string &str, char find, const std::string &replaceWith);
     std::string replace(const std::string &str, const std::string &find, const std::string &replaceWith);
 
-    std::string random_string(size_t len
-        ,const std::string& chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    std::string random_string(size_t len, const std::string &chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
+    time_t Str2Time(const char *str, const char *format = "%Y-%m-%d %H:%M:%S");
 
-    time_t Str2Time(const char* str, const char* format = "%Y-%m-%d %H:%M:%S");
+    /* 随机生成 uint32，输入为任意字符串 */
+    inline uint32_t uint32_from_string(const char *s)
+    {
+        /* 1. FNV-1a 哈希：把字符串打散成 32 bit */
+        uint32_t h = 2166136261u;
+        for (const unsigned char *p = (const unsigned char *)s; *p; ++p)
+        {
+            h ^= *p;
+            h *= 16777619u;
+        }
+
+        /* 2. 再来一轮 xorshift32，让分布更均匀 */
+        h ^= h << 13;
+        h ^= h >> 17;
+        h ^= h << 5;
+        return h;
+    }
+
 }
 #endif
