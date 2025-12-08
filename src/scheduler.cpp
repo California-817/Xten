@@ -308,7 +308,7 @@ namespace Xten
 				}
 				_idle_threadNum++;
 				idle_fiber->SwapIn();
-				XTEN_LOG_DEBUG(g_logger) << "idle out";
+				// XTEN_LOG_DEBUG(g_logger) << "idle out";
 				_idle_threadNum--;
 				if (idle_fiber->GetStatus() != Fiber::Status::TERM &&
 					idle_fiber->GetStatus() != Fiber::Status::EXCEPT)
@@ -460,7 +460,7 @@ namespace Xten
 	// 线程无任务执行idle空闲协程  ---子类实现
 	void Scheduler::Idle()
 	{
-		XTEN_LOG_INFO(g_logger) << "idle";
+		// XTEN_LOG_INFO(g_logger) << "idle";
 	}
 	// 设置线程当前调度器
 	void Scheduler::SetThis()

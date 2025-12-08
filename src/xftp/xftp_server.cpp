@@ -11,16 +11,18 @@ namespace Xten
             : TcpServer(accept, io, process, config),
               _dispatcher(std::make_shared<XftpServletDispatch>())
         {
-            _dispatcher->addXftpServlet(0, std::make_shared<UpLoadServlet>());
-            _dispatcher->addXftpServlet(1, std::make_shared<DownLoadServlet>());
+            _dispatcher->addXftpServlet(XftpOptCmd::UPLOAD_TEST, std::make_shared<Xten::xftp::TestServlet>());
         }
         void XftpServer::handleClient(TcpServer::ptr self, Socket::ptr client)
         {
-            XftpSession::ptr session(std::make_shared<XftpSession>(client));
+            XftpSession::ptr session = std::make_shared<XftpSession>(client);
+            session->startWriter();
             do
             {
                 // 1.recv
                 XftpRequest::ptr req = session->RecvRequest();
+                if (req)
+                    XTEN_LOG_DEBUG(g_logger) << "req:" << req->GetData() << "cmd" << req->ToString();
                 if (!req)
                     break;
                 // 2.servlet handle
@@ -32,6 +34,8 @@ namespace Xten
                     XTEN_LOG_ERROR(g_logger) << "handle XftpSession error";
             } while (session->IsConnected());
             XTEN_LOG_DEBUG(g_logger) << "XftpSession:" << session->GetPeerAddrString() << " close";
+            // 及时通知写协程退出---防止内存泄露
+            session->pushResponse(-1, nullptr);
             session->Close();
         }
     }

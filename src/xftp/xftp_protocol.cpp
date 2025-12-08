@@ -24,6 +24,21 @@ namespace Xten
             };
             xftpLengthInit __xftplenInit;
         }
+        // 根据请求创建响应
+        XftpResponse::ptr XftpRequest::CreateResponse()
+        {
+            XftpResponse::ptr rsp = std::make_shared<XftpResponse>();
+            rsp->_cmd = _cmd;
+            rsp->_sn = _sn;
+
+            rsp->_md5 = _md5;
+            rsp->_name = _name;
+            rsp->_transSize = _transSize;
+            rsp->_totalSize = _totalSize;
+            rsp->_b_last = _b_last;
+            rsp->_lastSn = _lastSn;
+            return rsp;
+        }
 
         // 将消息结构体序列化成bytearray
         bool XftpRequest::SerializeToByteArray(ByteArray::ptr ba)
@@ -130,10 +145,10 @@ namespace Xten
                 XTEN_LOG_ERROR(g_logger) << "xftpMessageDecoder write body to stream error";
                 return -5;
             }
-            return sizeof(head) + ba->GetReadSize();
+            return sizeof(head) + ba->GetSize();
         }
         // 从stream流中读取一个消息体
-        Message::ptr ParseFromStream(Stream::ptr stream)
+        Message::ptr XftpMessageDecoder::ParseFromStream(Stream::ptr stream)
         {
             XftpMsgHead head;
             ByteArray::ptr ba = std::make_shared<ByteArray>();

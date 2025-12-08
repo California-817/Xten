@@ -253,7 +253,7 @@ namespace Xten
             XTEN_LOG_ERROR(g_logger) << "RockMessageDecoder write body to stream error";
             return -5;
         }
-        return sizeof(head) + ba->GetReadSize();
+        return sizeof(head) + ba->GetSize();
     }
     // 从stream流中读取一个消息体
     Message::ptr RockMessageDecoder::ParseFromStream(Stream::ptr stream)

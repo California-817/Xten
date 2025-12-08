@@ -247,6 +247,10 @@ namespace Xten
             {
                 server = std::make_shared<Xten::RockServer>(accept_w, io_w, process_w, p_servConf);
             }
+            else if(servConf.type == "xftp")
+            {
+                server= std::make_shared<Xten::xftp::XftpServer>(accept_w, io_w, process_w, p_servConf);
+            }
             else
             {
                 XTEN_LOG_ERROR(g_logger) << "Invaild Server Type: " << servConf.type;
@@ -294,6 +298,7 @@ namespace Xten
             i->OnServerUp();
         }
         modules.clear();
+        XTEN_LOG_INFO(g_logger)<<"run in fiber end";
         return;
     }
     // 按类型获取servers

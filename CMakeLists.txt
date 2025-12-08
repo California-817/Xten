@@ -21,7 +21,8 @@ if(NOT FIBER_TYPE STREQUAL "FIBER_UCONTEXT" AND NOT FIBER_TYPE STREQUAL "FIBER_F
     message(FATAL_ERROR "FIBER_TYPE must be either FIBER_UCONTEXT or FIBER_FCONTEXT or FIBER_COCTX, but got: ${FIBER_TYPE}")
 endif()
 
-set(OPTIMIZE "ON" CACHE STRING "Whether open scheduler queue optimize")
+#no multiple taskqueue , some bug 
+set(OPTIMIZE "OFF" CACHE STRING "Whether open scheduler queue optimize")
 set_property(CACHE OPTIMIZE PROPERTY STRINGS "ON" "OFF")
 if(NOT OPTIMIZE STREQUAL "ON" AND NOT OPTIMIZE STREQUAL "OFF")
     message(FATAL_ERROR "optimize must be ON or OFF , but got: ${OPTIMIZE}")
@@ -80,7 +81,7 @@ set_target_properties(Xten PROPERTIES
                         ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
 add_executable(XtenFrame src/system/main.cpp)
-
+add_executable(XftpClient test/xftp_client.cpp)
 set(COMMON_LIBS    
                 ssl
                 crypto
@@ -104,6 +105,12 @@ else()
 endif()
 
 target_link_libraries(XtenFrame
+                    Xten
+                    ${YAML_CPP_LIBRARIES}
+                    ${COMMON_LIBS}
+)
+
+target_link_libraries(XftpClient
                     Xten
                     ${YAML_CPP_LIBRARIES}
                     ${COMMON_LIBS}

@@ -25,3 +25,11 @@ servers:
       io_worker: io
       process_worker:  io
       type: rock
+    - address: ["0.0.0.0:8083", "0.0.0.0:8003"] #Xftp文件服务器配置
+      timeout: 120000
+      name: Xten/Xftp/1.0
+      accept_worker: accept
+      io_worker: io
+      process_worker:  io
+      type: xftp
+      timewheel: 0

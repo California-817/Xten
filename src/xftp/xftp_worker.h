@@ -30,8 +30,7 @@ namespace Xten
             bool dispatch(XftpTask::ptr task, uint32_t cmd, uint32_t index);
 
         private:
-            void handleUpLoad(XftpTask::ptr task);
-            void handleDownLoad(XftpTask::ptr task);
+            void handleTest(XftpTask::ptr task);
 
         private:
             std::unordered_map<uint32_t, Handler> _handles;         // 处理方法

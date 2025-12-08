@@ -389,7 +389,7 @@ namespace Xten
     // 线程无任务执行idle空闲协程 ----基于epoll_wait封装idle协程
     void IOManager::Idle() // override
     {
-        XTEN_LOG_DEBUG(g_logger) << "idle";
+        // XTEN_LOG_DEBUG(g_logger) << "idle";
         int MAX_EVENT = 256; // 一次epoll_wait返回的最大事件数
         struct epoll_event *epevs = new epoll_event[MAX_EVENT];
         std::shared_ptr<epoll_event> shared_epevs = std::shared_ptr<epoll_event>(epevs, [](epoll_event *ptr)

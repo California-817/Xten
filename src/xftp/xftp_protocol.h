@@ -1,7 +1,7 @@
 #ifndef __XTEN_XFTP_PROTOCOL_H__
 #define __XTEN_XFTP_PROTOCOL_H__
 #include "../protocol.h"
-#include<sstream>
+#include <sstream>
 namespace Xten
 {
     namespace xftp
@@ -23,6 +23,7 @@ namespace Xten
             uint32_t length;  // body长度
         };
 
+        class XftpResponse;
         // req
         // type--->消息类型 sn--->文件序列号 cmd--->请求方法[upload or download] time--->请求时间
         // md5--->文件的生成的md5值 fileName--->文件名 transSize--->已经发送大小 totalSize--->文件总大小
@@ -33,21 +34,8 @@ namespace Xten
             XftpRequest() = default;
             ~XftpRequest() = default;
             typedef std::shared_ptr<XftpRequest> ptr;
-            //根据请求创建响应
-            XftpResponse::ptr CreateResponse()
-            {
-                XftpResponse::ptr rsp=std::make_shared<XftpResponse>();
-                rsp->_cmd=_cmd;
-                rsp->_sn=_sn;
-
-                rsp->_md5=_md5;
-                rsp->_name=_name;
-                rsp->_transSize=_transSize;
-                rsp->_totalSize=_totalSize;
-                rsp->_b_last=_b_last;
-                rsp->_lastSn=_lastSn;
-                return rsp;
-            }
+            // 根据请求创建响应
+            std::shared_ptr<XftpResponse> CreateResponse();
 
             // 将消息结构体序列化成bytearray
             virtual bool SerializeToByteArray(ByteArray::ptr ba) override;
@@ -73,8 +61,22 @@ namespace Xten
                 static std::string name = "XftpRequest";
                 return name;
             }
-            //所有get，set方法
-            std::string GetFileName() const {return _name;}
+            // 所有get，set方法
+            std::string GetFileName() const { return _name; }
+            std::string GetMd5() const { return _md5; }
+            uint64_t GetTransSize() const { return _transSize; }
+            uint64_t GetTotalSize() const { return _totalSize; }
+            uint8_t IsLast() const { return _b_last; }
+            uint32_t GetLastSn() const { return _lastSn; }
+            std::string GetData() const { return _data; }
+            void SetFileName(const std::string &name) { _name = name; }
+            void SetMd5(const std::string &md5) { _md5 = md5; }
+            void SetTransSize(uint64_t size) { _transSize = size; }
+            void SetTotalSize(uint64_t size) { _totalSize = size; }
+            void SetIsLast(uint8_t last) { _b_last = last; }
+            void SetLastSn(uint32_t sn) { _lastSn = sn; }
+            void SetData(const std::string &data) { _data = data; }
+
         private:
             std::string _md5;
             std::string _name;
@@ -106,7 +108,7 @@ namespace Xten
             virtual std::string ToString() const override
             {
                 std::stringstream ss;
-                ss << "[XftpRequest sn=" << _sn
+                ss << "[XftpResponse sn=" << _sn
                    << " cmd=" << _cmd
                    << " body.length=" << _data.size()
                    << "]";
@@ -118,7 +120,23 @@ namespace Xten
                 static std::string name = "XftpResponse";
                 return name;
             }
-            //所有get，set方法
+            // 所有get，set方法
+            // 所有get，set方法
+            std::string GetFileName() const { return _name; }
+            std::string GetMd5() const { return _md5; }
+            uint64_t GetTransSize() const { return _transSize; }
+            uint64_t GetTotalSize() const { return _totalSize; }
+            uint8_t IsLast() const { return _b_last; }
+            uint32_t GetLastSn() const { return _lastSn; }
+            std::string GetData() const { return _data; }
+            void SetFileName(const std::string &name) { _name = name; }
+            void SetMd5(const std::string &md5) { _md5 = md5; }
+            void SetTransSize(uint64_t size) { _transSize = size; }
+            void SetTotalSize(uint64_t size) { _totalSize = size; }
+            void SetIsLast(uint8_t last) { _b_last = last; }
+            void SetLastSn(uint32_t sn) { _lastSn = sn; }
+            void SetData(const std::string &data) { _data = data; }
+
         private:
             std::string _md5;
             std::string _name;

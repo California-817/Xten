@@ -8,7 +8,7 @@ namespace Xten
 {
     namespace xftp
     {
-        class XftpSession : public SocketStream, std::enable_shared_from_this<XftpSession>
+        class XftpSession : public SocketStream,public std::enable_shared_from_this<XftpSession> //必须public继承----否则外部无法使用方法
         {
         public:
             typedef std::shared_ptr<XftpSession> ptr;
@@ -19,7 +19,8 @@ namespace Xten
             XftpRequest::ptr RecvRequest();
             // 由XftpWorker调用进行响应发送--入队列
             void pushResponse(uint32_t sn, XftpResponse::ptr rsp);
-
+            //启动写协程
+            void startWriter();
         private:
             // 真正发送响应--->启动协程将队列中的包发出去[发现空包则关闭连接]
             void doFlush(std::shared_ptr<XftpSession> self);

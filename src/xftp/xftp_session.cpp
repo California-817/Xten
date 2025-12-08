@@ -8,7 +8,13 @@ namespace Xten
 
         XftpSession::XftpSession(Socket::ptr socket, bool is_owner)
             : SocketStream(socket, is_owner),
-              _cond(_mutex)
+              _cond(_mutex),
+              _decoder(std::make_shared<XftpMessageDecoder>())
+        {
+            //不可以在构造函数内shared_from_this() 还没有被智能指针捕获
+        }
+        // 启动写协程
+        void XftpSession::startWriter()
         {
             // 启动写协程不断从队列中获取消息并顺序发送
             auto self = shared_from_this();
@@ -38,6 +44,7 @@ namespace Xten
         // 真正发送响应--->启动协程将队列中的包发出去
         void XftpSession::doFlush(std::shared_ptr<XftpSession> self)
         {
+            XTEN_LOG_DEBUG(g_logger)<<"write fiber begin";
             while (_socket->IsConnected())
             {
                 // 1.connecting

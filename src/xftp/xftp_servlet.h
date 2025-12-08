@@ -1,5 +1,5 @@
-#ifndef __XTEN_XFTP_XftpSERVLET_H__
-#define __XTEN_XFTP_XftpSERVLET_H__
+#ifndef __XTEN_XFTP_SERVLET_H__
+#define __XTEN_XFTP_SERVLET_H__
 #include <memory>
 #include <functional>
 #include <string>
@@ -11,6 +11,13 @@ namespace Xten
 {
     namespace xftp
     {
+        //文件任务操作码
+        enum XftpOptCmd
+        {
+            UPLOAD_TEST=-1,
+            UPLOAD_COMMON_FILE=0,
+            DOWNLOAD_COMMON_FILE=1,
+        };
         /**
          * @brief XftpServlet封装
          */
@@ -129,7 +136,7 @@ namespace Xten
 
             std::string getname() const override
             {
-                return "TypeUtil::TypeToName<T>()";  //bug
+                return "TypeUtil::TypeToName<T>()"; // bug
             }
         };
 
@@ -156,31 +163,17 @@ namespace Xten
              * @param[in] name name
              * @param[in] slt serlvet
              */
-            void addXftpServlet(const uint32_t &name, XftpServlet::ptr slt);
+            void addXftpServlet(const uint32_t &cmd, XftpServlet::ptr slt);
 
             /**
              * @brief 添加Xftpservlet
              * @param[in] name name
              * @param[in] cb FunctionXftpServlet回调函数
              */
-            void addXftpServlet(const uint32_t &name, FunctionXftpServlet::callback cb);
+            void addXftpServlet(const uint32_t &cmd, FunctionXftpServlet::callback cb);
 
-            /**
-             * @brief 添加模糊匹配Xftpservlet
-             * @param[in] name name 模糊匹配 /sylar_*
-             * @param[in] slt Xftpservlet
-             */
-            void addGlobXftpServlet(const uint32_t &name, XftpServlet::ptr slt);
-
-            /**
-             * @brief 添加模糊匹配Xftpservlet
-             * @param[in] name name 模糊匹配 /sylar_*
-             * @param[in] cb FunctionXftpServlet回调函数
-             */
-            void addGlobXftpServlet(const uint32_t &name, FunctionXftpServlet::callback cb);
 
             void addXftpServletCreator(const uint32_t &name, IXftpServletCreator::ptr creator);
-            void addGlobXftpServletCreator(const uint32_t &name, IXftpServletCreator::ptr creator);
 
             template <class T>
             void addXftpServletCreator(const uint32_t &name)
@@ -188,11 +181,6 @@ namespace Xten
                 addXftpServletCreator(name, std::make_shared<XftpServletCreator<T>>());
             }
 
-            template <class T>
-            void addGlobXftpServletCreator(const uint32_t &name)
-            {
-                addGlobXftpServletCreator(name, std::make_shared<XftpServletCreator<T>>());
-            }
 
             /**
              * @brief 删除Xftpservlet
@@ -200,11 +188,7 @@ namespace Xten
              */
             void delXftpServlet(const uint32_t &name);
 
-            /**
-             * @brief 删除模糊匹配Xftpservlet
-             * @param[in] name name
-             */
-            void delGlobXftpServlet(const uint32_t &name);
+
 
             /**
              * @brief 通过name获取Xftpservlet
@@ -213,12 +197,6 @@ namespace Xten
              */
             XftpServlet::ptr getXftpServlet(const uint32_t &name);
 
-            /**
-             * @brief 通过name获取模糊匹配Xftpservlet
-             * @param[in] name name
-             * @return 返回对应的Xftpservlet
-             */
-            XftpServlet::ptr getGlobXftpServlet(const uint32_t &name);
 
             /**
              * @brief 通过name获取Xftpservlet
@@ -235,33 +213,14 @@ namespace Xten
             /// 精准匹配Xftpservlet MAP
             std::unordered_map<uint32_t, IXftpServletCreator::ptr> m_datas;
         };
-        // 上传文件servlet
-        class UpLoadServlet : public XftpServlet
-        {
-        public:
-            typedef std::shared_ptr<UpLoadServlet> ptr;
-            UpLoadServlet()
-                : XftpServlet("upload")
-            {
-            }
-            /**
-             * @brief 处理请求
-             * @param[in] request xftp请求
-             * @param[in] response xftp响应
-             * @param[in] session xftp连接
-             * @return 是否处理成功
-             */
-            virtual int32_t handle(Xten::xftp::XftpRequest::ptr request, Xten::xftp::XftpResponse::ptr response,
-                                   Xten::SocketStream::ptr session) override;
-        };
-        // 下载文件servlet
-        class DownLoadServlet : public XftpServlet
-        {
-        public:
-            typedef std::shared_ptr<DownLoadServlet> ptr;
 
-            DownLoadServlet()
-                : XftpServlet("download")
+        // testservlet
+        class TestServlet : public XftpServlet
+        {
+        public:
+            typedef std::shared_ptr<TestServlet> ptr;
+            TestServlet()
+                : XftpServlet("test")
             {
             }
             /**
@@ -273,7 +232,11 @@ namespace Xten
              */
             virtual int32_t handle(Xten::xftp::XftpRequest::ptr request, Xten::xftp::XftpResponse::ptr response,
                                    Xten::SocketStream::ptr session) override;
+
         };
+        // 辅助方法
+        int32_t DispatchReq2Worker(Xten::xftp::XftpRequest::ptr request, Xten::SocketStream::ptr session);
+
     } // namespace xftp
 
 } // namespace Xten
