@@ -101,7 +101,8 @@ if(HIREDIS_CLUSTER_LIB)
     message(STATUS "Found hiredis cluster lib: ${HIREDIS_CLUSTER_LIB}")
     list(APPEND COMMON_LIBS ${HIREDIS_CLUSTER_LIB})
 else()
-    message(STATUS "hiredis cluster library not found during CMake configure. If you need Redis Cluster support, please install hiredis-vip / hiredis-cluster (providing redisCluster* symbols) and re-run CMake.")
+    message(STATUS "hiredis cluster library not found during CMake configure. If you need Redis Cluster support, 
+                        please install hiredis-vip / hiredis-cluster (providing redisCluster* symbols) and re-run CMake.")
 endif()
 
 target_link_libraries(XtenFrame
@@ -115,3 +116,4 @@ target_link_libraries(XftpClient
                     ${YAML_CPP_LIBRARIES}
                     ${COMMON_LIBS}
 )   
+

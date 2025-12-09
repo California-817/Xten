@@ -6,12 +6,12 @@ namespace Xten
     AsyncSocketStream::AsyncSocketStream(Socket::ptr socket, bool is_owner, bool auto_connect)
         : SocketStream(socket, is_owner),
           _waitFiberSem(2),
-          _FiberSem(0),
           _sn(0),
           _autoConnect(auto_connect),
           _tryConnectCount(0),
           _ioWorker(nullptr),
-          _processWorker(nullptr)
+          _processWorker(nullptr),
+          _cond(_queMtx)
     {
     }
     // 启动异步socket流
@@ -96,13 +96,15 @@ namespace Xten
         {
             while (IsConnected())
             {
-                // 挂起写协程
-                _FiberSem.wait();
-                // 有任务被唤醒
                 std::list<SendCtx::ptr> copyQue;
                 {
-                    RWMutex::WriteLock wlock(_queMtx);
-                    _sendCtxQue.swap(copyQue); //先交换出来，再发送（减小锁粒度）
+                    FiberMutex::Lock lock(_queMtx);
+                    while (_sendCtxQue.empty() && IsConnected())
+                    {
+                        _cond.wait();
+                    }
+                    // 有任务被唤醒
+                    _sendCtxQue.swap(copyQue); // 先交换出来，再发送（减小锁粒度）
                 }
                 for (auto &ctx : copyQue)
                 {
@@ -118,7 +120,7 @@ namespace Xten
         {
         }
         {
-            RWMutex::WriteLock wlock(_queMtx);
+            FiberMutex::Lock lock(_queMtx);
             _sendCtxQue.clear();
         }
         _waitFiberSem.post();
@@ -126,26 +128,29 @@ namespace Xten
     // 读协程函数
     void AsyncSocketStream::doRead(AsyncSocketStream::ptr self)
     {
-        try{
-            while(IsConnected())
+        try
+        {
+            while (IsConnected())
             {
-                _recving=true;
-                //接收响应并返回对应请求的上下文
-                Ctx::ptr ctx=doRecv();
-                _recving=false;
-                if(ctx)
+                _recving = true;
+                // 接收响应并返回对应请求的上下文
+                Ctx::ptr ctx = doRecv();
+                _recving = false;
+                if (ctx)
                 {
-                    //这个函数来设置请求的响应结果，并唤醒等待响应的协程
+                    // 这个函数来设置请求的响应结果，并唤醒等待响应的协程
                     ctx->doRsp();
                 }
             }
-        }catch(...)
-        {}
+        }
+        catch (...)
+        {
+        }
         innerClose();
         _waitFiberSem.post();
-        if(_autoConnect)
+        if (_autoConnect)
         {
-            _timer=_ioWorker->addTimer(10,std::bind(&AsyncSocketStream::Start,this,shared_from_this()),false);
+            _timer = _ioWorker->addTimer(10, std::bind(&AsyncSocketStream::Start, this, shared_from_this()), false);
         }
     }
     // 开启读写协程
@@ -204,19 +209,11 @@ namespace Xten
     bool AsyncSocketStream::enqueue(AsyncSocketStream::SendCtx::ptr sendctx)
     {
         XTEN_ASSERT(sendctx);
-        bool isEmpty = false;
         {
-            RWMutex::WriteLock wlock(_queMtx);
-            if (_sendCtxQue.empty())
-            {
-                isEmpty = true;
-            }
+            FiberMutex::Lock lock(_queMtx);
             _sendCtxQue.push_back(sendctx);
         }
-        if (isEmpty)
-        {
-            _FiberSem.post(); // 从无到有，唤醒写协程
-        }
+        _cond.signal();
         return true;
     }
     // 等待读写协程退出
@@ -229,30 +226,30 @@ namespace Xten
     // 内部进行关闭socket流
     bool AsyncSocketStream::innerClose()
     {
-        XTEN_ASSERT(_ioWorker==IOManager::GetThis());
-        if(IsConnected() && _disconnectCb)
+        XTEN_ASSERT(_ioWorker == IOManager::GetThis());
+        if (IsConnected() && _disconnectCb)
         {
             _disconnectCb(shared_from_this());
-        }   
+        }
         onClose();
         SocketStream::Close();
-        _FiberSem.post();
-        //获取所有未得到响应的请求上下文
-        std::unordered_map<uint32_t,Ctx::ptr> copyReqCtxs;
+        _cond.broadcast();
+        // 获取所有未得到响应的请求上下文
+        std::unordered_map<uint32_t, Ctx::ptr> copyReqCtxs;
         {
             RWMutex::WriteLock wlock(_ctxsMtx);
             _reqCtxs.swap(copyReqCtxs);
         }
-        //清理发送队列
+        // 清理发送队列
         {
-            RWMutex::WriteLock wlock(_queMtx);
+            FiberMutex::Lock lock(_queMtx);
             _sendCtxQue.clear();
         }
-        //进行请求的响应处理
-        for(auto& ctx : copyReqCtxs)
+        // 进行请求的响应处理
+        for (auto &ctx : copyReqCtxs)
         {
-            ctx.second->result=ERROR::IO_ERROR;
-            ctx.second->resultStr="io_error";
+            ctx.second->result = ERROR::IO_ERROR;
+            ctx.second->resultStr = "io_error";
             ctx.second->doRsp();
         }
         return true;

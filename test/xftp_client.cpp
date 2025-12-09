@@ -11,37 +11,58 @@ int main()
     Xten::xftp::XftpMessageDecoder::ptr decoder = std::make_shared<Xten::xftp::XftpMessageDecoder>();
     iom.Schedule([ss, decoder]()
                  {
-        //发送文件包
+        // 发送文件包
         Xten::xftp::XftpRequest::ptr req(new Xten::xftp::XftpRequest());
         req->SetCmd(-1);
         req->SetFileName("test");
-        for(int i=0;i<10000;i++)
+        for (int i = 0; i < 5000; i++)
         {
-            std::cout<<"i="<<i<<std::endl;
+            std::cout << "i=" << i << std::endl;
             req->SetSn(i);
             std::string data("file block sn=");
-            data+=std::to_string(i);
-            data+="\r\n";
+            data += std::to_string(i);
+            data += "\r\n";
             req->SetData(data);
-            decoder->SerializeToStream(ss,req);
-            usleep(100*1000);
-        } });
-    iom.Schedule([ss, decoder]()
-                 {
-        int sn=0;
-        while(true)
-        {
-            auto msg=decoder->ParseFromStream(ss);
-            Xten::xftp::XftpResponse::ptr rsp=std::dynamic_pointer_cast<Xten::xftp::XftpResponse>(msg);
-            if(!rsp)
+            decoder->SerializeToStream(ss, req);
+            static int sn = 0;
+            auto msg = decoder->ParseFromStream(ss);
+            Xten::xftp::XftpResponse::ptr rsp = std::dynamic_pointer_cast<Xten::xftp::XftpResponse>(msg);
+            if (!rsp)
                 break;
-             if(rsp->GetSn()<sn)
-             {
-                std::cout<<"error"<<std::endl;
-                break;
-             }
-             std::cout<<"rsp="<<rsp->ToString()<<rsp->GetResultStr()<<std::endl;
-             sn=rsp->GetSn();
-    } });
+            if (rsp->GetSn() < sn)
+            {
+                std::cout << "error" << std::endl;
+            }
+            std::cout << "rsp=" << rsp->ToString() << rsp->GetResultStr() << std::endl;
+            sn = rsp->GetSn();
+} });
+    //     for(int i=0;i<10000;i++)
+    //     {
+    //         std::cout<<"i="<<i<<std::endl;
+    //         req->SetSn(i);
+    //         std::string data("file block sn=");
+    //         data+=std::to_string(i);
+    //         data+="\r\n";
+    //         req->SetData(data);
+    //         decoder->SerializeToStream(ss,req);
+    //         usleep(100*1000);
+    //     } });
+    // iom.Schedule([ss, decoder]()
+    //              {
+    //     int sn=0;
+    //     while(true)
+    //     {
+    //         auto msg=decoder->ParseFromStream(ss);
+    //         Xten::xftp::XftpResponse::ptr rsp=std::dynamic_pointer_cast<Xten::xftp::XftpResponse>(msg);
+    //         if(!rsp)
+    //             break;
+    //          if(rsp->GetSn()<sn)
+    //          {
+    //             std::cout<<"error"<<std::endl;
+    //             break;
+    //          }
+    //          std::cout<<"rsp="<<rsp->ToString()<<rsp->GetResultStr()<<std::endl;
+    //          sn=rsp->GetSn();
+    // } });
     return 0;
 }

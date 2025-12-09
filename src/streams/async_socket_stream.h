@@ -175,10 +175,12 @@ namespace Xten
         std::list<SendCtx::ptr> _sendCtxQue;
         // 读写协程启动的信号量
         FiberSemphore _waitFiberSem;
-        // 写协程无任务挂起信号量
-        FiberSemphore _FiberSem;
+
         // 锁保证多线程下reqCtxs和senCtxQue的线程安全
-        RWMutex _queMtx;
+        FiberMutex _queMtx;
+
+        // 写协程无任务挂起信号量
+        FiberCondition _cond;
         RWMutex _ctxsMtx;
         uint32_t _sn;              // 该异步socket的请求序列号ctx的sn
         bool _autoConnect;         // 是否自动重连

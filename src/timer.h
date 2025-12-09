@@ -146,7 +146,7 @@ namespace Xten
     {
     public:
         typedef std::shared_ptr<TimerWheelManager> ptr;
-        TimerWheelManager(IOManager* iom=nullptr);
+        TimerWheelManager();
         virtual ~TimerWheelManager() ;
         // 添加定时器
         TimerW::ptr AddTimer(int time_ms, std::function<void()> func, bool recurring = false);
@@ -182,7 +182,6 @@ namespace Xten
         uint64_t _current_point;                             // 系统运行时间，精度10ms
         Xten::Thread _timerThread;                           //专门处理定时任务的定时器线程
         std::atomic<bool> _b_stop;                          //是否终止定时器
-        IOManager* _iom;                                     //执行定时器任务的io调度器
     };
 }
 

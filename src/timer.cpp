@@ -272,12 +272,11 @@ namespace Xten
 #endif
         return t;
     }
-    TimerWheelManager::TimerWheelManager(IOManager* iom)
+    TimerWheelManager::TimerWheelManager()
         : _time(0),
           _current(0),
           _b_stop(false),
-          _timerThread(),
-          _iom(iom)
+          _timerThread()
     {
         _near.resize(TIME_NEAR);
         _t.resize(4);
@@ -291,7 +290,7 @@ namespace Xten
             while(!_b_stop)
             {
                 ExpireTimer();
-                usleep(250*10);
+                usleep(250*10); //定时器精读为10ms
             }
             ClearTimer(); }, "TimerThread");
     }
@@ -466,13 +465,7 @@ namespace Xten
         }
         for (auto &func : _tasks)
         {
-            // 执行定时器对应的任务--交给调度器线程池完成任务（指定了执行的调度器）
-            if(_iom)
-            {
-                _iom->Schedule(std::move(func));
-            }else{
-                func(); //未指定调度器 ---当前线程执行
-            }
+            func(); //未指定调度器 ---当前线程执行
         }
     }
     void TimerWheelManager::add_node(TimerW::ptr timer)

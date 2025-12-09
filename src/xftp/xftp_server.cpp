@@ -16,7 +16,7 @@ namespace Xten
         void XftpServer::handleClient(TcpServer::ptr self, Socket::ptr client)
         {
             XftpSession::ptr session = std::make_shared<XftpSession>(client);
-            session->startWriter();
+            session->startWriter(); //启动写协程
             do
             {
                 // 1.recv
@@ -31,7 +31,10 @@ namespace Xten
                     break;
                 int ret = servlet->handle(req, nullptr, session);
                 if (ret != 0)
+                {
                     XTEN_LOG_ERROR(g_logger) << "handle XftpSession error";
+                    break;
+                }
             } while (session->IsConnected());
             XTEN_LOG_DEBUG(g_logger) << "XftpSession:" << session->GetPeerAddrString() << " close";
             // 及时通知写协程退出---防止内存泄露
