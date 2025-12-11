@@ -238,7 +238,7 @@ namespace Xten
             if (servConf.type == "http")
             {
                 server = std::make_shared<Xten::http::HttpServer>(accept_w, io_w, process_w, p_servConf);
-                server->GetTimer()->AddTimer(20,[](){XTEN_LOG_DEBUG(g_logger)<<"test on timer"<<TimeUitl::GetCurrentMS()<<std::endl;},true);
+                // server->GetTimer()->AddTimer(20,[](){XTEN_LOG_DEBUG(g_logger)<<"test on timer"<<TimeUitl::GetCurrentMS()<<std::endl;},true);
             }
             else if (servConf.type == "websocket")
             {

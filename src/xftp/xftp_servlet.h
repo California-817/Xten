@@ -12,10 +12,12 @@ namespace Xten
     namespace xftp
     {
         //文件任务操作码
+        //偶数：上传类型任务
+        //奇数：下载类型任务
         enum XftpOptCmd
         {
             UPLOAD_TEST=-1,
-            UPLOAD_COMMON_FILE=0,
+            UPLOAD_COMMON_FILE=0, 
             DOWNLOAD_COMMON_FILE=1,
         };
         /**
