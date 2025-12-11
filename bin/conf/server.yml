@@ -19,7 +19,7 @@ servers:
       timewheel: 0
       ssl: 0
     - address: ["0.0.0.0:8062", "0.0.0.0:8061"] #分布式Rock服务器配置
-      timeout: 1000
+      timeout: 12000
       name: Xten/Rock/1.0
       accept_worker: accept
       io_worker: io

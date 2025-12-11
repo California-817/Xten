@@ -10,4 +10,5 @@ a
 main
 /bin/XtenFrame
 /bin/XftpClient
+/bin/rockClient
 /.vscode/

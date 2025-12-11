@@ -1,5 +1,6 @@
 #include "timer.h"
 #include "util.h"
+#include"worker.h"
 #include"iomanager.h"
 namespace Xten
 {
@@ -463,9 +464,13 @@ namespace Xten
             // 若发生重新映射，若time的指向有任务，则需要执行
             timer_execute(_tasks);
         }
+        static auto timer_worker=Xten::WorkerManager::GetInstance()->GetAsIOManager("time").get();
         for (auto &func : _tasks)
         {
-            func(); //未指定调度器 ---当前线程执行
+            if(timer_worker)
+                timer_worker->Schedule(func);
+            else
+                func(); //未指定调度器 ---当前线程执行
         }
     }
     void TimerWheelManager::add_node(TimerW::ptr timer)
