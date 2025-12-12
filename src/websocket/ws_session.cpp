@@ -2,6 +2,7 @@
 #include "log.h"
 #include <endian.h>
 #include "config.h"
+#include "../iomanager.h"
 namespace Xten
 {
     namespace http
@@ -25,10 +26,83 @@ namespace Xten
             };
             WSMessageSizeInit __wsSizeInit;
         }
-        WSSession::WSSession(Socket::ptr socket, bool is_owner)
-            : HttpSession(socket, is_owner)
+        WSSession::WSSession(Socket::ptr socket, std::shared_ptr<WSServer> serv, bool is_owner)
+            : HttpSession(socket, is_owner),
+              _cond(_mtx),
+              _sem(1),
+              _serv(serv)
         {
         }
+
+        void WSSession::StartSender()
+        {
+            auto iom = Xten::IOManager::GetThis();
+            XTEN_ASSERT(iom);
+            auto self = shared_from_this();
+            iom->Schedule(std::bind(&WSSession::doSend, this, self));
+        }
+
+        // 写协程函数
+        void WSSession::doSend(WSSession::ptr self)
+        {
+            XTEN_LOG_DEBUG(g_logger) << "WSSession Send Fiber begin";
+            _sem.wait(); // 1-0
+            try
+            {
+                do
+                {
+                    std::list<std::pair<WSFrameMessage::ptr, bool>> tmp;
+                    {
+                        FiberMutex::Lock lock(_mtx);
+                        while (_sendQueue.empty() && IsConnected())
+                        {
+                            _cond.wait();
+                        }
+                        tmp.swap(_sendQueue);
+                    }
+                    // send
+                    bool b_force_stop = false;
+                    for (auto &rsp : tmp)
+                    {
+                        if (!rsp.first) // force close or timeout
+                        {
+                            b_force_stop = true;
+                            break;
+                        }
+                        else if (rsp.first->GetOpCode() == WSFrameHead::OPCODE::PING)
+                        {
+                            if (WSPing(self.get()) < 0)
+                            {
+                                b_force_stop = true;
+                                break;
+                            }
+                        }
+                        else if (rsp.first->GetOpCode() == WSFrameHead::OPCODE::PONG)
+                            if (WSPong(self.get()) < 0)
+                            {
+                                b_force_stop = true;
+                                break;
+                            }
+                            else if (
+                                WSSendMessage(self.get(), rsp.first, false, rsp.second) < 0)
+                            {
+                                b_force_stop = true;
+                                break;
+                            }
+                    }
+                    if (b_force_stop)
+                        break;
+                } while (IsConnected());
+                Close(); // 关闭连接
+            }
+            catch (...)
+            {
+                XTEN_LOG_ERROR(g_logger) << "WSSession Send Fiber catch Exception";
+            }
+            _sem.post(); // 0-1
+            XTEN_LOG_DEBUG(g_logger) << "WSSession Send Fiber end";
+        }
+
         // 进行http协议升级websocket握手
         HttpRequest::ptr WSSession::HandleShake()
         {
@@ -97,31 +171,71 @@ namespace Xten
             }
             return nullptr;
         }
-        // 发送websocket消息体结构
-        int32_t WSSession::SendMessage(WSFrameMessage::ptr msg, bool fin)
+
+        // 开启超时定时器
+        void WSSession::StartTimer()
         {
-            return WSSendMessage(this, msg, false, fin);
+            if (_socket->GetRecvTimeOut() <= 0)
+                return; // 不超时
+            if (_timer)
+                _timer->cancel(); // cancel previous timer
+            _timer.reset();
+            auto wkself = std::weak_ptr<WSSession>(shared_from_this());
+            _timer = Xten::IOManager::GetThis()->addTimer(_timeout, [wkself]()
+                                                          {
+                auto self=wkself.lock();
+                if(self && self->IsConnected())
+                {
+                    self->SendMessage("long time no action,cut down connection",WSFrameHead::OPCODE::CLOSE,true);
+                    self->ForceClose(); 
+                    self->_timer.reset();
+                } }, false);
+        }
+
+        // 发送websocket消息体结构
+        void WSSession::SendMessage(WSFrameMessage::ptr msg, bool fin)
+        {
+            // return WSSendMessage(this, msg, false, fin);
+            pushMessage(msg, fin);
         }
         // 直接发送数据
-        int32_t WSSession::SendMessage(const std::string &data,
-                                       int32_t opcode, bool fin)
+        void WSSession::SendMessage(const std::string &data,
+                                    int32_t opcode, bool fin)
         {
-            return WSSendMessage(this, std::make_shared<WSFrameMessage>(opcode,data), false, fin);
+            // return WSSendMessage(this, std::make_shared<WSFrameMessage>(opcode,data), false, fin);
+            pushMessage(std::make_shared<WSFrameMessage>(opcode, data), fin);
         }
+        // 响应入队列函数
+        void WSSession::pushMessage(WSFrameMessage::ptr msg, bool fin)
+        {
+            {
+                FiberMutex::Lock _lock(_mtx);
+                _sendQueue.push_back(std::make_pair(msg, fin));
+            }
+            _cond.signal();
+        }
+
+        // 强制关闭连接
+        void WSSession::ForceClose()
+        {
+            pushMessage(nullptr, true);
+        }
+
         // 接收消息,返回消息体
         WSFrameMessage::ptr WSSession::RecvMessage()
         {
             return WSRecvMessage(this, false);
         }
         // 发送心跳ping帧
-        int32_t WSSession::Ping()
+        void WSSession::Ping()
         {
-            return WSPing(this);
+            pushMessage(std::make_shared<WSFrameMessage>(WSFrameHead::OPCODE::PING), true);
         }
         // 发送心跳pong帧
-        int32_t WSSession::Pong()
+        void WSSession::Pong()
         {
-            return WSPong(this);
+            // return WSPong(this);
+            pushMessage(std::make_shared<WSFrameMessage>(WSFrameHead::OPCODE::PONG), true);
         }
         extern int32_t WSSendMessage(Stream *stream, WSFrameMessage::ptr msg, bool client, bool fin)
         {

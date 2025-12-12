@@ -67,8 +67,11 @@ namespace Xten
                         continue;
                     }
                     if (_decoder->SerializeToStream(self, rsp.second) < 0)
-                        // error
+                    // error
+                    {
+                        isStop = true;
                         break;
+                    }
                 }
                 if (isStop)
                     break;
