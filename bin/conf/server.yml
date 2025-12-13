@@ -1,5 +1,5 @@
 servers:
-    - address: ["0.0.0.0:8080", "127.0.0.1:8000"] #http1.1服务器配置
+    - address: ["0.0.0.0:8081", "127.0.0.1:8000"] #http1.1服务器配置
       keepalive: 1
       timeout: 120000
       name: Xten/Http/1.1
@@ -9,7 +9,7 @@ servers:
       type: http
       timewheel: 1
       ssl: 0
-    - address: ["0.0.0.0:8081", "127.0.0.1:8001"] #websocket服务器配置
+    - address: ["0.0.0.0:8080", "127.0.0.1:8001"] #websocket服务器配置
       timeout: 120000
       name: Xten/Websocket/1.0
       accept_worker: accept

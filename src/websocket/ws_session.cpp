@@ -3,6 +3,7 @@
 #include <endian.h>
 #include "config.h"
 #include "../iomanager.h"
+#include "ws_server.h"
 namespace Xten
 {
     namespace http
@@ -103,6 +104,20 @@ namespace Xten
             XTEN_LOG_DEBUG(g_logger) << "WSSession Send Fiber end";
         }
 
+        // get server
+        std::shared_ptr<WSServer> WSSession::getServer()
+        {
+            auto serv = _serv.lock();
+            if (serv)
+                return serv;
+            return nullptr;
+        }
+        // set server
+        void WSSession::setServer(std::shared_ptr<WSServer> serv)
+        {
+            _serv = std::weak_ptr<WSServer>(serv);
+        }
+
         // 进行http协议升级websocket握手
         HttpRequest::ptr WSSession::HandleShake()
         {
@@ -175,7 +190,7 @@ namespace Xten
         // 开启超时定时器
         void WSSession::StartTimer()
         {
-            if (_socket->GetRecvTimeOut() <= 0)
+            if (_timeout <= 0)
                 return; // 不超时
             if (_timer)
                 _timer->cancel(); // cancel previous timer
@@ -184,6 +199,10 @@ namespace Xten
             _timer = Xten::IOManager::GetThis()->addTimer(_timeout, [wkself]()
                                                           {
                 auto self=wkself.lock();
+                if(self && self->_noActiveCb)
+                {
+                    self->_noActiveCb(self); //用户层注册超时回调函数
+                }
                 if(self && self->IsConnected())
                 {
                     self->SendMessage("long time no action,cut down connection",WSFrameHead::OPCODE::CLOSE,true);

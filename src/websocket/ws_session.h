@@ -89,6 +89,7 @@ namespace Xten
         {
         public:
             typedef std::shared_ptr<WSSession> ptr;
+            typedef std::function<void(std::shared_ptr<WSSession>)> onClientNoActiveCb;
             WSSession(Socket::ptr socket, std::shared_ptr<WSServer> serv, bool is_owner = true);
             // 启动写协程
             void StartSender();
@@ -116,8 +117,16 @@ namespace Xten
             void setId(const char* id) {_id=id;}
             //getid
             const std::string& getId() const {return _id;}
+
             void setTimeout(uint64_t ms) {_timeout=ms;}
             uint64_t getTimeout() const {return _timeout;}
+
+            //get server
+            std::shared_ptr<WSServer> getServer();
+            //set server
+            void setServer(std::shared_ptr<WSServer> serv);
+            //client no active callback
+            void setNoActiveCb(onClientNoActiveCb cb) {_noActiveCb=cb;}
         private:
             // 响应入队列函数
             void pushMessage(WSFrameMessage::ptr msg, bool fin = true);
@@ -125,6 +134,7 @@ namespace Xten
             void doSend(WSSession::ptr self);
             // 超时回调函数
             Timer::ptr _timer;                                          // 超时定时器
+            onClientNoActiveCb _noActiveCb;
             std::list<std::pair<WSFrameMessage::ptr, bool>> _sendQueue; // 发送队列
             Xten::FiberMutex _mtx;
             FiberCondition _cond;
