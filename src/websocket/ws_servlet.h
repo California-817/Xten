@@ -72,35 +72,32 @@ namespace Xten
                                 FunctionWSServlet::on_close_cb close_cb = nullptr);
             WSServlet::ptr getWSServlet(const std::string &uri);
         };
-        // class TestServlet : public WSServlet
-        // {
-        // public:
-        //     typedef std::shared_ptr<TestServlet> ptr;
-        //     TestServlet(const std::string &name)
-        //         : WSServlet(name)
-        //     {
-        //     }
-        //     // 一个websocket链接建立时调用 （返回0成功，返回非0失败）
-        inline int32_t TestonConnect(Xten::http::HttpRequest::ptr header, Xten::http::WSSession::ptr session)
+
+
+
+        class TestServlet
         {
-            std::cout << "on connected: " << header->toString() << std::endl;
-            return 0;
-        }
-        // 该websocket链接结束时调用
-        inline int32_t TestonClose(Xten::http::HttpRequest::ptr header, Xten::http::WSSession::ptr session)
-        {
-            std::cout << "on close: " << header->toString() << std::endl;
-            return 0;
-        }
-        // 返回0成功，返回非0失败
-        inline int32_t Testhandle(Xten::http::HttpRequest::ptr header, Xten::http::WSFrameMessage::ptr msg,
-                           Xten::http::WSSession::ptr session)
-        {
-            std::cout << "handle req: " << msg->GetData() << std::endl;
-            session->SendMessage(msg->GetData()+"server",WSFrameHead::OPCODE::TEXT_FRAME,true);
-            return 0;
-        }
-        // };
+        public:
+            static int32_t TestonConnect(Xten::http::HttpRequest::ptr header, Xten::http::WSSession::ptr session)
+            {
+                std::cout << "on connected: " << header->toString() << std::endl;
+                return 0;
+            }
+            // 该websocket链接结束时调用
+            static int32_t TestonClose(Xten::http::HttpRequest::ptr header, Xten::http::WSSession::ptr session)
+            {
+                std::cout << "on close: " << header->toString() << std::endl;
+                return 0;
+            }
+            // 返回0成功，返回非0失败
+            static int32_t Testhandle(Xten::http::HttpRequest::ptr header, Xten::http::WSFrameMessage::ptr msg,
+                                      Xten::http::WSSession::ptr session)
+            {
+                std::cout << "handle req: " << msg->GetData() << std::endl;
+                session->SendMessage(msg->GetData() + "server", WSFrameHead::OPCODE::TEXT_FRAME, true);
+                return 0;
+            }
+        };
     }
 
 }

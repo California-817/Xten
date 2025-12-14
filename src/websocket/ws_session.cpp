@@ -79,17 +79,21 @@ namespace Xten
                             }
                         }
                         else if (rsp.first->GetOpCode() == WSFrameHead::OPCODE::PONG)
+                        {
                             if (WSPong(self.get()) < 0)
                             {
                                 b_force_stop = true;
                                 break;
                             }
-                            else if (
-                                WSSendMessage(self.get(), rsp.first, false, rsp.second) < 0)
+                        }
+                        else
+                        {
+                            if (WSSendMessage(self.get(), rsp.first, false, rsp.second) < 0)
                             {
                                 b_force_stop = true;
                                 break;
                             }
+                        }
                     }
                     if (b_force_stop)
                         break;
@@ -261,13 +265,28 @@ namespace Xten
             do
             {
                 WSFrameHead head;
-                std::cout << "websocket head size: " << sizeof(head) << std::endl;
                 memset(&head, 0, sizeof(head));
                 int opcode = msg->GetOpCode();
                 head.opcode = opcode;
                 head.fin = fin;
                 head.mask = client; // 只有客户端才会发送mask掩码
-                int payloadlen = msg->GetData().size();
+                std::string data = msg->GetData();
+                // 关闭帧的payload（数据部分）必须遵循特定格式：
+                // 前2字节：状态码（Status Code），是一个16位无符号整数（uint16_t），以网络字节序（大端序）存储。常见状态码包括：
+                // 1000：正常关闭。
+                // 1001：服务器关闭。
+                // 1008：策略违规。
+                // 等等（完整列表见RFC 6455）。
+                // 剩余字节：可选的原因字符串（UTF-8编码的文本），用于描述关闭原因。
+                // 连接关闭帧的特殊处理：不要直接发送字符串作为关闭帧的payload。相反，构造正确的payload：前2字节为状态码【1000】，后跟原因字符串。
+                if (opcode == WSFrameHead::OPCODE::CLOSE)
+                {
+                    // For close frame, prepend status code 1000 (normal closure)
+                    uint16_t code = 1000;
+                    code = htons(code); // network byte order
+                    data.insert(0, std::string((char *)&code, 2));
+                }
+                int payloadlen = data.size();
                 if (payloadlen < 126)
                 {
                     head.payload = payloadlen;
@@ -280,6 +299,7 @@ namespace Xten
                 {
                     head.payload = 127;
                 }
+                XTEN_LOG_DEBUG(g_logger) << "ws send head:" << head.toString();
                 // 头部填充完毕---进行发送
                 if (stream->WriteFixSize(&head, sizeof(head)) <= 0)
                 {
@@ -310,7 +330,6 @@ namespace Xten
                     char mask[4];
                     uint32_t rand_val = rand();
                     memcpy(mask, &rand_val, sizeof(mask));
-                    std::string &data = msg->GetData();
                     for (int i = 0; i < data.size(); i++)
                     {
                         data[i] = data[i] ^ mask[i % 4];
@@ -321,7 +340,7 @@ namespace Xten
                     }
                 }
                 // 发送数据
-                if (stream->WriteFixSize(msg->GetData().c_str(), payloadlen) <= 0)
+                if (stream->WriteFixSize(data.c_str(), payloadlen) <= 0)
                 {
                     break;
                 }

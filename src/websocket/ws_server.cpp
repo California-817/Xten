@@ -61,13 +61,12 @@ namespace Xten
               _sn(1)
         {
             _dispatch = std::make_shared<WSServletDispatch>();
-            _dispatch->addServlet("/_/test",Testhandle,TestonConnect,TestonClose);
+            _dispatch->addServlet("/_/test",TestServlet::Testhandle,TestServlet::TestonConnect,TestServlet::TestonClose);
         }
         const char *WSServer::formSessionId(const WSSession::ptr &session)
         {
             static thread_local char buffer[64] = {0};
             snprintf(buffer, 63, "%s-%s#%ld", _name.c_str(), session->GetLocalAddrString().c_str(), _sn++);
-            std::cout<<buffer<<std::endl;
             session->setId(buffer);
             return buffer;
         }
