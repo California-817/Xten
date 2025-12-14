@@ -28,6 +28,7 @@ namespace Xten
         {
         public:
                 friend void FreeFiber(Fiber *ptr);
+                friend void FreeFiberToObjPool(Fiber *ptr);
                 friend class Scheduler;
                 typedef std::shared_ptr<Fiber> ptr;
                 enum Status
