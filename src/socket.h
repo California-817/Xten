@@ -26,8 +26,8 @@ namespace Xten
             IPv6 = AF_INET6,
             UNIX = AF_UNIX
         };
-        //提供静态工厂方法快速创建Socket
-        // 创建ipv4tcp套接字
+        // 提供静态工厂方法快速创建Socket
+        //  创建ipv4tcp套接字
         static Socket::ptr CreateTCP(Address::ptr addr);
         // 创建ipv4udp套接字
         static Socket::ptr CreateUDP(Address::ptr addr);
@@ -64,6 +64,9 @@ namespace Xten
         virtual ssize_t RecvFrom(void *buf, size_t len, Address::ptr from, int flags = 0);
         // udp读函数-多缓冲区(iovec *iov为iov数组的指针,iovcnt为数组的大小)
         virtual ssize_t RecvFromV(struct iovec *iov, int iovcnt, Address::ptr from, int flags = 0);
+        // 批量读取
+        virtual int RecvFromBatch(std::vector<iovec> &iov, int batch_size, std::vector<std::pair<Address::ptr, size_t>> &info,
+                                  int flags = 0);
         // tcp写函数-单缓冲区
         virtual ssize_t Send(const void *msg, size_t len, int flags = 0);
         // tcp写函数-多缓冲区

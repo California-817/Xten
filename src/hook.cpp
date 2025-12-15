@@ -7,7 +7,7 @@
 #include <dlfcn.h>
 #include <time.h>
 #include <sys/types.h>
- #include <sys/ioctl.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -23,6 +23,7 @@
     XX(recv)         \
     XX(recvfrom)     \
     XX(recvmsg)      \
+    XX(recvmmsg)     \
     XX(write)        \
     XX(writev)       \
     XX(send)         \
@@ -73,7 +74,7 @@ namespace Xten
         }
     };
 
-    static __Hook_Init __hookinit; //在main函数之前初始化原始接口
+    static __Hook_Init __hookinit; // 在main函数之前初始化原始接口
     bool is_hook_enable()
     {
         return t_hookable;
@@ -286,7 +287,7 @@ extern "C"
         {
             Xten::Timer::ptr timer;
             Xten::IOManager *iom = Xten::IOManager::GetThis();
-            std::shared_ptr<timer_condition> tmcond=std::make_shared<timer_condition>();
+            std::shared_ptr<timer_condition> tmcond = std::make_shared<timer_condition>();
             std::weak_ptr<timer_condition> wkcond(tmcond);
             if (timeout_ms != (uint64_t)-1)
             {
@@ -377,7 +378,11 @@ extern "C"
     {
         return do_io(sockfd, recvmsg_f, "recvmsg", Xten::IOManager::Event::READ, SO_RCVTIMEO, msg, flags);
     }
-
+    int recvmmsg(int sockfd, struct mmsghdr *msgvec, unsigned int vlen,
+                 int flags, struct timespec *timeout)
+    {
+        return do_io(sockfd, recvmmsg_f, "recvmmsg", Xten::IOManager::Event::READ, SO_RCVTIMEO, msgvec, vlen, flags, timeout);
+    }
     // write
     ssize_t write(int fd, const void *buf, size_t count)
     {

@@ -64,6 +64,10 @@ extern "C"
     typedef ssize_t (*recvmsg_fun)(int sockfd, struct msghdr *msg, int flags);
     extern recvmsg_fun recvmsg_f;
 
+    typedef int (*recvmmsg_fun)(int sockfd, struct mmsghdr *msgvec, unsigned int vlen,
+                                int flags, struct timespec *timeout);
+    extern recvmmsg_fun recvmmsg_f;
+
     // write
     typedef ssize_t (*write_fun)(int fd, const void *buf, size_t count);
     extern write_fun write_f;

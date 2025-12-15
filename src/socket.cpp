@@ -296,6 +296,39 @@ namespace Xten
         ssize_t ret = ::recvmsg(_sockfd, &msg, flags);
         return ret;
     }
+    // 批量读取
+    // 批量读取
+    int Socket::RecvFromBatch(std::vector<iovec> &iov, int batch_size, std::vector<std::pair<Address::ptr, size_t>> &info,
+                              int flags)
+    {
+        if (!IsConnected())
+        {
+            return -1;
+        }
+        //struct mmsghdr {
+        //        struct msghdr msg_hdr;  /* Message header */
+        //        unsigned int  msg_len;  /* Number of received bytes for header */};
+        struct mmsghdr msgs[batch_size];
+        memset(&msgs, 0, sizeof(msgs));
+        // 设置值
+        for (int i = 0; i < batch_size; i++)
+        {
+            msgs[i].msg_hdr.msg_iov = &iov[i];
+            msgs[i].msg_hdr.msg_iovlen = 1;
+            msgs->msg_hdr.msg_name = info[i].first->getAddr();
+            msgs->msg_hdr.msg_namelen = info[i].first->getAddrLen();
+        }
+        int ret = ::recvmmsg(_sockfd, msgs, batch_size, flags, nullptr);
+        // 设置info中的每条数据大小
+        if (ret > 0)
+        {
+            for (int i = 0; i < ret; i++)
+            {
+                info[i].second = msgs[i].msg_len;
+            }
+        }
+        return ret;
+    }
     // tcp写函数-单缓冲区
     ssize_t Socket::Send(const void *msg, size_t len, int flags)
     {
