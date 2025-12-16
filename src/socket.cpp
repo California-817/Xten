@@ -297,7 +297,6 @@ namespace Xten
         return ret;
     }
     // 批量读取
-    // 批量读取
     int Socket::RecvFromBatch(std::vector<iovec> &iov, int batch_size, std::vector<std::pair<Address::ptr, size_t>> &info,
                               int flags)
     {

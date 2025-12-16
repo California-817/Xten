@@ -50,9 +50,10 @@ file(GLOB ROCK_SOURCES src/rock/*.cpp)
 file(GLOB SYSTEM_SOURCES src/system/*.cpp)
 file(GLOB MODULE_SOURCES src/module/*.cpp)
 file(GLOB SERVLETS_SOURCES src/http/servlets/*.cpp)
-file(GLOB DB_SOURCES src/db/*.cpp src/db/*.cc)
+file(GLOB DB_SOURCES src/db/*.cpp)
 file(GLOB EMAIL_SOURCES src/email/*.cpp)
 file(GLOB XFTP_SOURCES src/xftp/*.cpp)
+file(GLOB KCP_SOURCES src/kcp/*.cpp src/kcp/third_part/*.c)
 
 list(APPEND SOURCES 
                     ${HTTP_SOURCES} 
@@ -65,6 +66,7 @@ list(APPEND SOURCES
                     ${DB_SOURCES}
                     ${EMAIL_SOURCES}
                     ${XFTP_SOURCES}
+                    ${KCP_SOURCES}
                     "src/libco/coctx.cpp"
 )
 list(REMOVE_ITEM SOURCES ${PROJECT_SOURCE_DIR}/src/system/main.cpp)

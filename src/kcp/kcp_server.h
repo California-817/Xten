@@ -67,6 +67,8 @@ namespace Xten
             
             uint64_t _recvTimeout; //接收超时时间
             
+            uint32_t _maxConnNum; //最大连接数量
+
             KcpConfig::ptr _config; //config
         };
     } // namespace kcp
