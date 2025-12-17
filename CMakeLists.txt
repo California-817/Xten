@@ -85,6 +85,7 @@ set_target_properties(Xten PROPERTIES
 add_executable(XtenFrame src/system/main.cpp)
 add_executable(XftpClient test/xftp_client.cpp)
 add_executable(rockClient test/test_rock.cpp)
+add_executable(kcpClient test/test_kcp.cpp)
 set(COMMON_LIBS    
                 ssl
                 crypto
@@ -115,6 +116,11 @@ target_link_libraries(XtenFrame
 )
 
 target_link_libraries(XftpClient
+                    Xten
+                    ${YAML_CPP_LIBRARIES}
+                    ${COMMON_LIBS}
+)   
+target_link_libraries(kcpClient
                     Xten
                     ${YAML_CPP_LIBRARIES}
                     ${COMMON_LIBS}

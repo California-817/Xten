@@ -318,6 +318,7 @@ namespace Xten
             msgs->msg_hdr.msg_namelen = info[i].first->getAddrLen();
         }
         int ret = ::recvmmsg(_sockfd, msgs, batch_size, flags, nullptr);
+        // XTEN_LOG_INFO(g_logger)<<"ret=="<<ret;
         // 设置info中的每条数据大小
         if (ret > 0)
         {

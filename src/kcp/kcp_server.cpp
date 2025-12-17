@@ -5,7 +5,7 @@ namespace Xten
     namespace kcp
     {
         static Logger::ptr g_logger = XTEN_LOG_NAME("system");
-        KcpServer::KcpServer(MsgHandler::ptr msghandler,IOManager *io_worker,
+        KcpServer::KcpServer(MsgHandler::ptr msghandler, IOManager *io_worker,
                              KcpConfig::ptr config)
             : _io_worker(io_worker),
               _isStop(true),
@@ -19,26 +19,8 @@ namespace Xten
         }
         bool KcpServer::Bind(Address::ptr addr)
         {
-            // udp绑定
-            // auto num = m_kcpConfig->_read_coroutine_num;
-            int opt = 1;
-            int num=1;
-            for (uint16_t i = 0; i < num; i++)
-            {
-                Socket::ptr udp_socket = Socket::CreateUDPSocket();
-                // 设置port复用
-                udp_socket->Setsockopt(SOL_SOCKET, SO_REUSEPORT, opt);
-                // bind
-                if (!udp_socket->Bind(addr))
-                {
-                    XTEN_LOG_ERROR(g_logger) << "KcpServer bind fail errno="
-                                             << errno << " errstr=" << strerror(errno)
-                                             << " addr=[" << addr->toString() << "]";
-                    return false;
-                }
-                // success
-                _udpSockets.push_back(udp_socket);
-            }
+            XTEN_ASSERT(_io_worker);
+            _listener = KcpListener::Create(addr, 10000, _io_worker);
             return true;
         }
 
@@ -48,15 +30,62 @@ namespace Xten
             if (_isStop == false)
                 return; // running
             XTEN_ASSERT(_io_worker);
+            _listener->Listen();
             auto self = shared_from_this();
-            for (auto &udp_channel : _udpSockets)
-            {
-                // 调度读协程
-                // _io_worker->Schedule(std::bind(&KcpServer::doRead, this, udp_channel, self));
-            }
+            _io_worker->Schedule(std::bind(&KcpServer::startAccept, this, self));
             _isStop = false;
         }
+        void KcpServer::startAccept(std::shared_ptr<KcpServer> self)
+        {
+            // 服务器未终止一直接受链接
+            while (!_isStop)
+            {
+                _listener->SetAcceptTimeout(1000);
+                KcpSession::ptr client = _listener->Accept();
+                if (client)
+                {
+                    // 接受成功
+                    // client->SetRecvTimeOut(_recvTimeout);
+                    // 将该client的处理交给_ioWorker
 
+                    // std::bind 在绑定成员函数时，会在运行时根据对象的实际类型进行动态绑定
+                    // 如果子类继承自 TcpServer 并重写了 handleClient 虚函数，则绑定的函数是子类函数
+                    _io_worker->Schedule(std::bind(&KcpServer::handleClient,
+                                                   this, self, client));
+                }
+                else
+                {
+                    XTEN_LOG_ERROR(g_logger) << "accept errno=" << errno
+                                             << " errstr=" << strerror(errno);
+                }
+            }
+            _listener->Close();
+        }
+        void KcpServer::handleClient(std::shared_ptr<KcpServer> self, KcpSession::ptr session)
+        {
+            session->Start();
+            sleep(2);
+            session->ForceClose();
+            XTEN_LOG_DEBUG(g_logger) << "waitsender begin";
+            session->WaitSender();
+            XTEN_LOG_DEBUG(g_logger) << "waitsender success";
+            session->Close();
+            // client->
+            // while (true)
+            // {
+            //     auto req = session->ReadMessage();
+            //     if (req)
+            //     {
+            //         req->ToString();
+            //         auto rsp = req->CreateKcpResponse();
+            //         rsp->SetResult(0);
+            //         rsp->SetResultStr("success");
+            //         rsp->SetData(req->GetData() + "server");
+            //         session->SendMessage(rsp);
+            //     }
+            // }
+            // todo
+        }
         // void KcpServer::doRead(Socket::ptr udp_socket, KcpServer::ptr self)
         // {
         //     XTEN_LOG_INFO(g_logger) << "KcpServer doRead start! udp_socket=" << *udp_socket;
@@ -70,5 +99,10 @@ namespace Xten
         //     }
         //     XTEN_LOG_INFO(g_logger) << "KcpServer doRead end! udp_socket=" << *udp_socket;
         // }
+        // 停止服务器
+        void KcpServer::Stop()
+        {
+            _isStop = true;
+        }
     }
 }

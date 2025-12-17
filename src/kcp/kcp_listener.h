@@ -24,10 +24,10 @@ namespace Xten
         class KcpListener : public std::enable_shared_from_this<KcpListener>
         {
         private:
-            KcpListener(Address::ptr addr, uint32_t maxConnNum, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
-                        int interval,                                                           // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
-                        int resend,                                                             // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
-                        int nc);                                                                // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制
+            KcpListener(Address::ptr addr, uint32_t maxConnNum, IOManager *iom, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
+                        int interval,                                                                           // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
+                        int resend,                                                                             // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
+                        int nc);                                                                                // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制
         public:
             friend class KcpSession;
 
@@ -37,9 +37,10 @@ namespace Xten
             typedef FiberSemphore SemType;
 
             // 工厂方法创建listener
-            static std::shared_ptr<KcpListener> Create(Address::ptr addr, uint32_t maxConnNum, int coroutine_num = 10, int nodelay = 1, int interval = 20, int resend = 2, int nc = 1)
+            static std::shared_ptr<KcpListener> Create(Address::ptr addr, uint32_t maxConnNum, IOManager *iom = IOManager::GetThis(), int coroutine_num = 10,
+                                                       int nodelay = 1, int interval = 20, int resend = 2, int nc = 1)
             {
-                return std::shared_ptr<KcpListener>(new KcpListener(addr, maxConnNum, coroutine_num, nodelay, interval, resend, nc));
+                return std::shared_ptr<KcpListener>(new KcpListener(addr, maxConnNum,iom, coroutine_num, nodelay, interval, resend, nc ));
             }
 
             ~KcpListener();
@@ -48,7 +49,7 @@ namespace Xten
             // 接受一个新的连接，返回nullptr表示没有新连接
             KcpSession::ptr Accept();
             // 设置accept超时时间[0表示不超时]
-            void SetAcceptTimeout(uint64_t v = 0) { _accept_timeout_ms = v; }
+            void SetAcceptTimeout(uint64_t v_ms = 0) { _accept_timeout_ms = v_ms; }
             // 获取accept超时时间
             uint64_t GetAcceptTimeout() const { return _accept_timeout_ms; }
             // 关闭
@@ -78,6 +79,8 @@ namespace Xten
             int _interval;
             int _resend;
             int _nc;
+
+            IOManager *_iom;
 
             std::atomic<uint32_t> _convid;         // convid
             uint32_t _max_conn_num;                // 服务器最大连接数量

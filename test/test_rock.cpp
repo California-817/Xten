@@ -3,22 +3,33 @@
 #include "../include/Xten.h"
 #include "../src/objpool.h"
 #include "../src/kcp/kcp_listener.h"
+#include "../src/kcp/kcp_server.h"
+using namespace Xten::kcp;
 int main()
 {
     Xten::Logger::ptr logger = XTEN_LOG_NAME("system");
     // logger->SetLevelLimit(Xten::LogLevel::INFO);
-    Xten::IOManager iom(10);
+    Xten::IOManager iom(4);
     auto addr = Xten::IPv4Address::Create("0.0.0.0", 8080);
-    iom.Schedule([=]()
-                 {
-        // Xten::kcp::KcpListener::ptr listener=std::make_shared<Xten::kcp::KcpListener>(addr);
-    auto listener=Xten::kcp::KcpListener::Create(addr,1000);
-    listener->SetAcceptTimeout(10*1000);
-    listener->Listen();
-    listener->Accept();
-    sleep(5);
-    listener->Close();
-});
+
+    iom.Schedule([addr](){ 
+        
+        KcpServer::ptr server = std::make_shared<KcpServer>(nullptr);
+        server->Bind(addr);
+        server->Start();
+        sleep(10);
+        server->Stop();
+    });
+    //     iom.Schedule([=]()
+    //                  {
+    //         // Xten::kcp::KcpListener::ptr listener=std::make_shared<Xten::kcp::KcpListener>(addr);
+    //     auto listener=Xten::kcp::KcpListener::Create(addr,1000);
+    //     listener->SetAcceptTimeout(2*1000);
+    //     listener->Listen();
+    //     listener->Accept();
+    //     sleep(2);
+    //     listener->Close();
+    // });
 
     // 计算协程创建和销毁的开销
     // auto start = Xten::TimeUitl::GetCurrentMS();

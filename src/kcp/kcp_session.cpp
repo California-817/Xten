@@ -16,7 +16,8 @@ namespace Xten
                                int nc)       // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制)
 
             : _sendque_cond(_sendque_mtx),
-              _kcpcb_cond(_kcpcb_mtx)
+              _kcpcb_cond(_kcpcb_mtx),
+              _sem(1)
         {
             _kcp_cb = ikcp_create(_convid, this);
             XTEN_ASSERT(_kcp_cb);
@@ -182,7 +183,7 @@ namespace Xten
                     {
                         MutexType::Lock lock(_sendque_mtx);
                         while (_sendque.empty() &&
-                               !_b_close && !_b_read_error && _b_write_error)
+                               !_b_close && !_b_read_error && !_b_write_error)
                         {
                             _sendque_cond.wait();
                         }
@@ -209,8 +210,8 @@ namespace Xten
                     }
                     if (b_force_stop)
                         break;
-                } while (!_b_close && !_b_read_error && _b_write_error);
-
+                } while (!_b_close && !_b_read_error && !_b_write_error);
+                std::cout<<_b_close<<_b_read_error<<_b_write_error<<"!!!!!!!!!!"<<std::endl;
                 Close(); // 关闭连接
             }
             catch (...)

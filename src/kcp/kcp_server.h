@@ -44,9 +44,9 @@ namespace Xten
             typedef std::function<uint32_t(KcpSession::ptr)> onClientNoActiveCb;
             typedef std::function<uint32_t(KcpSession::ptr)> onConnectCb;
             typedef std::function<uint32_t(KcpSession::ptr)> onCloseCb;
-            KcpServer(MsgHandler::ptr msghandler,IOManager *io_worker = IOManager::GetThis(),
+            KcpServer(MsgHandler::ptr msghandler, IOManager *io_worker = IOManager::GetThis(),
                       KcpConfig::ptr config = nullptr);
-            ~KcpServer();
+            ~KcpServer()=default;
             // bind
             bool Bind(Address::ptr addr);
             // 启动若干协程进行io操作
@@ -65,14 +65,16 @@ namespace Xten
 
             uint64_t GetRecvTimeout() const { return _recvTimeout; }
 
-        private:
+        protected:
+            virtual void startAccept(std::shared_ptr<KcpServer> self);
+            virtual void handleClient(std::shared_ptr<KcpServer> self, KcpSession::ptr client);
+
         private:
             IOManager *_io_worker; // io worker
             // handler --从配置选项中获取
             MsgHandler::ptr _msgHandler;
-            bool _isStop;
-            KcpConfig::ptr m_kcpConfig;           // 配置属性
-            std::vector<Socket::ptr> _udpSockets; // udp套接字---每个读协程都有一个socket【即使在同一个端口】
+            std::atomic<bool> _isStop;
+            KcpConfig::ptr m_kcpConfig; // 配置属性
 
             KcpListener::ptr _listener; // 监听套接字
 

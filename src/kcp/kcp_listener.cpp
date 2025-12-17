@@ -4,6 +4,7 @@
 #include "../macro.h"
 #include "../iomanager.h"
 #include "kcp_util.hpp"
+#include <ctime>
 namespace Xten
 {
     namespace kcp
@@ -11,9 +12,9 @@ namespace Xten
         // 最好是把配置全部放到kcpserver中统一管理----todo
         static Logger::ptr g_logger = XTEN_LOG_NAME("system");
 
-        KcpListener::KcpListener(Address::ptr addr, uint32_t maxConnNum, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
-                                 int interval,                                                           // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
-                                 int resend,                                                             // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
+        KcpListener::KcpListener(Address::ptr addr, uint32_t maxConnNum, IOManager *iom, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
+                                 int interval,                                                                           // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
+                                 int resend,                                                                             // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
                                  int nc)
             : _accept_timeout_ms(0),
               _coroutine_num(coroutine_num),
@@ -27,7 +28,8 @@ namespace Xten
               _nodelay(nodelay),
               _interval(interval),
               _resend(resend),
-              _nc(nc)
+              _nc(nc),
+              _iom(iom)
         {
             // 创建udpsocket并设置端口复用
             for (int i = 0; i < _coroutine_num; i++)
@@ -40,6 +42,7 @@ namespace Xten
                 _udp_sockets.push_back(udp_socket);
             }
             // 随机生成起始convid [1000-10999]
+            std::srand(static_cast<unsigned>(std::time(nullptr)));
             _convid = std::rand() % 10000 + 1000;
         }
         KcpListener::~KcpListener()
@@ -52,8 +55,6 @@ namespace Xten
         {
             if (backlog > 0)
                 _backlog_size = backlog;
-            auto iom = Xten::IOManager::GetThis();
-            XTEN_ASSERT(iom);
             for (int i = 0; i < _coroutine_num; ++i)
             {
                 // bind
@@ -65,9 +66,9 @@ namespace Xten
                     return false;
                 }
                 // 调度recv协程
-                iom->Schedule(std::bind(&KcpListener::doRecvLoop, this, shared_from_this(), _udp_sockets[i]));
+                _iom->Schedule(std::bind(&KcpListener::doRecvLoop, this, shared_from_this(), _udp_sockets[i]));
                 // 调度send协程
-                iom->Schedule(std::bind(&KcpListener::doSendLoop, this, shared_from_this(), _udp_sockets[i]));
+                _iom->Schedule(std::bind(&KcpListener::doSendLoop, this, shared_from_this(), _udp_sockets[i]));
             }
             return true;
         }
@@ -151,13 +152,16 @@ namespace Xten
                 // 循环读取
                 for (;;)
                 {
+                    // XTEN_LOG_INFO(g_logger) << "running";
                     ba->SetPosition(0);
-                    // 读取裸数据包 -----> 批量读取提高性能
+                    // // 读取裸数据包 -----> 批量读取提高性能
                     std::vector<iovec> iovs;                                // 缓冲区指针+len
                     ba->GetWriteBuffers(iovs, maxBatchSize * (1024 + 512)); // 拿到batchsize个的缓冲区
                     std::vector<std::pair<Address::ptr, size_t>> infos;
                     infos.resize(maxBatchSize, std::make_pair(std::make_shared<IPv4Address>(), 0));
                     int ret = udpChannel->RecvFromBatch(iovs, maxBatchSize, infos);
+                    // Xten::Address::ptr addr=std::make_shared<IPv4Address>();
+                    // int ret=udpChannel->RecvFrom(ba->GetBeginNodePtr(),ba->GetNodeSize(),addr);
                     // 注意：ba里面的读写位置并没有改变
                     if (ret <= 0)
                     {
