@@ -6,24 +6,23 @@ namespace Xten
     {
         static Logger::ptr g_logger = XTEN_LOG_NAME("system");
         KcpServer::KcpServer(IOManager *io_worker,
-                             IOManager *process_worker,
                              KcpConfig::ptr config)
             : _io_worker(io_worker),
-              _process_worker(process_worker),
               _isStop(true),
               m_kcpConfig(config),
               _recvTimeout(2000 * 60) // 默认2min
         {
             if (config)
             {
-                _recvTimeout = config->_port;
+                // _recvTimeout = config->_port;
             }
         }
         bool KcpServer::Bind(Address::ptr addr)
         {
             // udp绑定
-            auto num = m_kcpConfig->_read_coroutine_num;
+            // auto num = m_kcpConfig->_read_coroutine_num;
             int opt = 1;
+            int num=1;
             for (uint16_t i = 0; i < num; i++)
             {
                 Socket::ptr udp_socket = Socket::CreateUDPSocket();

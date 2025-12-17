@@ -8,22 +8,25 @@ namespace Xten
 {
     namespace kcp
     {
+        // 最好是把配置全部放到kcpserver中统一管理----todo
         static Logger::ptr g_logger = XTEN_LOG_NAME("system");
-        static Xten::ConfigVar<uint64_t>::ptr g_kcp_accept_timeout =
-            Xten::Config::LookUp<uint64_t>("kcp.listener.accept_timeout", 2000, "kcp accept timeout ms");
-        static Xten::ConfigVar<uint32_t>::ptr g_kcp_fiber_num =
-            Xten::Config::LookUp<uint32_t>("kcp.listener.internal_fibernum", 10, "kcp internal fiber num");
 
-        KcpListener::KcpListener(Address::ptr addr)
-            : _accept_timeout_ms(g_kcp_accept_timeout->GetValue()),
-              _wait_fiber(g_kcp_fiber_num->GetValue()),
-              _coroutine_num(g_kcp_fiber_num->GetValue()),
+        KcpListener::KcpListener(Address::ptr addr, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
+                                 int interval,                                      // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
+                                 int resend,                                        // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
+                                 int nc)
+            : _accept_timeout_ms(0),
+              _coroutine_num(coroutine_num),
               _b_timeout(false),
               _b_close(false),
               _b_read_error(false),
               _read_error_code(0),
               _local_address(addr),
-              _backlog_cond(_backlog_mtx)
+              _backlog_cond(_backlog_mtx),
+              _nodelay(nodelay),
+              _interval(interval),
+              _resend(resend),
+              _nc(nc)
         {
             // 创建udpsocket并设置端口复用
             for (int i = 0; i < _coroutine_num; i++)
@@ -35,8 +38,8 @@ namespace Xten
                 XTEN_ASSERT(udp_socket->Setsockopt(SOL_SOCKET, SO_REUSEPORT, opt));
                 _udp_sockets.push_back(udp_socket);
             }
-            // 随机生成起始convid [0-9999]
-            _convid = std::rand() % 10000;
+            // 随机生成起始convid [1000-10999]
+            _convid = std::rand() % 10000 + 1000;
         }
         KcpListener::~KcpListener()
         {
@@ -62,7 +65,8 @@ namespace Xten
                 }
                 // 调度recv协程
                 iom->Schedule(std::bind(&KcpListener::doRecvLoop, this, shared_from_this(), _udp_sockets[i]));
-                // todo 可能还要加上send协程
+                // 调度send协程
+                iom->Schedule(std::bind(&KcpListener::doSendLoop, this, shared_from_this(), _udp_sockets[i]));
             }
             return true;
         }
@@ -138,8 +142,7 @@ namespace Xten
         // 接收数据协程函数
         void KcpListener::doRecvLoop(KcpListener::ptr self, Socket::ptr udpChannel)
         {
-            // sem--
-            _wait_fiber.wait();
+            XTEN_LOG_INFO(g_logger) << "KcpListener doRecvLoop fiber begin";
             try
             {
                 // 输出缓冲区
@@ -175,8 +178,41 @@ namespace Xten
             {
                 XTEN_LOG_ERROR(g_logger) << "KcpListener doRecvLoop fiber catch exception";
             }
-            _wait_fiber.post();
             XTEN_LOG_INFO(g_logger) << "KcpListener doRecvLoop fiber exit";
+        }
+
+        // 发送数据协程函数
+        void KcpListener::doSendLoop(KcpListener::ptr self, Socket::ptr udpChannel)
+        {
+            // 只发送属于当前socket的session的数据
+            XTEN_LOG_INFO(g_logger) << "KcpListener doSendLoop fiber begin";
+            auto sockfd = udpChannel->GetSockFd();
+            try
+            {
+                while (!_b_close && !_b_read_error)
+                {
+                    std::unordered_map<std::string, KcpSession::ptr> senders;
+                    // 找到要发送的sessions
+                    {
+                        MutexType::Lock lock(_session_mtx);
+                        auto iter = _sessions.find(sockfd);
+                        if (iter != _sessions.end())
+                            senders = iter->second;
+                    }
+                    // 对当前的所有sessions副本进行数据发送
+                    for (auto &session : senders)
+                    {
+                        session.second->update();
+                    }
+                    // 间隔一段时间--每10ms调用一次
+                    usleep(1000 * _interval / 2);
+                }
+            }
+            catch (...)
+            {
+                XTEN_LOG_ERROR(g_logger) << "KcpListener doSendLoop fiber catch exception";
+            }
+            XTEN_LOG_INFO(g_logger) << "KcpListener doSendLoop fiber exit";
         }
 
         // 原始udp包处理 [data ， fromaddr]
@@ -186,11 +222,15 @@ namespace Xten
             std::pair<bool, KcpSession::ptr> isExisted;
             {
                 MutexType::Lock lock(_session_mtx);
-                auto iter = _sessions.find(from->toString());
-                if (iter != _sessions.end())
+                for (auto &sessions : _sessions)
                 {
-                    isExisted.first = true;
-                    isExisted.second = iter->second;
+                    auto iter = sessions.second.find(from->toString());
+                    if (iter != sessions.second.end())
+                    {
+                        isExisted.first = true;
+                        isExisted.second = iter->second;
+                        break;
+                    }
                 }
             }
             if (!isExisted.first)
@@ -207,16 +247,23 @@ namespace Xten
                     if (_accept_backlog.size() >= _backlog_size) // 连接队列已经满了
                         return;
                     lockq.unlock();
+                    {
+                        MutexType::Lock lock(_session_mtx);
+                        if (_sessions.size() >= _max_conn_num) // 服务器的连接数量达到上限
+                            return;
+                    }
                     // 没满--创建连接
                     // 1.给客户端发送连接响应包文
-                    uint32_t local_convid=_convid++;
+                    uint32_t local_convid = _convid++;
                     std::string backpacket = KcpUtil::making_connect_backpacket() + std::to_string(local_convid);
                     udpChannel->SendTo(backpacket.c_str(), backpacket.length(), from);
                     // 2.创建并保存连接
-                    KcpSession::ptr newss = std::make_shared<KcpSession>(); // todo 参数
+                    // KcpSession::ptr newss = std::make_shared<KcpSession>(udpChannel,shared_from_this(),from,local_convid) ; // todo 参数
+                    KcpSession::ptr newss = Xten::protected_make_shared<KcpSession>(udpChannel, shared_from_this(), from, local_convid,
+                                                                                    _nodelay, _interval, _resend, _nc);
                     {
                         MutexType::Lock lock(_session_mtx);
-                        _sessions[from->toString()] = newss;
+                        _sessions[udpChannel->GetSockFd()][from->toString()] = newss;
                     }
                     lockq.lock();
                     _accept_backlog.push_back(newss);
@@ -249,11 +296,14 @@ namespace Xten
         bool KcpListener::onSessionClose(const std::string &remote_addr)
         {
             MutexType::Lock lock(_session_mtx);
-            auto iter = _sessions.find(remote_addr);
-            if (iter != _sessions.end())
+            for (auto &sessions : _sessions)
             {
-                _sessions.erase(iter);
-                return true;
+                auto iter = sessions.second.find(remote_addr);
+                if (iter != sessions.second.end())
+                {
+                    sessions.second.erase(iter);
+                    return true;
+                }
             }
             return false;
         }
@@ -278,11 +328,12 @@ namespace Xten
                             //notify all session that udp socket is read error
                             {
                              MutexType::Lock lock(_session_mtx) ;
-                            for(auto& session:_sessions)
+                            for(auto& sessions:_sessions){
+                            for(auto& session:sessions.second)
                             {
                                 session.second->notifyReadError(code);
                             }
-                            }
+                            }}
                             _backlog_cond.signal(); });
         }
     } // namespace kcp

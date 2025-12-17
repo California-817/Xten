@@ -23,6 +23,11 @@ namespace Xten
         };
         class KcpListener : public std::enable_shared_from_this<KcpListener>
         {
+        private:
+            KcpListener(Address::ptr addr, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
+                        int interval,                                      // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
+                        int resend,                                        // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
+                        int nc);                                           // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制
         public:
             friend class KcpSession;
 
@@ -32,19 +37,18 @@ namespace Xten
             typedef FiberSemphore SemType;
 
             // 工厂方法创建listener
-            static std::shared_ptr<KcpListener> CreateKcpListener(Address::ptr addr)
+            static std::shared_ptr<KcpListener> Create(Address::ptr addr, int coroutine_num = 10, int nodelay = 1, int interval = 20, int resend = 2, int nc = 1)
             {
-                return std::shared_ptr<KcpListener>(new KcpListener(addr));
+                return std::shared_ptr<KcpListener>(new KcpListener(addr, coroutine_num, nodelay, interval, resend, nc));
             }
 
-            KcpListener(Address::ptr addr);
             ~KcpListener();
-            // 设置listen状态---开启协程
+            // 设置listen状态---开启内部协程
             bool Listen(int backlog = 128);
             // 接受一个新的连接，返回nullptr表示没有新连接
             KcpSession::ptr Accept();
-            // 设置accept超时时间
-            void SetAcceptTimeout(uint64_t v) { _accept_timeout_ms = v; }
+            // 设置accept超时时间[0表示不超时]
+            void SetAcceptTimeout(uint64_t v = 0) { _accept_timeout_ms = v; }
             // 获取accept超时时间
             uint64_t GetAcceptTimeout() const { return _accept_timeout_ms; }
             // 关闭
@@ -55,6 +59,8 @@ namespace Xten
         private:
             // 接收数据协程函数
             void doRecvLoop(KcpListener::ptr self, Socket::ptr udpChannel);
+            // 发送数据协程函数
+            void doSendLoop(KcpListener::ptr self, Socket::ptr udpChannel);
             // 原始udp包处理 [data ， fromaddr]
             void packetInput(const char *data, size_t len, Address::ptr from, Socket::ptr udpChannel);
             // 给session的关闭函数
@@ -67,17 +73,23 @@ namespace Xten
             void notifyReadError(int code);
 
         private:
-            std::atomic<uint32_t> _convid; // convid
+            // kcp config
+            int _nodelay;
+            int _interval;
+            int _resend;
+            int _nc;
 
+            std::atomic<uint32_t> _convid;         // convid
+            uint32_t _max_conn_num;                // 服务器最大连接数量
             Address::ptr _local_address;           // 监听的udp socket
             std::vector<Socket::ptr> _udp_sockets; // udp套接字
 
-            int _backlog_size;                                          // 全连接队列大小
-            std::list<KcpSession::ptr> _accept_backlog;                 // 已经accept但还没有被用户拿走的session
-            MutexType _backlog_mtx;                                     // 互斥锁
-            ConditionType _backlog_cond;                                // 条件变量
-            std::unordered_map<std::string, KcpSession::ptr> _sessions; // 这个listener管理的sessions
-            MutexType _session_mtx;                                     // 互斥锁
+            int _backlog_size;                                                                   // 全连接队列大小
+            std::list<KcpSession::ptr> _accept_backlog;                                          // 已经accept但还没有被用户拿走的session
+            MutexType _backlog_mtx;                                                              // 互斥锁
+            ConditionType _backlog_cond;                                                         // 条件变量
+            std::unordered_map<int, std::unordered_map<std::string, KcpSession::ptr>> _sessions; // 这个listener管理的sessions
+            MutexType _session_mtx;                                                              // 互斥锁
 
             uint64_t _accept_timeout_ms; // accept超时时间
 
@@ -87,8 +99,7 @@ namespace Xten
             std::once_flag _once_readError;          // 一次错误
             std::atomic<bool> _b_read_error = false; // 通知读错误
 
-            SemType _wait_fiber;     // 等待所有协程退出
-            uint32_t _coroutine_num; // 读协程数量
+            uint32_t _coroutine_num; // 读写协程数量
 
             // notify variables
             std::atomic<bool> _b_timeout = false; // 超时

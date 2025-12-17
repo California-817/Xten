@@ -6,7 +6,7 @@ namespace Xten
 {
     namespace kcp
     {
-// 发起kcp连接的udp数据包
+// 发起kcp连接的udp数据包----自定义kcp的两次握手
 #define XTEN_KCP_CONNECT_PACKET "xten_kcp_connect_packet#get_convid"
 #define XTEN_KCP_CONNECT_BACKPACKET "xten_kcp_connect_backpacket#return_convid:"
         class KcpUtil
@@ -25,6 +25,13 @@ namespace Xten
             static bool is_connect_packet(const char *data, size_t len)
             {
                 return (memcmp(data, XTEN_KCP_CONNECT_PACKET, len) == 0) ? true : false;
+            }
+            static uint32_t get_connect_backpacket_convid(const char *data)
+            {
+                std::string tmp(data);
+                auto pos = tmp.find(':');
+                std::string substr = tmp.substr(pos + 1);
+                return (uint32_t)atoi(substr.c_str());
             }
         };
     } // namespace kcp
