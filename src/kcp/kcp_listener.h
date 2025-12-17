@@ -24,10 +24,10 @@ namespace Xten
         class KcpListener : public std::enable_shared_from_this<KcpListener>
         {
         private:
-            KcpListener(Address::ptr addr, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
-                        int interval,                                      // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
-                        int resend,                                        // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
-                        int nc);                                           // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制
+            KcpListener(Address::ptr addr, uint32_t maxConnNum, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
+                        int interval,                                                           // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
+                        int resend,                                                             // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
+                        int nc);                                                                // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制
         public:
             friend class KcpSession;
 
@@ -37,9 +37,9 @@ namespace Xten
             typedef FiberSemphore SemType;
 
             // 工厂方法创建listener
-            static std::shared_ptr<KcpListener> Create(Address::ptr addr, int coroutine_num = 10, int nodelay = 1, int interval = 20, int resend = 2, int nc = 1)
+            static std::shared_ptr<KcpListener> Create(Address::ptr addr, uint32_t maxConnNum, int coroutine_num = 10, int nodelay = 1, int interval = 20, int resend = 2, int nc = 1)
             {
-                return std::shared_ptr<KcpListener>(new KcpListener(addr, coroutine_num, nodelay, interval, resend, nc));
+                return std::shared_ptr<KcpListener>(new KcpListener(addr, maxConnNum, coroutine_num, nodelay, interval, resend, nc));
             }
 
             ~KcpListener();

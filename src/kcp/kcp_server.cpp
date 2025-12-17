@@ -5,7 +5,7 @@ namespace Xten
     namespace kcp
     {
         static Logger::ptr g_logger = XTEN_LOG_NAME("system");
-        KcpServer::KcpServer(IOManager *io_worker,
+        KcpServer::KcpServer(MsgHandler::ptr msghandler,IOManager *io_worker,
                              KcpConfig::ptr config)
             : _io_worker(io_worker),
               _isStop(true),
@@ -52,23 +52,23 @@ namespace Xten
             for (auto &udp_channel : _udpSockets)
             {
                 // 调度读协程
-                _io_worker->Schedule(std::bind(&KcpServer::doRead, this, udp_channel, self));
+                // _io_worker->Schedule(std::bind(&KcpServer::doRead, this, udp_channel, self));
             }
             _isStop = false;
         }
 
-        void KcpServer::doRead(Socket::ptr udp_socket, KcpServer::ptr self)
-        {
-            XTEN_LOG_INFO(g_logger) << "KcpServer doRead start! udp_socket=" << *udp_socket;
-            while (!_isStop)
-            {
-                //1. udpsocket中读取报文
-                // udp_socket->RecvFromV()
-                //2.判断包文类型
-                //3.1创建新连接
-                //3.2交给逻辑层处理
-            }
-            XTEN_LOG_INFO(g_logger) << "KcpServer doRead end! udp_socket=" << *udp_socket;
-        }
+        // void KcpServer::doRead(Socket::ptr udp_socket, KcpServer::ptr self)
+        // {
+        //     XTEN_LOG_INFO(g_logger) << "KcpServer doRead start! udp_socket=" << *udp_socket;
+        //     while (!_isStop)
+        //     {
+        //         //1. udpsocket中读取报文
+        //         // udp_socket->RecvFromV()
+        //         //2.判断包文类型
+        //         //3.1创建新连接
+        //         //3.2交给逻辑层处理
+        //     }
+        //     XTEN_LOG_INFO(g_logger) << "KcpServer doRead end! udp_socket=" << *udp_socket;
+        // }
     }
 }

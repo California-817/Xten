@@ -15,8 +15,11 @@ namespace Xten
                                int resend,   // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
                                int nc)       // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制)
 
+            : _sendque_cond(_sendque_mtx),
+              _kcpcb_cond(_kcpcb_mtx)
         {
             _kcp_cb = ikcp_create(_convid, this);
+            XTEN_ASSERT(_kcp_cb);
             // 设置输出函数
             ikcp_setoutput(_kcp_cb, &KcpSession::kcp_output_func);
             // 设置kcp配置
@@ -25,18 +28,198 @@ namespace Xten
 
         KcpSession::~KcpSession()
         {
+            Close();
             if (_kcp_cb)
-                ikcp_release(_kcp_cb);
+                ikcp_release(_kcp_cb); // 防止内存泄露
         }
-
+        void KcpSession::Close()
+        {
+            std::call_once(_once_close, [this]()
+                           {
+                //关闭连接前最好进行一次数据的刷新----比如forceClose场景，写协程只是按顺序将包文放到kcpcb中，其实没有真正发送，直接关闭就导致包文丢失
+                {
+                    MutexType::Lock lock(_kcpcb_mtx);
+                    ikcp_flush(_kcp_cb); //flush data in kcpcb buffer
+                }
+                auto listener=_listener.lock();
+                if(listener)
+                    listener->onSessionClose(_remote_addr->toString());
+                _b_close=true;
+                _sendque_cond.signal();
+                _kcpcb_cond.signal(); });
+        }
         void KcpSession::Start()
         {
             auto self = shared_from_this();
-            // 启动定时器定期update
             auto iom = Xten::IOManager::GetThis();
             XTEN_ASSERT(iom);
+            iom->Schedule(std::bind(&KcpSession::dopacketOutput, this, self));
         }
 
+        // 读到一个message报文
+        KcpRequest::ptr KcpSession::ReadMessage()
+        {
+            Timer::ptr timer;
+            if (_read_timeout_ms > 0)
+                // 启动超时定时器
+                timer = Xten::IOManager::GetThis()->addTimer(_read_timeout_ms,
+                                                             std::bind(&KcpSession::notifyReadTimeout, this));
+            do
+            {
+                MutexType::Lock lock(_kcpcb_mtx);
+                while (ikcp_peeksize(_kcp_cb) <= 0 &&
+                       !_b_close && !_b_read_error &&
+                       _b_read_timeout)
+                {
+                    // 提前获知接收队列中包文情况---没有完整包文
+                    _kcpcb_cond.wait();
+                }
+                // 循环条件不满足---跳出
+                if (_b_read_timeout)
+                {
+                    _b_read_timeout = false;
+                    XTEN_LOG_DEBUG(g_logger) << "read time out";
+                    break;
+                }
+                else
+                {
+                    if (timer) // 还没有超时
+                        timer->cancel();
+                    if (_b_close)
+                    {
+                        XTEN_LOG_DEBUG(g_logger) << "kcpsession has been closed";
+                        break;
+                    }
+                    else if (_b_read_error)
+                    {
+                        XTEN_LOG_DEBUG(g_logger) << "kcpsession read error";
+                        break;
+                    }
+                    else
+                    {
+                        // 读取数据并返回req
+                        ByteArray::ptr ba = std::make_shared<ByteArray>(1024 + 512);
+                        void *ptr = ba->GetBeginNodePtr();
+                        int ret = 0;
+                        while (ret = ikcp_recv(_kcp_cb, (char *)ptr, ba->GetNodeSize()))
+                        {
+                            if (ret == -3)
+                            {
+                                // 缓冲区不足---对方发来的包太大了
+                                notifyReadError(ret);
+                                return nullptr;
+                            }
+                            else if (ret > 0)
+                                break;
+                            else
+                                continue;
+                        }
+                        // success---反序列化
+                        // ba->SetPosition(ret); //position指向数据末尾
+                        // 读取还是从最开始开始读取
+                        ba->SetPosition(0);
+                        Message::MessageType type = (Message::MessageType)ba->ReadFUint8();
+                        if (type == Message::MessageType::REQUEST)
+                        {
+                            KcpRequest::ptr req = std::make_shared<KcpRequest>();
+                            req->ParseFromByteArray(ba);
+                            return req;
+                        }
+                        else if (type == Message::MessageType::NOTIFY)
+                        {
+                            // todo
+                        }
+                        else
+                        {
+                            // todo
+                        }
+                    }
+                }
+            } while (false);
+            return nullptr;
+        }
+
+        // 原始udp包处理 [data]
+        void KcpSession::packetInput(const char *data, size_t len)
+        {
+            { // 对ikcpcb的访问需要加锁
+                MutexType::Lock lock(_kcpcb_mtx);
+                int ret = ikcp_input(_kcp_cb, data, len);
+                if (ret < 0)
+                {
+                    notifyReadError(ret);
+                    return;
+                }
+            }
+            // success
+            notifyReadEvent();
+        }
+
+        // 强制关闭连接
+        void KcpSession::ForceClose()
+        {
+            SendMessage(nullptr);
+        }
+        // 发送一个包文--->into queue
+        void KcpSession::SendMessage(KcpResponse::ptr msg)
+        {
+            {
+                MutexType::Lock _lock(_sendque_mtx);
+                _sendque.push_back(msg);
+            }
+            _sendque_cond.signal();
+        }
+
+        void KcpSession::dopacketOutput(std::shared_ptr<KcpSession> self)
+        {
+            XTEN_LOG_DEBUG(g_logger) << "KcpSession Send Fiber begin";
+            _sem.wait(); // 1-0
+            try
+            {
+                do
+                {
+                    std::list<KcpResponse::ptr> tmp;
+                    {
+                        MutexType::Lock lock(_sendque_mtx);
+                        while (_sendque.empty() &&
+                               !_b_close && !_b_read_error && _b_write_error)
+                        {
+                            _sendque_cond.wait();
+                        }
+                        tmp.swap(_sendque);
+                    }
+                    // send
+                    bool b_force_stop = false;
+                    for (auto &rsp : tmp)
+                    {
+                        if (!rsp) // force close or timeout
+                        {
+                            b_force_stop = true;
+                            break;
+                        }
+                        else
+                        {
+                            // send rsp
+                            if (!write(rsp))
+                            {
+                                b_force_stop = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (b_force_stop)
+                        break;
+                } while (!_b_close && !_b_read_error && _b_write_error);
+
+                Close(); // 关闭连接
+            }
+            catch (...)
+            {
+                XTEN_LOG_ERROR(g_logger) << "KcpSession Send Fiber catch Exception";
+            }
+            _sem.post(); // 0-1
+            XTEN_LOG_DEBUG(g_logger) << "KcpSession Send Fiber end";
+        }
         // 传给kcpcb的内部输出回调函数
         int KcpSession::kcp_output_func(const char *buf, int len, struct IKCPCB *kcp, void *user)
         {
@@ -62,6 +245,56 @@ namespace Xten
             MutexType::Lock lock(_kcpcb_mtx);
             ikcp_update(_kcp_cb, TimeUitl::GetCurrentMS());
         }
-    } // namespace kcp
 
+        // 通知read超时
+        void KcpSession::notifyReadTimeout()
+        {
+            _b_read_timeout = true;
+            _kcpcb_cond.signal();
+        }
+        // 通知read就绪
+        void KcpSession::notifyReadEvent()
+        {
+            _kcpcb_cond.signal();
+        }
+        // 通知读错误
+        void KcpSession::notifyReadError(int code)
+        {
+            std::call_once(_once_readError, [this, code]()
+                           {
+                _read_error_code=code;
+                _b_read_error=true;
+                _kcpcb_cond.signal();
+                _sendque_cond.signal(); });
+        }
+        // 通知写错误
+        void KcpSession::notifyWriteError(int code)
+        {
+            std::call_once(_once_writeError, [this, code]()
+                           {
+                _write_error_code=code;
+                _b_write_error=true;
+                _kcpcb_cond.signal();
+                _sendque_cond.signal(); });
+        }
+
+        // 发送协程调用: [发送队列--->kcpcb发送缓冲区区]
+        bool KcpSession::write(KcpResponse::ptr rsp)
+        {
+            // 对包的大小有限制
+            ByteArray::ptr ba = std::make_shared<ByteArray>(1024 + 512);
+            rsp->SerializeToByteArray(ba);
+            ba->SetPosition(0); // 写操作移动了position
+            // 涉及对kcpcb的访问---需要加锁
+            MutexType::Lock lock(_kcpcb_mtx);
+            int ret = ikcp_send(_kcp_cb, (const char *)ba->GetBeginNodePtr(), ba->GetReadSize());
+            if (ret < 0)
+            {
+                // send error
+                notifyWriteError(ret);
+                return false;
+            }
+            return true;
+        }
+    } // namespace kcp
 }

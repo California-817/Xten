@@ -5,12 +5,12 @@
 namespace Xten
 {
     //消息处理器
-    class MsgHanler : public NoCopyable
+    class MsgHandler : public NoCopyable
     {
     public:
-        typedef std::shared_ptr<MsgHanler> ptr;
-        MsgHanler() {}
-        virtual ~MsgHanler() {}
+        typedef std::shared_ptr<MsgHandler> ptr;
+        MsgHandler() {}
+        virtual ~MsgHandler() {}
         //处理消息的接口
         virtual void handleMessage(const char* msg, uint32_t len) = 0;
     };

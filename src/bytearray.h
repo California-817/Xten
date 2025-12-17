@@ -4,8 +4,8 @@
 #include <string>
 #include <memory>
 #include <endian.h>
-#include<sys/types.h>
-#include<sys/socket.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #define XTEN_LITTLE_ENDIAN 1
 #define XTEN_BIG_ENDIAN 2
 // 判断本机字节序
@@ -42,6 +42,13 @@ namespace Xten
         {
             return _position;
         }
+        //获取第一个节点的内存空间的首地址指针
+        void* GetBeginNodePtr() const
+        {
+            if(!_root)
+                return nullptr;
+            return _root->memory;
+        }
         // 获取当前bytearray的Node大小
         size_t GetNodeSize() const
         {
@@ -59,13 +66,13 @@ namespace Xten
         // 将bytearray里的[_position,_size)的数据转换成16进制表示 (格式：FF 11 22 3a )
         std::string ToHexString();
         // 将该bytearray中的数据写入文件（不改变position和cur的位置，从position开始）
-        bool WriteToFile(const std::string &file,bool with_md5=false);
+        bool WriteToFile(const std::string &file, bool with_md5 = false);
         // 从文件读取数据到该bytearray,从position开始 (改变position和cur的位置)
         bool ReadFromFile(const std::string &file);
         // 获取指定len长度的Node缓冲区到buffer中
         uint64_t GetReadBuffers(std::vector<iovec> &buffers, uint64_t len);
         // 从pos位置获取指定len长度的Node缓冲区到buffer中
-        uint64_t GetReadBuffers(std::vector<iovec> &buffers, uint64_t len,size_t pos);
+        uint64_t GetReadBuffers(std::vector<iovec> &buffers, uint64_t len, size_t pos);
         // 获取指定len大小写入数据缓冲区到buffers中
         uint64_t GetWriteBuffers(std::vector<iovec> &buffers, uint64_t len);
         // 写入固定长度int8_t数据
@@ -157,8 +164,9 @@ namespace Xten
         size_t getFreeCapacity();
         // 可用空间扩容(看size是否大于剩余free空间)
         void addFreeCapacity(size_t size);
-        //获取当前bytearray中数据的md5值
+        // 获取当前bytearray中数据的md5值
         std::string getMd5();
+
     private:
         // 存放数据的节点(链表组织)
         struct Node

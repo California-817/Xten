@@ -11,9 +11,9 @@ namespace Xten
         // 最好是把配置全部放到kcpserver中统一管理----todo
         static Logger::ptr g_logger = XTEN_LOG_NAME("system");
 
-        KcpListener::KcpListener(Address::ptr addr, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
-                                 int interval,                                      // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
-                                 int resend,                                        // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
+        KcpListener::KcpListener(Address::ptr addr, uint32_t maxConnNum, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
+                                 int interval,                                                           // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
+                                 int resend,                                                             // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
                                  int nc)
             : _accept_timeout_ms(0),
               _coroutine_num(coroutine_num),
@@ -22,6 +22,7 @@ namespace Xten
               _b_read_error(false),
               _read_error_code(0),
               _local_address(addr),
+              _max_conn_num(maxConnNum),
               _backlog_cond(_backlog_mtx),
               _nodelay(nodelay),
               _interval(interval),
@@ -206,6 +207,7 @@ namespace Xten
                     }
                     // 间隔一段时间--每10ms调用一次
                     usleep(1000 * _interval / 2);
+                    // XTEN_LOG_DEBUG(g_logger)<<"update";
                 }
             }
             catch (...)

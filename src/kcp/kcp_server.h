@@ -7,6 +7,7 @@
 #include "kcp_session.h"
 #include "../iomanager.h"
 #include "../msghandle.h"
+#include "kcp_listener.h"
 #include "third_part/ikcp.h"
 #include "../address.h"
 namespace Xten
@@ -42,8 +43,8 @@ namespace Xten
             typedef std::shared_ptr<KcpServer> ptr;
             typedef std::function<uint32_t(KcpSession::ptr)> onClientNoActiveCb;
             typedef std::function<uint32_t(KcpSession::ptr)> onConnectCb;
-            typedef std::function<uint32_t(KcpSession::ptr)> onCloeCb;
-            KcpServer(IOManager *io_worker = IOManager::GetThis(),
+            typedef std::function<uint32_t(KcpSession::ptr)> onCloseCb;
+            KcpServer(MsgHandler::ptr msghandler,IOManager *io_worker = IOManager::GetThis(),
                       KcpConfig::ptr config = nullptr);
             ~KcpServer();
             // bind
@@ -59,25 +60,26 @@ namespace Xten
             void SetOnConnectCb(onConnectCb cb) { _connectCb = cb; }
             onConnectCb GetOnConnectCb() const { return _connectCb; }
 
-            void SetOnCloseCb(onCloeCb cb) { _closeCb = cb; }
-            onCloeCb GetOnCloseCb() const { return _closeCb; }
+            void SetOnCloseCb(onCloseCb cb) { _closeCb = cb; }
+            onCloseCb GetOnCloseCb() const { return _closeCb; }
 
             uint64_t GetRecvTimeout() const { return _recvTimeout; }
 
         private:
-
         private:
-            IOManager *_io_worker; // io timer
+            IOManager *_io_worker; // io worker
             // handler --从配置选项中获取
-            MsgHanler::ptr _msgHandler;
+            MsgHandler::ptr _msgHandler;
             bool _isStop;
             KcpConfig::ptr m_kcpConfig;           // 配置属性
             std::vector<Socket::ptr> _udpSockets; // udp套接字---每个读协程都有一个socket【即使在同一个端口】
 
-            //cbs
-            onClientNoActiveCb _timeoutCb; //客户端无活动回调
-            onConnectCb _connectCb; //连接建立回调
-            onCloeCb _closeCb; //连接关闭回调
+            KcpListener::ptr _listener; // 监听套接字
+
+            // cbs
+            onClientNoActiveCb _timeoutCb; // 客户端无活动回调
+            onConnectCb _connectCb;        // 连接建立回调
+            onCloseCb _closeCb;            // 连接关闭回调
 
             uint64_t _recvTimeout; // 接收超时时间
 

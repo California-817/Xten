@@ -505,7 +505,7 @@ int ikcp_peeksize(const ikcpcb *kcp)
 
 	if (kcp->nrcv_que < seg->frg + 1) //分片了 但是还没接收到完整的包
 		return -1;
-
+	//分片了并且是完整包文
 	for (p = kcp->rcv_queue.next; p != &kcp->rcv_queue; p = p->next) {
 		seg = iqueue_entry(p, IKCPSEG, node);
 		length += seg->len;

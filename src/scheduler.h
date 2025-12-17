@@ -10,7 +10,7 @@
 #include "macro.h"
 #include <random>
 #include <vector>
-
+#include<boost/lockfree/queue.hpp> //后期打算使用boost的无锁队列优化list任务队列
 #define OFF 0
 #define ON 1
 // #ifndef OPTIMIZE

@@ -7,14 +7,18 @@ int main()
 {
     Xten::Logger::ptr logger = XTEN_LOG_NAME("system");
     // logger->SetLevelLimit(Xten::LogLevel::INFO);
-    Xten::IOManager iom(1);
-    auto addr=Xten::IPv4Address::Create("0.0.0.0",8080);
-    Xten::kcp::KcpListener::ptr listener=std::make_shared<Xten::kcp::KcpListener>(addr);
+    Xten::IOManager iom(10);
+    auto addr = Xten::IPv4Address::Create("0.0.0.0", 8080);
+    iom.Schedule([=]()
+                 {
+        // Xten::kcp::KcpListener::ptr listener=std::make_shared<Xten::kcp::KcpListener>(addr);
+    auto listener=Xten::kcp::KcpListener::Create(addr,1000);
+    listener->SetAcceptTimeout(10*1000);
     listener->Listen();
     listener->Accept();
-
-
-
+    sleep(5);
+    listener->Close();
+});
 
     // 计算协程创建和销毁的开销
     // auto start = Xten::TimeUitl::GetCurrentMS();
@@ -34,7 +38,7 @@ int main()
     //         // iom.Schedule([]()
     //                     //  {
     //             // usleep(1000);
-    //             // std::cout << "fiber=" << Xten::Fiber::GetThis()->GetFiberId() << std::endl;  
+    //             // std::cout << "fiber=" << Xten::Fiber::GetThis()->GetFiberId() << std::endl;
     //             // });
     //     } });
     // }

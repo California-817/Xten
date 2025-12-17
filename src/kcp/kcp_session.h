@@ -25,19 +25,32 @@ namespace Xten
             typedef std::shared_ptr<KcpSession> ptr;
             typedef FiberMutex MutexType;
             typedef FiberCondition CondType;
+            typedef FiberSemphore SemType;
+            // 启动发送协程 [发送队列-->kcpcb发送缓冲区]
             void Start();
             ~KcpSession();
             void Close();
             // 读到一个message报文
-            Message::ptr ReadMessage();
+            KcpRequest::ptr ReadMessage();
+            // 发送一个包文--->into queue
+            void SendMessage(KcpResponse::ptr msg);
+            // 等待写协程退出
+            void WaitSender() { _sem.wait(); }
+            // 强制关闭连接
+            void ForceClose();
 
-            void SendMessage(Message::ptr msg);
+            // 设置read超时时间[0表示不超时]
+            void SetReadTimeout(uint64_t v = 0) { _read_timeout_ms = v; }
+            // 获取accept超时时间
+            uint64_t GetReadTimeout() const { return _read_timeout_ms; }
 
         private:
             // 获取kcpcb的convid
             uint32_t GetConvId() const { return _convid; }
+            // 发送协程
+            void dopacketOutput(std::shared_ptr<KcpSession> self);
             // 发送协程调用: [发送队列--->kcpcb发送缓冲区区]
-            bool write();
+            bool write(KcpResponse::ptr rsp);
             // 传给kcpcb的内部输出回调函数 [kcpcb缓冲区--->socket]
             static int kcp_output_func(const char *buf, int len, struct IKCPCB *kcp, void *user);
             // 原始udp包处理 [data]
@@ -45,12 +58,8 @@ namespace Xten
             void update();
             // 通知read超时
             void notifyReadTimeout();
-            // 通知write
-            void notifyWriteTimeout();
             // 通知read就绪
             void notifyReadEvent();
-            // 通知write就绪
-            void notifyWriteEvent();
             // 通知读错误
             void notifyReadError(int code);
             // 通知写错误
@@ -60,12 +69,33 @@ namespace Xten
             std::weak_ptr<Socket> _udp_channel;   // socket
             std::weak_ptr<KcpListener> _listener; // 监听er
             Address::ptr _remote_addr;            // 远端地址
-            uint32_t _convid;                     // convid
-            IKCPCB *_kcp_cb;                      // kcp控制块
-            uint64_t _read_timeout_ms;            // 读超时时间
-            uint64_t _write_timeout_ms;           // 写超时时间
-            // std::list<
+
+            uint32_t _convid;          // convid
+            IKCPCB *_kcp_cb = nullptr; // kcp控制块
+
+            uint64_t _read_timeout_ms;                 // 读超时时间
+            std::atomic<bool> _b_read_timeout = false; // 超时
+
             MutexType _kcpcb_mtx; // 访问kcpcb的互斥锁
+            CondType _kcpcb_cond; // 接收kcpcb数据条件变量
+
+            std::list<KcpResponse::ptr> _sendque; // 发送队列
+            MutexType _sendque_mtx;               // 发送队列锁
+            CondType _sendque_cond;               // 发送队列条件变量
+
+            SemType _sem; // 等待写协程退出
+
+
+            std::once_flag _once_close;         // 一次关闭
+            std::atomic<bool> _b_close = false; // 通知关闭
+
+            std::once_flag _once_readError;          // 一次错误
+            std::atomic<bool> _b_read_error = false; // 通知读错误
+            std::atomic<int> _read_error_code;       // 读错误码
+
+            std::once_flag _once_writeError;          // 一次错误
+            std::atomic<bool> _b_write_error = false; // 通知读错误
+            std::atomic<int> _write_error_code;       // 读错误码
         };
     } // namespace kcp
 
