@@ -41,9 +41,9 @@ namespace Xten
                 XTEN_ASSERT(udp_socket->Setsockopt(SOL_SOCKET, SO_REUSEPORT, opt));
                 _udp_sockets.push_back(udp_socket);
             }
-            // 随机生成起始convid [1000-10999]
+            // 随机生成起始convid [10000-100999]
             std::srand(static_cast<unsigned>(std::time(nullptr)));
-            _convid = std::rand() % 10000 + 1000;
+            _convid = std::rand() % 100000 + 10000;
         }
         KcpListener::~KcpListener()
         {
@@ -160,6 +160,7 @@ namespace Xten
                     std::vector<std::pair<Address::ptr, size_t>> infos;
                     infos.resize(maxBatchSize, std::make_pair(std::make_shared<IPv4Address>(), 0));
                     int ret = udpChannel->RecvFromBatch(iovs, maxBatchSize, infos);
+                    XTEN_LOG_INFO(g_logger)<<"recv,ret="<<ret;
                     // Xten::Address::ptr addr=std::make_shared<IPv4Address>();
                     // int ret=udpChannel->RecvFrom(ba->GetBeginNodePtr(),ba->GetNodeSize(),addr);
                     // 注意：ba里面的读写位置并没有改变
@@ -244,6 +245,9 @@ namespace Xten
                 // 1.判断是不是客户端发来的连接建立包
                 if (!KcpUtil::is_connect_packet(data, len))
                 {
+                    //解答疑问：kcp服务端[当前]将这个连接关闭了,不再发送响应和其他kcp内部的包给客户端，而客户端认为连接
+                    //仍然建立，会认为是网络问题而重传没有收到响应的包，并且客户端也在不停发包，就会导致服务端频繁得收到
+                    //客户端的包文，因此这个接口会频繁触发------>客户端发送包文数量是远小于kcp内部处理后发送的包的[实际包数量]
                     XTEN_LOG_WARN(g_logger) << "KcpListener recv a invalid kcp connect packet";
                     return;
                 }
@@ -288,6 +292,8 @@ namespace Xten
                         break;
                     }
                     uint32_t id = ikcp_getconv(data);
+                    // XTEN_LOG_INFO(g_logger)<<"id="<<id<<"len="<<len;
+                    // XTEN_LOG_INFO(g_logger)<<"serverid="<<session->GetConvId();
                     if (id == session->GetConvId())
                     {
                         // equal

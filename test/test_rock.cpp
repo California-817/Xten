@@ -17,8 +17,8 @@ int main()
         KcpServer::ptr server = std::make_shared<KcpServer>(nullptr);
         server->Bind(addr);
         server->Start();
-        sleep(10);
-        server->Stop();
+        // sleep(10);
+        // server->Stop();
     });
     //     iom.Schedule([=]()
     //                  {

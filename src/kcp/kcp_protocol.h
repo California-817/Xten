@@ -17,6 +17,7 @@ namespace Xten
             {
                 Response::SerializeToByteArray(ba);
                 ba->WriteStringF32(_data);
+                return true;
             }
             // 从bytearray中反序列化出消息结构体
             virtual bool ParseFromByteArray(ByteArray::ptr ba)
@@ -24,6 +25,7 @@ namespace Xten
 
                 Response::ParseFromByteArray(ba);
                 _data = ba->ReadStringF32();
+                return true;
             }
             // 转字符串
             virtual std::string ToString() const
@@ -99,18 +101,21 @@ namespace Xten
                 auto rsp = std::make_shared<KcpResponse>();
                 rsp->SetCmd(_cmd);
                 rsp->SetSn(_sn);
+                return rsp;
             }
             // 将消息结构体序列化成bytearray
             virtual bool SerializeToByteArray(ByteArray::ptr ba)
             {
                 Request::SerializeToByteArray(ba);
                 ba->WriteStringF32(_data);
+                return true;
             }
             // 从bytearray中反序列化出消息结构体
             virtual bool ParseFromByteArray(ByteArray::ptr ba)
             {
                 Request::ParseFromByteArray(ba);
                 _data = ba->ReadStringF32();
+                return true;
             }
             // 转字符串
             virtual std::string ToString() const

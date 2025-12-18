@@ -57,6 +57,26 @@ namespace Xten
             // 获取localaddr
             Address::ptr GetLocalAddress() const;
 
+            //信息
+            std::string ListenerInfo() const
+            {
+                std::stringstream ss;
+                if(_sessions.empty())
+                {
+                    ss<<"[KcpServer No Connection]";
+                    return ss.str();
+                }
+                for(auto& sess:_sessions)
+                {
+                    ss<<"\n[fd="<<sess.first<<"]==>{ ";
+                    for(auto& e:sess.second)
+                    {
+                        ss<<"[convid="<<e.second->GetConvId()<<"] ";
+                    }
+                    ss<<" }\n";
+                }
+                return ss.str();
+            }
         private:
             // 接收数据协程函数
             void doRecvLoop(KcpListener::ptr self, Socket::ptr udpChannel);

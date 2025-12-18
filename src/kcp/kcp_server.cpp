@@ -32,6 +32,9 @@ namespace Xten
             XTEN_ASSERT(_io_worker);
             _listener->Listen();
             auto self = shared_from_this();
+            _io_worker->addTimer(3000,[this](){
+                XTEN_LOG_DEBUG(g_logger)<<_listener->ListenerInfo();
+            },true);
             _io_worker->Schedule(std::bind(&KcpServer::startAccept, this, self));
             _isStop = false;
         }
@@ -40,12 +43,12 @@ namespace Xten
             // 服务器未终止一直接受链接
             while (!_isStop)
             {
-                _listener->SetAcceptTimeout(1000);
+                // _listener->SetAcceptTimeout(1000);
                 KcpSession::ptr client = _listener->Accept();
                 if (client)
                 {
                     // 接受成功
-                    // client->SetRecvTimeOut(_recvTimeout);
+                    client->SetReadTimeout(10 * 1000);
                     // 将该client的处理交给_ioWorker
 
                     // std::bind 在绑定成员函数时，会在运行时根据对象的实际类型进行动态绑定
@@ -64,26 +67,37 @@ namespace Xten
         void KcpServer::handleClient(std::shared_ptr<KcpServer> self, KcpSession::ptr session)
         {
             session->Start();
-            sleep(2);
+            // sleep(2);
+            // session->ForceClose();
+            // XTEN_LOG_DEBUG(g_logger) << "waitsender begin";
+            // session->WaitSender();
+            // XTEN_LOG_DEBUG(g_logger) << "waitsender success";
+            // session->Close();
+            // client->
+            while (true)
+            {
+                auto req = session->ReadMessage();
+                if (req)
+                {
+                    req->ToString();
+                    XTEN_LOG_DEBUG(g_logger) << "req=" << req->ToString();
+                    auto rsp = req->CreateKcpResponse();
+                    rsp->SetResult(0);
+                    rsp->SetResultStr("success");
+                    rsp->SetData(req->GetData() + "server");
+                    session->SendMessage(rsp);
+                }
+                else
+                {
+                    XTEN_LOG_DEBUG(g_logger)<<"recv msg error";
+                    break;
+                }
+            }
             session->ForceClose();
             XTEN_LOG_DEBUG(g_logger) << "waitsender begin";
             session->WaitSender();
             XTEN_LOG_DEBUG(g_logger) << "waitsender success";
             session->Close();
-            // client->
-            // while (true)
-            // {
-            //     auto req = session->ReadMessage();
-            //     if (req)
-            //     {
-            //         req->ToString();
-            //         auto rsp = req->CreateKcpResponse();
-            //         rsp->SetResult(0);
-            //         rsp->SetResultStr("success");
-            //         rsp->SetData(req->GetData() + "server");
-            //         session->SendMessage(rsp);
-            //     }
-            // }
             // todo
         }
         // void KcpServer::doRead(Socket::ptr udp_socket, KcpServer::ptr self)

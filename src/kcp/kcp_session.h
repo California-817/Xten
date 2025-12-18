@@ -32,7 +32,7 @@ namespace Xten
             void Close();
             // 读到一个message报文
             KcpRequest::ptr ReadMessage();
-            // 发送一个包文--->into queue
+            // 发送一个包文--->into queue [注意：包文大小最大不能超过1024+512字节]
             void SendMessage(KcpResponse::ptr msg);
             // 等待写协程退出
             void WaitSender() { _sem.wait(); }

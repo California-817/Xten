@@ -11,4 +11,5 @@ main
 /bin/XtenFrame
 /bin/XftpClient
 /bin/rockClient
+/bin/kcpClient
 /.vscode/
