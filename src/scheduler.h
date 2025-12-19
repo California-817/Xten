@@ -10,7 +10,7 @@
 #include "macro.h"
 #include <random>
 #include <vector>
-#include<boost/lockfree/queue.hpp> //后期打算使用boost的无锁队列优化list任务队列
+#include"third_concurrent_queue.h"
 #define OFF 0
 #define ON 1
 // #ifndef OPTIMIZE
@@ -49,13 +49,14 @@ namespace Xten
             FuncOrFiber fcb(std::forward<Task>(task), threadId); // 这里的forward完美转发是必须的 保持原始语义
 #if OPTIMIZE == OFF
             {
-                RWMutex::WriteLock lock(_mutex);
-                if (_fun_fibers.empty())
+                // RWMutex::WriteLock lock(_mutex);
+                if (_fun_fibers.size_approx()==0)
                 {
                     tickle_me = true;
                 }
                 XTEN_ASSERT((fcb.fiber != nullptr || fcb.func != nullptr));
-                _fun_fibers.push_back(fcb);
+                // _fun_fibers.push_back(fcb);
+                _fun_fibers.enqueue(fcb);
             }
 #elif OPTIMIZE == ON
             int bestQueue = selectBestQueue(threadId);
@@ -85,8 +86,8 @@ namespace Xten
             bool tickle_me = false;
 #if OPTIMIZE == OFF
             {
-                RWMutex::WriteLock lock(_mutex);
-                if (_fun_fibers.empty())
+                // RWMutex::WriteLock lock(_mutex);
+                if (_fun_fibers.size_approx()==0)
                 {
                     tickle_me = true;
                 }
@@ -94,7 +95,8 @@ namespace Xten
                 {
                     FuncOrFiber fcb(std::move(*begin), threadId);
                     XTEN_ASSERT((fcb.fiber != nullptr || fcb.func != nullptr));
-                    _fun_fibers.push_back(fcb);
+                    // _fun_fibers.push_back(fcb);
+                    _fun_fibers.enqueue(fcb);
                     begin++;
                 }
             }
@@ -347,7 +349,8 @@ namespace Xten
         std::vector<Xten::Thread::ptr> _threads; // 工作线程
 #if OPTIMIZE == OFF
         // 性能优化点---多线程对这个任务队列的操作需要加全局锁（锁的粒度比较大:考虑使用  多个任务队列 + 任务窃取 ）
-        std::list<FuncOrFiber> _fun_fibers; // 任务队列
+        // std::list<FuncOrFiber> _fun_fibers; // 任务队列
+        moodycamel::ConcurrentQueue<FuncOrFiber> _fun_fibers; //任务队列---无锁优化
         Xten::RWMutex _mutex;               // 任务队列互斥锁
 #elif OPTIMIZE == ON
     public:

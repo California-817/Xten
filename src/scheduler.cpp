@@ -123,33 +123,36 @@ namespace Xten
 			bool is_active = false;
 #if OPTIMIZE == OFF
 			{
-				RWMutex::WriteLock lock(_mutex); // 加一把全局锁保证多线程访问任务队列的线程安全（锁的粒度是比较大的）
-				auto iter = _fun_fibers.begin();
-				while (iter != _fun_fibers.end())
+				// RWMutex::WriteLock lock(_mutex); // 加一把全局锁保证多线程访问任务队列的线程安全（锁的粒度是比较大的）
+				// auto iter = _fun_fibers.begin();
+				// while (iter != _fun_fibers.end())
+				while (_fun_fibers.try_dequeue(fcb))
 				{
-					if (iter->threadId != -1 && iter->threadId != Xten::ThreadUtil::GetThreadId())
+					if (fcb.threadId != -1 && fcb.threadId != Xten::ThreadUtil::GetThreadId())
 					{
 						// 指定了其他线程执行该任务
-						iter++;
+						// iter++;
+						_fun_fibers.enqueue(fcb);
 						tickle_me = true;
 						continue;
 					}
 					// 可以被该线程执行
-					XTEN_ASSERT((iter->fiber || iter->func));
-					if (iter->fiber && iter->fiber->GetStatus() == Fiber::Status::EXEC)
+					XTEN_ASSERT((fcb.fiber || fcb.func));
+					if (fcb.fiber && fcb.fiber->GetStatus() == Fiber::Status::EXEC)
 					{
 						// 协程任务并且处于执行状态
-						iter++;
+						// iter++;
+						_fun_fibers.enqueue(fcb);
 						continue;
 					}
-					fcb = *iter; // 赋值函数
-					_fun_fibers.erase(iter++);
+					// fcb = *iter; // 赋值函数
+					// _fun_fibers.erase(iter++);
 					_active_threadNum++;
 					is_active = true;
 					break;
 				}
 				// 不为空也通知
-				tickle_me |= !_fun_fibers.empty();
+				tickle_me |= _fun_fibers.size_approx();
 			}
 #elif OPTIMIZE == ON
 			int currentQueueIndex = t_queue_index;
@@ -386,9 +389,9 @@ namespace Xten
 	bool Scheduler::IsStopping()
 	{
 #if OPTIMIZE == OFF
-		RWMutex::ReadLock lock(_mutex);
+		// RWMutex::ReadLock lock(_mutex);
 		return _stopping && _auto_stopping &&
-			   _fun_fibers.empty() && !_active_threadNum;
+			   (_fun_fibers.size_approx() == 0) && !_active_threadNum;
 #elif OPTIMIZE == ON
 		bool allEmpty = true;
 		for (int i = 0; i < _localQueues.size(); i++)
