@@ -5,6 +5,8 @@
 #include "../iomanager.h"
 #include "kcp_util.hpp"
 #include <ctime>
+#include <chrono>
+#include <algorithm>
 namespace Xten
 {
     namespace kcp
@@ -73,6 +75,13 @@ namespace Xten
                 // 调度send协程
                 _iom->Schedule(std::bind(&KcpListener::doSendLoop, this, shared_from_this(), _udp_sockets[i]));
             }
+            auto wklistener = std::weak_ptr<KcpListener>(shared_from_this());
+            _iom->addTimer(1000 * 60 * 60 * 24, [wklistener]()
+                           {
+                               auto lis = wklistener.lock();
+                               if (lis)
+                                   lis->cleanupBlacklist(); // 每天清空一次黑名单
+                           });
             return true;
         }
 
@@ -163,14 +172,14 @@ namespace Xten
                     std::vector<std::pair<Address::ptr, size_t>> infos;
                     infos.resize(maxBatchSize);
                     int ret = udpChannel->RecvFromBatch(iovs, maxBatchSize, infos);
-                    if (ret >= 2)
-                    {
-                        XTEN_LOG_INFO(g_logger) << "recv,ret=" << ret;
-                        for (int i = 0; i < ret; i++)
-                        {
-                            std::cout << "addr=" << i << infos[i].first->toString() << std::endl;
-                        }
-                    }
+                    // if (ret >= 2)
+                    // {
+                    //     XTEN_LOG_INFO(g_logger) << "recv,ret=" << ret;
+                    //     for (int i = 0; i < ret; i++)
+                    //     {
+                    //         std::cout << "addr=" << i << infos[i].first->toString() << std::endl;
+                    //     }
+                    // }
                     // Xten::Address::ptr addr=std::make_shared<IPv4Address>();
                     // int ret=udpChannel->RecvFrom(ba->GetBeginNodePtr(),ba->GetNodeSize(),addr);
                     // 注意：ba里面的读写位置并没有改变
@@ -195,6 +204,75 @@ namespace Xten
                 XTEN_LOG_ERROR(g_logger) << "KcpListener doRecvLoop fiber catch exception";
             }
             XTEN_LOG_INFO(g_logger) << "KcpListener doRecvLoop fiber exit";
+        }
+
+        // 获取当前时间（毫秒）
+        static uint64_t now_ms()
+        {
+            using namespace std::chrono;
+            return (uint64_t)duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
+        }
+
+        bool KcpListener::isBlacklisted(const std::string &addr)
+        {
+            MutexType::Lock lock(_blacklist_mtx);
+            auto it = _blacklist.find(addr);
+            if (it == _blacklist.end())
+                return false;
+            uint64_t now = now_ms();
+            if (it->second.expiry_ms == 0)
+            {
+                // 永久封禁
+                return true;
+            }
+            if (it->second.expiry_ms > now)
+            {
+                return true;
+            }
+            // 已过期，移除
+            _blacklist.erase(it);
+            return false;
+        }
+
+        void KcpListener::reportInvalidPacket(const std::string &addr)
+        {
+            uint64_t now = now_ms();
+            MutexType::Lock lock(_blacklist_mtx);
+            auto &entry = _blacklist[addr];
+            entry.strikes += 1;
+            entry.level = std::min<uint32_t>(entry.level, 31);
+            if (entry.strikes >= _blacklist_threshold)
+            {
+                // 触发封禁：使用指数退避，且不超过最大 TTL
+                uint64_t ttl = _blacklist_base_ttl_ms << entry.level; // base * 2^level
+                if (ttl > _blacklist_max_ttl_ms)
+                    ttl = _blacklist_max_ttl_ms;
+                entry.expiry_ms = now + ttl;
+                entry.level += 1;  // 下次触发使用更长的 ttl
+                entry.strikes = 0; // 重置计数
+                XTEN_LOG_WARN(g_logger) << "Blacklisted " << addr << " ttl=" << ttl << "ms";
+            }
+            else
+            {
+                XTEN_LOG_DEBUG(g_logger) << "Reported invalid packet from " << addr << " strikes=" << entry.strikes;
+            }
+        }
+
+        void KcpListener::cleanupBlacklist()
+        {
+            uint64_t now = now_ms();
+            MutexType::Lock lock(_blacklist_mtx);
+            for (auto it = _blacklist.begin(); it != _blacklist.end();)
+            {
+                if (it->second.expiry_ms != 0 && it->second.expiry_ms <= now)
+                {
+                    it = _blacklist.erase(it);
+                }
+                else
+                {
+                    ++it;
+                }
+            }
         }
 
         // 发送数据协程函数
@@ -235,6 +313,13 @@ namespace Xten
         // 原始udp包处理 [data ， fromaddr]
         void KcpListener::packetInput(const char *data, size_t len, Address::ptr from, Socket::ptr udpChannel)
         {
+            std::string remote = from->toString();
+            if (isBlacklisted(remote))
+            {
+                // XTEN_LOG_INFO(g_logger) << "Drop packet from blacklisted " << remote;
+                //对方已经在黑名单中了
+                return;
+            }
             // 1.看连接是否已经存在
             std::pair<bool, KcpSession::ptr> isExisted;
             {
@@ -254,7 +339,9 @@ namespace Xten
                     // 解答疑问：kcp服务端[当前]将这个连接关闭了,不再发送响应和其他kcp内部的包给客户端，而客户端认为连接
                     // 仍然建立，会认为是网络问题而重传没有收到响应的包，并且客户端也在不停发包，就会导致服务端频繁得收到
                     // 客户端的包文，因此这个接口会频繁触发------>客户端发送包文数量是远小于kcp内部处理后发送的包的[实际包数量]
-                    XTEN_LOG_WARN(g_logger) << "KcpListener recv a invalid kcp connect packet";
+                    XTEN_LOG_WARN(g_logger) << "KcpListener recv a invalid kcp connect packet from " << remote;
+                    // 把这个连接上报到黑名单计数器
+                    reportInvalidPacket(remote);
                     return;
                 }
                 // 不存在这个连接

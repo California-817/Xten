@@ -10,6 +10,7 @@
 #include "../bytearray.h"
 #include <atomic>
 #include <thread>
+#include <chrono>
 namespace Xten
 {
     namespace kcp
@@ -68,13 +69,19 @@ namespace Xten
                 }
                 for (auto &sess : _sessions)
                 {
-                    ss << "\n[fd=" << sess.first << "]==>{ ";
+                    ss << "\nKcpConnectionsInfo===>\n[fd=" << sess.first << "]==>{ ";
                     for (auto &e : sess.second)
                     {
                         ss << "[convid=" << e.second->GetConvId() << "] ";
                     }
                     ss << " }\n";
                 }
+                ss << "BlackListInfo===>{ ";
+                for (auto &entry : _blacklist)
+                {
+                    ss << "[ip=" << entry.first << "] ";
+                }
+                ss << "}\n";
                 return ss.str();
             }
 
@@ -93,6 +100,11 @@ namespace Xten
             void notifyAccept();
             // 通知读错误
             void notifyReadError(int code);
+
+            // 黑名单方法
+            bool isBlacklisted(const std::string &addr);
+            void reportInvalidPacket(const std::string &addr);
+            void cleanupBlacklist();
 
         private:
             // kcp config
@@ -133,6 +145,22 @@ namespace Xten
 
             // read error msg
             std::atomic<int> _read_error_code;
+
+            // 黑名单
+            struct BlacklistEntry
+            {
+                uint64_t expiry_ms = 0; // 到期时间（ms）
+                uint32_t strikes = 0;   // 累计非法包计数
+                uint32_t level = 0;     // 惩罚等级（用于指数退避）
+            };
+
+            std::unordered_map<std::string, BlacklistEntry> _blacklist; // key: remote addr string
+            MutexType _blacklist_mtx;
+
+            // 黑名单策略参数（可调整）
+            uint32_t _blacklist_threshold = 5;                 // 触发封禁的非法包计数阈值
+            uint64_t _blacklist_base_ttl_ms = 60 * 1000;       // 初始封禁时长 60s
+            uint64_t _blacklist_max_ttl_ms = 24 * 3600 * 1000; // 最大封禁时长 24h
         };
     } // namespace kcp
 

@@ -20,7 +20,7 @@ namespace Xten
         // 获取调度器(通过类型string获取)
         Scheduler::ptr Get(const std::string &name);
         // 获取返回IOManager的智能指针
-        IOManager::prt GetAsIOManager(const std::string &name);
+        IOManager::ptr GetAsIOManager(const std::string &name);
         // 初始化
         bool Init();
         // 内部调用的初始化函数(直接通过配置文件进行初始化)

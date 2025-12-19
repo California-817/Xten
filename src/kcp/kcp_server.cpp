@@ -6,10 +6,10 @@ namespace Xten
     {
         static Logger::ptr g_logger = XTEN_LOG_NAME("system");
         KcpServer::KcpServer(MsgHandler::ptr msghandler, IOManager *io_worker,
-                             KcpConfig::ptr config)
+                             KcpServerConfig::ptr config)
             : _io_worker(io_worker),
               _isStop(true),
-              m_kcpConfig(config),
+              _kcpConfig(config),
               _recvTimeout(2000 * 60) // 默认2min
         {
             if (config)
@@ -76,9 +76,10 @@ namespace Xten
             while (true)
             {
                 KcpSession::READ_ERRNO error;
-                auto req = session->ReadMessage(error);
-                if (req)
+                auto msg = session->ReadMessage(error);
+                if (msg && msg->GetMessageType()==Message::MessageType::REQUEST)
                 {
+                    auto req=std::dynamic_pointer_cast<KcpRequest>(msg);
                     req->ToString();
                     // XTEN_LOG_DEBUG(g_logger) << "req=" << req->ToString();
                     auto rsp = req->CreateKcpResponse();

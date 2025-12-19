@@ -8,7 +8,7 @@ namespace Xten
     class IOManager : public Scheduler, public TimerManager
     {
     public:
-        typedef std::shared_ptr<IOManager> prt;
+        typedef std::shared_ptr<IOManager> ptr;
         IOManager(int threadNum = 1, bool userCaller = true, const std::string &name="");
         ~IOManager();
         enum Event

@@ -12,14 +12,17 @@
 #include "../db/redis.h"
 #include "../util.h"
 #include "../db/mysql.h"
-#include"../xftp/xftp_server.h"
-#include"../xftp/xftp_worker.h"
+#include "../xftp/xftp_server.h"
+#include "../xftp/xftp_worker.h"
+#include "../kcp/kcp_server.h"
 #include <signal.h>
 namespace Xten
 {
     static Logger::ptr g_logger = XTEN_LOG_NAME("system");
     static ConfigVar<std::vector<TcpServerConf>>::ptr g_servers_conf =
         Config::LookUp("servers", std::vector<TcpServerConf>(), "Servers config");
+    static ConfigVar<std::vector<KcpServerConfig>>::ptr g_kcpservers_conf =
+        Config::LookUp("kcpservers", std::vector<KcpServerConfig>(), "kcpServers config");
     Application::Application()
     {
         _instance = this;
@@ -119,19 +122,19 @@ namespace Xten
     {
         // 根据配置文件初始化Worker 创建所有调度器
         Xten::WorkerManager::GetInstance()->Init();
-        //初始化foxthread
+        // 初始化foxthread
         Xten::FoxThreadManager::GetInstance()->init();
         Xten::FoxThreadManager::GetInstance()->start();
 
-        //初始化所有redis连接
+        // 初始化所有redis连接
         Xten::RedisManager::GetInstance();
 
-        //初始化mysql库
+        // 初始化mysql库
         Xten::MySQLManager::GetInstance();
-        //初始化xftpWorker
+        // 初始化xftpWorker
         Xten::xftp::XftpWorker::GetInstance();
         // Xten::MySQLUtil::Query("default","SELECT 1"); //test
-        
+
         // 获取所有Module
         std::vector<Module::ptr> modules;
         Xten::ModuleMgr::GetInstance()->ListAll(modules);
@@ -234,7 +237,7 @@ namespace Xten
             }
             // 确定了Server的三类Worker--->创建Server
             TcpServer::ptr server;
-            TcpServerConf::ptr p_servConf=std::make_shared<TcpServerConf>(servConf);
+            TcpServerConf::ptr p_servConf = std::make_shared<TcpServerConf>(servConf);
             if (servConf.type == "http")
             {
                 server = std::make_shared<Xten::http::HttpServer>(accept_w, io_w, process_w, p_servConf);
@@ -248,9 +251,9 @@ namespace Xten
             {
                 server = std::make_shared<Xten::RockServer>(accept_w, io_w, process_w, p_servConf);
             }
-            else if(servConf.type == "xftp")
+            else if (servConf.type == "xftp")
             {
-                server= std::make_shared<Xten::xftp::XftpServer>(accept_w, io_w, process_w, p_servConf);
+                server = std::make_shared<Xten::xftp::XftpServer>(accept_w, io_w, process_w, p_servConf);
             }
             else
             {
@@ -268,38 +271,120 @@ namespace Xten
                 }
                 sleep(1);
             }
-            //直到绑定成功
-            if(servConf.ssl)
+            // 直到绑定成功
+            if (servConf.ssl)
             {
-                //Server采用TLS加密通信
-                bool ret=server->LoadCertificates(servConf.cert_file,servConf.key_file);
-                if(!ret)
+                // Server采用TLS加密通信
+                bool ret = server->LoadCertificates(servConf.cert_file, servConf.key_file);
+                if (!ret)
                 {
-                    XTEN_LOG_ERROR(g_logger)<<"LoadCertificates failed, "<<
-                    "cert_file="<<servConf.cert_file<<" key_file="<<servConf.key_file;
+                    XTEN_LOG_ERROR(g_logger) << "LoadCertificates failed, " << "cert_file=" << servConf.cert_file << " key_file=" << servConf.key_file;
                     _exit(0);
                 }
             }
             servers.push_back(server);
             _servers[server->GetServerConf()->type].push_back(server);
         }
-        //创建出了所有Server
-        for(auto& i : modules)
+
+        // kcpservers
+        std::vector<KcpServerConfig> kcpserversConf = g_kcpservers_conf->GetValue();
+        for (auto &servConf : kcpserversConf)
         {
-            //进行servle的注册
+            XTEN_LOG_DEBUG(g_logger) << std::endl
+                                     << lexicalCast<KcpServerConfig, std::string>()(servConf);
+            // 解析出一个Server的所有Address
+            //  address: ["0.0.0.0:8090", "127.0.0.1:0", "/tmp/test.sock"]
+            Address::ptr address;
+            size_t pos = servConf.address.find(":");
+            if (pos == std::string::npos)
+            {
+                // 没找到-->是一个Unix地址
+                address = std::make_shared<UnixAddress>(servConf.address);
+            }
+            // 找到了-->IP地址
+            uint16_t port = atoi(servConf.address.substr(pos + 1).c_str());
+            auto addr1 = IPAddress::Create(servConf.address.substr(0, pos).c_str(), port);
+            if (addr1)
+            {
+                address = addr1;
+            }
+            // 网卡地址 eth0
+            std::vector<std::pair<Address::ptr, uint32_t>> result;
+            if (Address::GetInterfaceAddresses(result, servConf.address.substr(0, pos)))
+            {
+                for (auto &ip : result)
+                {
+                    IPAddress::ptr ipaddr = std::dynamic_pointer_cast<IPAddress>(ip.first);
+                    if (ipaddr)
+                    {
+                        ipaddr->setPort(atoi(servConf.address.substr(pos + 1).c_str()));
+                    }
+                    address = ipaddr;
+                }
+            }
+            // 域名地址
+            auto addr2 = Address::LookupAny(servConf.address);
+            if (addr2)
+            {
+                address = addr2;
+                continue;
+            }
+            // 非法地址
+            XTEN_LOG_ERROR(g_logger) << "Invaild Address: " << servConf.address;
+            _exit(0);
+            IOManager *io_w = IOManager::GetThis();
+            if (!servConf.ioworker.empty())
+            {
+                io_w = WorkerManager::GetInstance()->GetAsIOManager(servConf.ioworker).get();
+                if (!io_w)
+                {
+                    XTEN_LOG_ERROR(g_logger) << "io_worker: " << servConf.ioworker
+                                             << " is not exist";
+                    _exit(0);
+                }
+            }
+            // msghandler
+            // todo
+
+            // 确定了Server的三类Worker--->创建Server
+            kcp::KcpServer::ptr server;
+            KcpServerConfig::ptr p_servConf = std::make_shared<KcpServerConfig>(servConf);
+            if (servConf.type == "kcp")
+            {
+                server = std::make_shared<Xten::kcp::KcpServer>(nullptr, io_w, p_servConf);
+            }
+            else
+            {
+                XTEN_LOG_ERROR(g_logger) << "Invaild Server Type: " << servConf.type;
+                _exit(0);
+            }
+            // 为Server绑定ip
+            server->Bind(address);
+            _kcp_servers.push_back(server);
+        }
+
+        // 创建出了所有Server
+        for (auto &i : modules)
+        {
+            // 进行servle的注册
             i->OnServerReady();
         }
-        //启动Server
-        for(auto& i : servers)
+        // 启动Server
+        for (auto &i : servers)
         {
             i->Start();
         }
-        for(auto& i : modules)
+        // kcpservers
+        for (auto &i : _kcp_servers)
+        {
+            i->Start();
+        }
+        for (auto &i : modules)
         {
             i->OnServerUp();
         }
         modules.clear();
-        XTEN_LOG_INFO(g_logger)<<"run in fiber end";
+        XTEN_LOG_INFO(g_logger) << "run in fiber end";
         return;
     }
     // 按类型获取servers
@@ -317,6 +402,10 @@ namespace Xten
     void Application::GetAllServers(std::unordered_map<std::string, std::vector<TcpServer::ptr>> &servs)
     {
         servs = _servers;
+    }
+    void Application::GetAllKcpServers(std::vector<kcp::KcpServer::ptr> &kcp_servs)
+    {
+        kcp_servs = _kcp_servers;
     }
     Application *Application::_instance = nullptr;
 }

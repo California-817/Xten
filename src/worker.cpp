@@ -35,7 +35,7 @@ namespace Xten
         return nullptr;
     }
     // 获取返回IOManager的智能指针
-    IOManager::prt WorkerManager::GetAsIOManager(const std::string &name)
+    IOManager::ptr WorkerManager::GetAsIOManager(const std::string &name)
     {
         return std::dynamic_pointer_cast<IOManager>(Get(name));
     }

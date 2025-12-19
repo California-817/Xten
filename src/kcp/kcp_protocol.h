@@ -9,10 +9,12 @@ namespace Xten
         // common game protocol
         // 只是临时测试逻辑正常，后面需要对协议进行完善....todo
         // kcp响应
+        class KcpRequest;
         class KcpResponse : public Response
         {
         public:
             typedef std::shared_ptr<KcpResponse> ptr;
+            friend class KcpRequest;
             // 将消息结构体序列化成bytearray
             virtual bool SerializeToByteArray(ByteArray::ptr ba)
             {
@@ -28,9 +30,9 @@ namespace Xten
             {
 
                 Response::ParseFromByteArray(ba);
-                _magic=ba->ReadFUint16();
-                _version=ba->ReadFUint8();
-                _remain=ba->ReadFUint16();
+                _magic = ba->ReadFUint16();
+                _version = ba->ReadFUint8();
+                _remain = ba->ReadFUint16();
                 _data = ba->ReadStringF32();
                 return true;
             }
@@ -38,7 +40,9 @@ namespace Xten
             virtual std::string ToString() const
             {
                 std::stringstream ss;
-                ss << "[sn=" << _sn << "][cmd=" << _cmd << "]" << "[result="
+                ss << "[sn=" << _sn << "][cmd=" << _cmd << "]"
+                   << "[magic=" << _magic
+                   << "][version" << _version << "][result="
                    << _result << "][resultstr=" << _resultString << "][data=" << _data;
                 return ss.str();
             }
@@ -112,6 +116,9 @@ namespace Xten
                 auto rsp = std::make_shared<KcpResponse>();
                 rsp->SetCmd(_cmd);
                 rsp->SetSn(_sn);
+                rsp->_magic = _magic;
+                rsp->_version = _version;
+                rsp->_remain = _remain;
                 return rsp;
             }
             // 将消息结构体序列化成bytearray
@@ -128,9 +135,9 @@ namespace Xten
             virtual bool ParseFromByteArray(ByteArray::ptr ba)
             {
                 Request::ParseFromByteArray(ba);
-                _magic=ba->ReadFUint16();
-                _version=ba->ReadFUint8();
-                _remain=ba->ReadFUint16();
+                _magic = ba->ReadFUint16();
+                _version = ba->ReadFUint8();
+                _remain = ba->ReadFUint16();
                 _data = ba->ReadStringF32();
                 return true;
             }
@@ -138,7 +145,10 @@ namespace Xten
             virtual std::string ToString() const
             {
                 std::stringstream ss;
-                ss << "[sn=" << _sn << "][cmd=" << _cmd << "][data=" << _data;
+                ss << "[sn=" << _sn << "]"
+                   << "[magic=" << _magic
+                   << "][version" << _version
+                   << "][cmd=" << _cmd << "][data=" << _data;
                 return ss.str();
             }
             // 获取name
@@ -187,6 +197,12 @@ namespace Xten
                 }
                 return nullptr;
             }
+
+            void SetMagic(uint16_t magic) { _magic = magic; }
+            uint16_t GetMagic() const { return _magic; }
+
+            void SetVersion(uint8_t version) { _version = version; }
+            uint8_t GetVersion() const { return _version; }
 
         private:
             // uint32_t _sn;   // 请求的唯一序列号

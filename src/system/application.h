@@ -2,6 +2,7 @@
 #define __XTEN_APPLICATION_H__
 #include "../singleton.hpp"
 #include "../tcp_server.h"
+#include"../kcp/kcp_server.h"
 namespace Xten
 {
     class Application
@@ -18,6 +19,7 @@ namespace Xten
         bool GetServersByType(const std::string& type,std::vector<TcpServer::ptr>& servs);
         //获取所有servers
         void GetAllServers(std::unordered_map<std::string,std::vector<TcpServer::ptr>>& servs); 
+        void GetAllKcpServers(std::vector<kcp::KcpServer::ptr>& kcp_servs);
     private:
         int main(int argc,char** argv);
         void run_fiber();
@@ -25,8 +27,9 @@ namespace Xten
         char **_argv = nullptr;
         // 整个框架的所有服务器 [key->Type : value->Servers]
         std::unordered_map<std::string, std::vector<TcpServer::ptr>> _servers;
+        std::vector<kcp::KcpServer::ptr> _kcp_servers; //kcpservers
         //主线程的执行调度器
-        IOManager::prt _mainIOManager;
+        IOManager::ptr _mainIOManager;
         //单例指针
         static Application* _instance;
     };

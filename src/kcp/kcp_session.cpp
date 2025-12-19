@@ -67,7 +67,7 @@ namespace Xten
         }
 
         // 读到一个message报文
-        KcpRequest::ptr KcpSession::ReadMessage(KcpSession::READ_ERRNO &error)
+        Message::ptr KcpSession::ReadMessage(KcpSession::READ_ERRNO &error)
         {
             Timer::ptr timer;
             if (_read_timeout_ms > 0)
@@ -185,7 +185,7 @@ namespace Xten
             SendMessage(nullptr);
         }
         // 发送一个包文--->into queue
-        void KcpSession::SendMessage(KcpResponse::ptr msg)
+        void KcpSession::SendMessage(Message::ptr msg)
         {
             {
                 MutexType::Lock _lock(_sendque_mtx);
@@ -202,7 +202,7 @@ namespace Xten
             {
                 do
                 {
-                    std::list<KcpResponse::ptr> tmp;
+                    std::list<Message::ptr> tmp;
                     {
                         MutexType::Lock lock(_sendque_mtx);
                         while (_sendque.empty() &&
@@ -303,7 +303,7 @@ namespace Xten
         }
 
         // 发送协程调用: [发送队列--->kcpcb发送缓冲区区]
-        bool KcpSession::write(KcpResponse::ptr rsp)
+        bool KcpSession::write(Message::ptr rsp)
         {
             // 对包的大小有限制
             ByteArray::ptr ba = std::make_shared<ByteArray>(1024 + 512);
