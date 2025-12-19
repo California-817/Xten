@@ -304,26 +304,30 @@ namespace Xten
         {
             return -1;
         }
-        //struct mmsghdr {
-        //        struct msghdr msg_hdr;  /* Message header */
-        //        unsigned int  msg_len;  /* Number of received bytes for header */};
+        // struct mmsghdr {
+        //         struct msghdr msg_hdr;  /* Message header */
+        //         unsigned int  msg_len;  /* Number of received bytes for header */};
+        struct sockaddr_in addrs[batch_size];
+        memset(addrs, 0, sizeof(addrs));
+
         struct mmsghdr msgs[batch_size];
         memset(&msgs, 0, sizeof(msgs));
-        // 设置值
+        // 设置值，每条消息使用独立的addr缓冲，避免复用同一Address对象导致内核写入覆盖
         for (int i = 0; i < batch_size; i++)
         {
             msgs[i].msg_hdr.msg_iov = &iov[i];
             msgs[i].msg_hdr.msg_iovlen = 1;
-            msgs->msg_hdr.msg_name = info[i].first->getAddr();
-            msgs->msg_hdr.msg_namelen = info[i].first->getAddrLen();
+            msgs[i].msg_hdr.msg_name = &addrs[i];
+            msgs[i].msg_hdr.msg_namelen = sizeof(addrs[i]);
         }
         int ret = ::recvmmsg(_sockfd, msgs, batch_size, flags, nullptr);
         // XTEN_LOG_INFO(g_logger)<<"ret=="<<ret;
-        // 设置info中的每条数据大小
+        // 设置info中的每条数据大小及地址
         if (ret > 0)
         {
             for (int i = 0; i < ret; i++)
             {
+                info[i].first = std::make_shared<IPv4Address>(addrs[i]);
                 info[i].second = msgs[i].msg_len;
             }
         }

@@ -10,10 +10,10 @@ namespace Xten
     {
         static Logger::ptr g_logger = XTEN_LOG_NAME("system");
         KcpSession::KcpSession(std::weak_ptr<Socket> udp_channel, std::weak_ptr<KcpListener> listener, Address::ptr remote_addr, uint32_t convid,
-                               int nodelay,  // 0:disable(default), 1:enable  是否非延迟
-                               int interval, // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
-                               int resend,   // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
-                               int nc)       // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制)
+                               int nodelay,                                 // 0:disable(default), 1:enable  是否非延迟
+                               int interval,                                // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
+                               int resend,                                  // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
+                               int nc, int mtxsize, int sndwnd, int rcvwnd) // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制)
 
             : _sendque_cond(_sendque_mtx),
               _kcpcb_cond(_kcpcb_mtx),
@@ -29,6 +29,10 @@ namespace Xten
             ikcp_setoutput(_kcp_cb, &KcpSession::kcp_output_func);
             // 设置kcp配置
             ikcp_nodelay(_kcp_cb, nodelay, interval, resend, nc);
+            //  设置mtu
+            ikcp_setmtu(_kcp_cb, mtxsize);
+            // 设置窗口大小
+            ikcp_wndsize(_kcp_cb, sndwnd, rcvwnd);
         }
 
         KcpSession::~KcpSession()
@@ -44,6 +48,7 @@ namespace Xten
                 //关闭连接前最好进行一次数据的刷新----比如forceClose场景，写协程只是按顺序将包文放到kcpcb中，其实没有真正发送，直接关闭就导致包文丢失
                 {
                     MutexType::Lock lock(_kcpcb_mtx);
+                    ikcp_update(_kcp_cb,TimeUitl::GetCurrentMS());
                     ikcp_flush(_kcp_cb); //flush data in kcpcb buffer
                 }
                 auto listener=_listener.lock();
@@ -62,7 +67,7 @@ namespace Xten
         }
 
         // 读到一个message报文
-        KcpRequest::ptr KcpSession::ReadMessage()
+        KcpRequest::ptr KcpSession::ReadMessage(KcpSession::READ_ERRNO &error)
         {
             Timer::ptr timer;
             if (_read_timeout_ms > 0)
@@ -86,6 +91,7 @@ namespace Xten
                 {
                     _b_read_timeout = false;
                     XTEN_LOG_DEBUG(g_logger) << "read time out";
+                    error = READ_ERRNO::READ_TIMEOUT;
                     break;
                 }
                 else
@@ -94,12 +100,15 @@ namespace Xten
                         timer->cancel();
                     if (_b_close)
                     {
+                        error = READ_ERRNO::SESSION_CLOSE;
                         XTEN_LOG_DEBUG(g_logger) << "kcpsession has been closed";
                         break;
                     }
                     else if (_b_read_error)
                     {
-                        XTEN_LOG_DEBUG(g_logger) << "kcpsession read error";
+                        error = READ_ERRNO::READ_ERROR;
+                        XTEN_LOG_DEBUG(g_logger) << "kcpsession read error,errno=" << _read_error_code
+                                                 << ",errstr=" << strerror(_read_error_code);
                         break;
                     }
                     else
@@ -115,6 +124,7 @@ namespace Xten
                                 // 缓冲区不足---对方发来的包太大了[看作非法]
                                 notifyReadError(ret);
                                 free(buf);
+                                error = READ_ERRNO::READ_ERROR;
                                 return nullptr;
                             }
                             else if (ret > 0)
@@ -224,7 +234,7 @@ namespace Xten
                     if (b_force_stop)
                         break;
                 } while (!_b_close && !_b_read_error && !_b_write_error);
-                std::cout << _b_close << _b_read_error << _b_write_error << "!!!!!!!!!!" << std::endl;
+                // std::cout << _b_close << _b_read_error << _b_write_error << "!!!!!!!!!!" << std::endl;
                 Close(); // 关闭连接
             }
             catch (...)

@@ -12,7 +12,10 @@ namespace Xten
         {
             REQUEST = 1,  // 请求消息
             RESPONSE = 2, // 响应消息
-            NOTIFY = 3    // 通知消息
+            NOTIFY = 3,   // 通知消息
+            PING = 4,     // ping
+            PONG = 5,     // pong
+            CLOSE = 6,    // close
         };
         Message() = default;
         virtual ~Message() = default;
@@ -25,7 +28,7 @@ namespace Xten
         // 转字符串
         virtual std::string ToString() const = 0;
         // 获取name
-        virtual const std::string& GetName() const = 0;
+        virtual const std::string &GetName() const = 0;
         // 获取消息类型
         virtual uint8_t GetMessageType() const = 0;
     };

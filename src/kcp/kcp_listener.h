@@ -27,7 +27,7 @@ namespace Xten
             KcpListener(Address::ptr addr, uint32_t maxConnNum, IOManager *iom, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
                         int interval,                                                                           // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
                         int resend,                                                                             // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
-                        int nc);                                                                                // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制
+                        int nc, int mtusize, int sndwnd, int rcvwnd);                                           // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制
         public:
             friend class KcpSession;
 
@@ -38,9 +38,9 @@ namespace Xten
 
             // 工厂方法创建listener
             static std::shared_ptr<KcpListener> Create(Address::ptr addr, uint32_t maxConnNum, IOManager *iom = IOManager::GetThis(), int coroutine_num = 10,
-                                                       int nodelay = 1, int interval = 20, int resend = 2, int nc = 1)
+                                                       int nodelay = 1, int interval = 20, int resend = 2, int nc = 1, int mtusize = 1400, int sndwnd = 32, int rcvwnd = 32)
             {
-                return std::shared_ptr<KcpListener>(new KcpListener(addr, maxConnNum,iom, coroutine_num, nodelay, interval, resend, nc ));
+                return std::shared_ptr<KcpListener>(new KcpListener(addr, maxConnNum, iom, coroutine_num, nodelay, interval, resend, nc, mtusize, sndwnd, rcvwnd));
             }
 
             ~KcpListener();
@@ -57,26 +57,27 @@ namespace Xten
             // 获取localaddr
             Address::ptr GetLocalAddress() const;
 
-            //信息
+            // 信息
             std::string ListenerInfo() const
             {
                 std::stringstream ss;
-                if(_sessions.empty())
+                if (_sessions.empty())
                 {
-                    ss<<"[KcpServer No Connection]";
+                    ss << "[KcpServer No Connection]";
                     return ss.str();
                 }
-                for(auto& sess:_sessions)
+                for (auto &sess : _sessions)
                 {
-                    ss<<"\n[fd="<<sess.first<<"]==>{ ";
-                    for(auto& e:sess.second)
+                    ss << "\n[fd=" << sess.first << "]==>{ ";
+                    for (auto &e : sess.second)
                     {
-                        ss<<"[convid="<<e.second->GetConvId()<<"] ";
+                        ss << "[convid=" << e.second->GetConvId() << "] ";
                     }
-                    ss<<" }\n";
+                    ss << " }\n";
                 }
                 return ss.str();
             }
+
         private:
             // 接收数据协程函数
             void doRecvLoop(KcpListener::ptr self, Socket::ptr udpChannel);
@@ -99,6 +100,9 @@ namespace Xten
             int _interval;
             int _resend;
             int _nc;
+            int _mtxsize;
+            int _sndwnd;
+            int _rcvwnd;
 
             IOManager *_iom;
 

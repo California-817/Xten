@@ -15,7 +15,7 @@ namespace Xten
         KcpListener::KcpListener(Address::ptr addr, uint32_t maxConnNum, IOManager *iom, int coroutine_num, int nodelay, // 0:disable(default), 1:enable  是否非延迟
                                  int interval,                                                                           // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
                                  int resend,                                                                             // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
-                                 int nc)
+                                 int nc, int mtxsize, int sndwnd, int rcvwnd)
             : _accept_timeout_ms(0),
               _coroutine_num(coroutine_num),
               _b_timeout(false),
@@ -29,7 +29,10 @@ namespace Xten
               _interval(interval),
               _resend(resend),
               _nc(nc),
-              _iom(iom)
+              _iom(iom),
+              _mtxsize(mtxsize),
+              _sndwnd(sndwnd),
+              _rcvwnd(rcvwnd)
         {
             // 创建udpsocket并设置端口复用
             for (int i = 0; i < _coroutine_num; i++)
@@ -158,9 +161,16 @@ namespace Xten
                     std::vector<iovec> iovs;                                // 缓冲区指针+len
                     ba->GetWriteBuffers(iovs, maxBatchSize * (1024 + 512)); // 拿到batchsize个的缓冲区
                     std::vector<std::pair<Address::ptr, size_t>> infos;
-                    infos.resize(maxBatchSize, std::make_pair(std::make_shared<IPv4Address>(), 0));
+                    infos.resize(maxBatchSize);
                     int ret = udpChannel->RecvFromBatch(iovs, maxBatchSize, infos);
-                    XTEN_LOG_INFO(g_logger)<<"recv,ret="<<ret;
+                    if (ret >= 2)
+                    {
+                        XTEN_LOG_INFO(g_logger) << "recv,ret=" << ret;
+                        for (int i = 0; i < ret; i++)
+                        {
+                            std::cout << "addr=" << i << infos[i].first->toString() << std::endl;
+                        }
+                    }
                     // Xten::Address::ptr addr=std::make_shared<IPv4Address>();
                     // int ret=udpChannel->RecvFrom(ba->GetBeginNodePtr(),ba->GetNodeSize(),addr);
                     // 注意：ba里面的读写位置并没有改变
@@ -212,7 +222,7 @@ namespace Xten
                     }
                     // 间隔一段时间--每10ms调用一次
                     usleep(1000 * _interval / 2);
-                    // XTEN_LOG_DEBUG(g_logger)<<"update";
+                    // XTEN_LOG_DEBUG(g_logger)<<"update"<<TimeUitl::GetCurrentMS();
                 }
             }
             catch (...)
@@ -229,15 +239,11 @@ namespace Xten
             std::pair<bool, KcpSession::ptr> isExisted;
             {
                 MutexType::Lock lock(_session_mtx);
-                for (auto &sessions : _sessions)
+                auto iter = _sessions[udpChannel->GetSockFd()].find(from->toString());
+                if (iter != _sessions[udpChannel->GetSockFd()].end())
                 {
-                    auto iter = sessions.second.find(from->toString());
-                    if (iter != sessions.second.end())
-                    {
-                        isExisted.first = true;
-                        isExisted.second = iter->second;
-                        break;
-                    }
+                    isExisted.first = true;
+                    isExisted.second = iter->second;
                 }
             }
             if (!isExisted.first)
@@ -245,9 +251,9 @@ namespace Xten
                 // 1.判断是不是客户端发来的连接建立包
                 if (!KcpUtil::is_connect_packet(data, len))
                 {
-                    //解答疑问：kcp服务端[当前]将这个连接关闭了,不再发送响应和其他kcp内部的包给客户端，而客户端认为连接
-                    //仍然建立，会认为是网络问题而重传没有收到响应的包，并且客户端也在不停发包，就会导致服务端频繁得收到
-                    //客户端的包文，因此这个接口会频繁触发------>客户端发送包文数量是远小于kcp内部处理后发送的包的[实际包数量]
+                    // 解答疑问：kcp服务端[当前]将这个连接关闭了,不再发送响应和其他kcp内部的包给客户端，而客户端认为连接
+                    // 仍然建立，会认为是网络问题而重传没有收到响应的包，并且客户端也在不停发包，就会导致服务端频繁得收到
+                    // 客户端的包文，因此这个接口会频繁触发------>客户端发送包文数量是远小于kcp内部处理后发送的包的[实际包数量]
                     XTEN_LOG_WARN(g_logger) << "KcpListener recv a invalid kcp connect packet";
                     return;
                 }
@@ -259,18 +265,24 @@ namespace Xten
                     lockq.unlock();
                     {
                         MutexType::Lock lock(_session_mtx);
-                        if (_sessions.size() >= _max_conn_num) // 服务器的连接数量达到上限
+                        size_t sz = 0;
+                        for (auto &sesss : _sessions)
+                        {
+                            sz += sesss.second.size();
+                        }
+                        if (sz >= _max_conn_num) // 服务器的连接数量达到上限
                             return;
                     }
                     // 没满--创建连接
                     // 1.给客户端发送连接响应包文
                     uint32_t local_convid = _convid++;
                     std::string backpacket = KcpUtil::making_connect_backpacket() + std::to_string(local_convid);
+                    XTEN_LOG_DEBUG(g_logger) << "from=" << from->toString() << "convid" << local_convid;
                     udpChannel->SendTo(backpacket.c_str(), backpacket.length(), from);
                     // 2.创建并保存连接
                     // KcpSession::ptr newss = std::make_shared<KcpSession>(udpChannel,shared_from_this(),from,local_convid) ; // todo 参数
                     KcpSession::ptr newss = Xten::protected_make_shared<KcpSession>(udpChannel, shared_from_this(), from, local_convid,
-                                                                                    _nodelay, _interval, _resend, _nc);
+                                                                                    _nodelay, _interval, _resend, _nc, _mtxsize, _sndwnd, _rcvwnd);
                     {
                         MutexType::Lock lock(_session_mtx);
                         _sessions[udpChannel->GetSockFd()][from->toString()] = newss;
@@ -289,16 +301,25 @@ namespace Xten
                     if (len < 4)
                     {
                         // len 不足4字节 convid读不到
+                        XTEN_LOG_INFO(g_logger) << "" << "len=" << len;
                         break;
                     }
                     uint32_t id = ikcp_getconv(data);
-                    // XTEN_LOG_INFO(g_logger)<<"id="<<id<<"len="<<len;
-                    // XTEN_LOG_INFO(g_logger)<<"serverid="<<session->GetConvId();
                     if (id == session->GetConvId())
                     {
                         // equal
                         session->packetInput(data, len);
                         return;
+                    }
+                    else
+                    {
+                        XTEN_LOG_INFO(g_logger) << "id" << id << "serverid=" << session->GetConvId();
+                        std::cout << "from" << from->toString() << std::endl;
+                        for (auto &session : _sessions[udpChannel->GetSockFd()])
+                        {
+                            std::cout << "idkey=" << session.first << "id=" << session.second->GetConvId() << "from=" << session.second->_remote_addr->toString() << std::endl;
+                        }
+                        break;
                     }
                 } while (false);
                 session->Close();

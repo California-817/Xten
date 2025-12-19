@@ -20,7 +20,7 @@ namespace Xten
         bool KcpServer::Bind(Address::ptr addr)
         {
             XTEN_ASSERT(_io_worker);
-            _listener = KcpListener::Create(addr, 10000, _io_worker);
+            _listener = KcpListener::Create(addr, 10000, _io_worker, 1);
             return true;
         }
 
@@ -32,9 +32,8 @@ namespace Xten
             XTEN_ASSERT(_io_worker);
             _listener->Listen();
             auto self = shared_from_this();
-            _io_worker->addTimer(3000,[this](){
-                XTEN_LOG_DEBUG(g_logger)<<_listener->ListenerInfo();
-            },true);
+            _io_worker->addTimer(3000, [this]()
+                                 { XTEN_LOG_DEBUG(g_logger) << _listener->ListenerInfo(); }, true);
             _io_worker->Schedule(std::bind(&KcpServer::startAccept, this, self));
             _isStop = false;
         }
@@ -76,11 +75,12 @@ namespace Xten
             // client->
             while (true)
             {
-                auto req = session->ReadMessage();
+                KcpSession::READ_ERRNO error;
+                auto req = session->ReadMessage(error);
                 if (req)
                 {
                     req->ToString();
-                    XTEN_LOG_DEBUG(g_logger) << "req=" << req->ToString();
+                    // XTEN_LOG_DEBUG(g_logger) << "req=" << req->ToString();
                     auto rsp = req->CreateKcpResponse();
                     rsp->SetResult(0);
                     rsp->SetResultStr("success");
@@ -89,8 +89,24 @@ namespace Xten
                 }
                 else
                 {
-                    XTEN_LOG_DEBUG(g_logger)<<"recv msg error";
-                    break;
+                    if(error==KcpSession::READ_ERRNO::READ_TIMEOUT)
+                    {
+                        //timeout
+                    }
+                    else if(error==KcpSession::READ_ERRNO::READ_ERROR)
+                    {
+                        //read error
+                    }
+                    else if(error==KcpSession::READ_ERRNO::SESSION_CLOSE)
+                    {
+                        //close
+                    }
+                    else
+                    {
+                        XTEN_LOG_DEBUG(g_logger) << "recv msg error";
+                        break;
+                    }
+                    
                 }
             }
             session->ForceClose();

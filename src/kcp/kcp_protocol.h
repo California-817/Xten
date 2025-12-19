@@ -6,6 +6,7 @@ namespace Xten
 {
     namespace kcp
     {
+        // common game protocol
         // 只是临时测试逻辑正常，后面需要对协议进行完善....todo
         // kcp响应
         class KcpResponse : public Response
@@ -16,6 +17,9 @@ namespace Xten
             virtual bool SerializeToByteArray(ByteArray::ptr ba)
             {
                 Response::SerializeToByteArray(ba);
+                ba->WriteFUint16(_magic);
+                ba->WriteFUint8(_version);
+                ba->WriteFUint16(_remain);
                 ba->WriteStringF32(_data);
                 return true;
             }
@@ -24,6 +28,9 @@ namespace Xten
             {
 
                 Response::ParseFromByteArray(ba);
+                _magic=ba->ReadFUint16();
+                _version=ba->ReadFUint8();
+                _remain=ba->ReadFUint16();
                 _data = ba->ReadStringF32();
                 return true;
             }
@@ -88,10 +95,14 @@ namespace Xten
             // uint32_t _result;          // 响应码
             // std::string _resultString; // 响应码对应响应字符串
 
+            uint16_t _magic;  // 魔数
+            uint8_t _version; // 版本
+            uint16_t _remain; // 保留字段
+
             std::string _data; // 正文数据
         };
 
-                //  kcp请求
+        //  kcp请求
         class KcpRequest : public Request
         {
         public:
@@ -107,6 +118,9 @@ namespace Xten
             virtual bool SerializeToByteArray(ByteArray::ptr ba)
             {
                 Request::SerializeToByteArray(ba);
+                ba->WriteFUint16(_magic);
+                ba->WriteFUint8(_version);
+                ba->WriteFUint16(_remain);
                 ba->WriteStringF32(_data);
                 return true;
             }
@@ -114,6 +128,9 @@ namespace Xten
             virtual bool ParseFromByteArray(ByteArray::ptr ba)
             {
                 Request::ParseFromByteArray(ba);
+                _magic=ba->ReadFUint16();
+                _version=ba->ReadFUint8();
+                _remain=ba->ReadFUint16();
                 _data = ba->ReadStringF32();
                 return true;
             }
@@ -174,8 +191,10 @@ namespace Xten
         private:
             // uint32_t _sn;   // 请求的唯一序列号
             // uint32_t _cmd;  // 用于标识这个请求的方法类型（不同方法类型对应不同处理）
-
-            std::string _data; // 正文数据
+            uint16_t _magic = 0x0817; // 魔数
+            uint8_t _version = 1.0;   // 版本
+            uint16_t _remain;         // 保留字段
+            std::string _data;        // 正文数据
         };
     }
 } // namespace Xten

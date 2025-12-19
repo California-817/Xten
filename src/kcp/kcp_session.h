@@ -15,12 +15,19 @@ namespace Xten
         protected:
             // 不允许外部随意创建
             KcpSession(std::weak_ptr<Socket> udp_channel, std::weak_ptr<KcpListener> listener, Address::ptr remote_addr, uint32_t convid,
-                       int nodelay = 1,   // 0:disable(default), 1:enable  是否非延迟
-                       int interval = 20, // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
-                       int resend = 2,    // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
-                       int nc = 1);       // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制
+                       int nodelay = 1,                                                   // 0:disable(default), 1:enable  是否非延迟
+                       int interval = 20,                                                 // internal update timer interval in millisec, default is 100ms  内部刷新数据间隔时间
+                       int resend = 2,                                                    // 0:disable fast resend(default), 1:enable fast resend 快速重传次数
+                       int nc = 1, int mtxsize = 1400, int sndwnd = 32, int rcvwnd = 32); // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制
 
         public:
+            enum READ_ERRNO
+            {
+                READ_TIMEOUT = (1 << 0),  // 读超时
+                READ_ERROR = (1 << 1),    // 读错误
+                SESSION_CLOSE = (1 << 2), // 连接关闭
+            };
+
             friend class KcpListener;
             typedef std::shared_ptr<KcpSession> ptr;
             typedef FiberMutex MutexType;
@@ -31,7 +38,7 @@ namespace Xten
             ~KcpSession();
             void Close();
             // 读到一个message报文
-            KcpRequest::ptr ReadMessage();
+            KcpRequest::ptr ReadMessage(KcpSession::READ_ERRNO &error);
             // 发送一个包文--->into queue [注意：包文大小最大不能超过1024+512字节]
             void SendMessage(KcpResponse::ptr msg);
             // 等待写协程退出
@@ -84,7 +91,6 @@ namespace Xten
             CondType _sendque_cond;               // 发送队列条件变量
 
             SemType _sem; // 等待写协程退出
-
 
             std::once_flag _once_close;         // 一次关闭
             std::atomic<bool> _b_close = false; // 通知关闭

@@ -56,17 +56,17 @@ void recv_thread(ikcpcb *kcp)
 /* ------------ main ------------ */
 int main(int argc, char *argv[])
 {
-    if (argc != 3)
-    {
-        std::cerr << "用法: " << argv[0] << " <ip> <port>\n";
-        return 1;
-    }
+    // if (argc != 3)
+    // {
+        // std::cerr << "用法: " << argv[0] << " <ip> <port>\n";
+        // return 1;
+    // }
 
     /* 1. UDP socket */
     g_sock = socket(AF_INET, SOCK_DGRAM, 0);
     g_serv.sin_family = AF_INET;
-    g_serv.sin_port = htons(std::atoi(argv[2]));
-    inet_pton(AF_INET, argv[1], &g_serv.sin_addr);
+    g_serv.sin_port = htons(8080);
+    inet_pton(AF_INET, "127.0.0.1", &g_serv.sin_addr);
 
     sendto(g_sock, KcpUtil::making_connect_packet().c_str(), KcpUtil::making_connect_packet().length(), 0, (const sockaddr *)&g_serv, sizeof(g_serv));
     char buffer[1024];
@@ -105,11 +105,11 @@ int main(int argc, char *argv[])
         req->SerializeToByteArray(ba);
         ba->SetPosition(0);
         auto reqstr = ba->ToString();
-        std::cout<<reqstr.length()<<std::endl;
+        // std::cout<<reqstr.length()<<std::endl;
         ikcp_send(kcp, reqstr.c_str(), reqstr.length());
         // ikcp_send(kcp, line.data(), line.size());
         ikcp_flush(kcp); // 立即尝试发出
-        sleep(1);
+        usleep(10000);
     }
 
     ikcp_release(kcp);
