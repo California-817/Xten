@@ -4,6 +4,8 @@
 #include "../iomanager.h"
 #include "../macro.h"
 #include "../util.h"
+#include <sstream>
+#include <iomanip>
 namespace Xten
 {
     namespace kcp
@@ -84,9 +86,7 @@ namespace Xten
                 {
                     // 提前获知接收队列中包文情况---没有完整包文
                     _kcpcb_cond.wait();
-                    // XTEN_LOG_DEBUG(g_logger) <<"peeksize="<<ikcp_peeksize(_kcp_cb);
                 }
-                // XTEN_LOG_DEBUG(g_logger) << "read out";
                 // 循环条件不满足---跳出
                 if (_b_read_timeout)
                 {
@@ -134,19 +134,16 @@ namespace Xten
                                 continue;
                         }
                         buf[ret] = 0;
-                        // XTEN_LOG_INFO(g_logger) << "data=" << buf;
                         // success---反序列化
                         ByteArray::ptr ba = std::make_shared<ByteArray>(ret);
                         ba->Write(buf, ret);
                         free(buf);
                         ba->SetPosition(0);
                         Message::MessageType type = (Message::MessageType)ba->ReadFUint8();
-                        // XTEN_LOG_DEBUG(g_logger) << "type=" << type;
                         if (type == Message::MessageType::REQUEST)
                         {
                             KcpRequest::ptr req = std::make_shared<KcpRequest>();
                             req->ParseFromByteArray(ba);
-                            // XTEN_LOG_DEBUG(g_logger) << "req=" << req->ToString();
                             return req;
                         }
                         else if (type == Message::MessageType::NOTIFY)
@@ -172,6 +169,7 @@ namespace Xten
                 int ret = ikcp_input(_kcp_cb, data, len);
                 if (ret < 0)
                 {
+                    XTEN_LOG_ERROR(g_logger) << "session input packeterror ret=" << ret << "len=" << len;
                     notifyReadError(ret);
                     return;
                 }
@@ -235,7 +233,6 @@ namespace Xten
                     if (b_force_stop)
                         break;
                 } while (!_b_close && !_b_read_error && !_b_write_error);
-                // std::cout << _b_close << _b_read_error << _b_write_error << "!!!!!!!!!!" << std::endl;
                 Close(); // 关闭连接
             }
             catch (...)
@@ -312,7 +309,6 @@ namespace Xten
             ba->SetPosition(0); // 写操作移动了position
             // 涉及对kcpcb的访问---需要加锁
             MutexType::Lock lock(_kcpcb_mtx);
-            // XTEN_LOG_DEBUG(g_logger)<<"send rsp size="<<ba->GetReadSize();
             int ret = ikcp_send(_kcp_cb, (const char *)ba->GetBeginNodePtr(), ba->GetReadSize());
             if (ret < 0)
             {

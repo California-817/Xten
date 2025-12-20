@@ -13,9 +13,11 @@ using namespace Xten::kcp;
 #include <thread>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <mutex>
 static int count = 0;
 static int g_sock = 0;
 static sockaddr_in g_serv;
+static std::mutex g_kcp_mtx;
 
 /* ------------ KCP 输出回调 ------------ */
 int kcp_output(const char *buf, int len, ikcpcb *kcp, void *user)
@@ -36,20 +38,49 @@ void update_thread(ikcpcb *kcp)
 {
     while (true)
     {
-        ikcp_update(kcp, get_ms());
+        {
+            std::lock_guard<std::mutex> lk(g_kcp_mtx);
+            ikcp_update(kcp, get_ms());
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 }
-
+static std::atomic_int sn=1;
 /* ------------ 接收线程 ------------ */
 void recv_thread(ikcpcb *kcp)
 {
     char buf[4096];
+    char rcvbuf[4096];
     while (true)
     {
         ssize_t n = recvfrom(g_sock, buf, sizeof(buf), 0, nullptr, nullptr);
-        if (n > 0)
+        if (n > 0) {
+            std::lock_guard<std::mutex> lk(g_kcp_mtx);
             ikcp_input(kcp, buf, n);
+        }
+        // recv
+        int ret = 0;
+        {
+            std::lock_guard<std::mutex> lk(g_kcp_mtx);
+            ret = ikcp_recv(kcp, rcvbuf, 4096);
+        }
+        if (ret > 0)
+        {
+            rcvbuf[ret] = 0;
+            ByteArray::ptr ba = std::make_shared<ByteArray>(ret);
+            ba->Write(rcvbuf, ret);
+            ba->SetPosition(0);
+            KcpResponse::ptr rsp = std::make_shared<KcpResponse>();
+            std::cout<<ba->ReadFUint8()<<std::endl; //type
+            rsp->ParseFromByteArray(ba);
+            if(sn>rsp->GetSn())
+            {
+                std::cout<<"error"<<std::endl;
+                exit(-1);
+            }
+            sn=rsp->GetSn();
+            std::cout << rsp->ToString() << std::endl;
+        }
     }
 }
 
@@ -58,8 +89,8 @@ int main(int argc, char *argv[])
 {
     // if (argc != 3)
     // {
-        // std::cerr << "用法: " << argv[0] << " <ip> <port>\n";
-        // return 1;
+    // std::cerr << "用法: " << argv[0] << " <ip> <port>\n";
+    // return 1;
     // }
 
     /* 1. UDP socket */
@@ -105,10 +136,13 @@ int main(int argc, char *argv[])
         req->SerializeToByteArray(ba);
         ba->SetPosition(0);
         auto reqstr = ba->ToString();
-        // std::cout<<reqstr.length()<<std::endl;
-        ikcp_send(kcp, reqstr.c_str(), reqstr.length());
-        // ikcp_send(kcp, line.data(), line.size());
-        ikcp_flush(kcp); // 立即尝试发出
+        std::cout<<reqstr.length()<<std::endl;
+        {
+            std::lock_guard<std::mutex> lk(g_kcp_mtx);
+            ikcp_send(kcp, reqstr.c_str(), reqstr.length());
+            // ikcp_send(kcp, line.data(), line.size());
+            ikcp_flush(kcp); // 立即尝试发出
+        }
         usleep(10000);
     }
 

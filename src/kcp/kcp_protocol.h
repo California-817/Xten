@@ -6,8 +6,85 @@ namespace Xten
 {
     namespace kcp
     {
-        // common game protocol
-        // 只是临时测试逻辑正常，后面需要对协议进行完善....todo
+        // common game protocol-----todo
+        class KcpCommMsg : public Message
+        {
+        public:
+            enum OPCODE
+            {
+                REQUEST = 0,
+                RESPONSE = 1,
+                NOTIFY = 2,
+                PING = 3,
+                PONG = 4,
+                CLOSE = 5
+            };
+            typedef std::shared_ptr<KcpCommMsg> ptr;
+            // 将消息结构体序列化成bytearray
+            virtual bool SerializeToByteArray(ByteArray::ptr ba) override;
+            // 从bytearray中反序列化出消息结构体
+            virtual bool ParseFromByteArray(ByteArray::ptr ba) override;
+            // 转字符串
+            virtual std::string ToString() const override
+            {
+            }
+            // 获取name
+            virtual const std::string &GetName() const override
+            {
+                static std::string name = "KcpCommMsg";
+                return name;
+            }
+
+            virtual uint8_t GetMessageType() const override
+            {
+                return Message::MessageType::COMMON;
+            }
+            // data interface
+            void SetData(const std::string &data) { _data = data; }
+            std::string GetData() const { return _data; }
+
+            // protobuf data
+            template <class T>
+            bool SetDataAsPB(const T &pbData)
+            {
+                try
+                {
+                    pbData.SerializeToString(&_data);
+                    return true;
+                }
+                catch (...)
+                {
+                }
+                return false;
+            }
+            template <class T>
+            std::shared_ptr<T> GetDataAsPB()
+            {
+                try
+                {
+                    if (_data.empty())
+                        return nullptr;
+                    std::shared_ptr<T> pbptr = std::make_shared<T>();
+                    pbptr->ParseFromString(_data);
+                    return pbptr;
+                }
+                catch (...)
+                {
+                }
+                return nullptr;
+            }
+
+        private:
+            uint8_t _opcode; // 操作码
+            uint32_t _sn;    // 序列号
+            uint32_t _cmd;   // 操作类型--url路由
+
+            uint16_t _magic;  // 魔数
+            uint8_t _version; // 版本
+            uint16_t _remain; // 保留字段
+
+            std::string _data; // 正文数据
+        };
         // kcp响应
         class KcpRequest;
         class KcpResponse : public Response

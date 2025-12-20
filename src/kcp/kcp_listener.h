@@ -80,7 +80,7 @@ namespace Xten
                 ss << "=======BlackListInfo=======\n{ ";
                 for (auto &entry : _blacklist)
                 {
-                    ss << "[ip=" << entry.first << "] ";
+                    ss << "[ip=" << entry << "] ";
                 }
                 ss << "}\n";
                 return ss.str();
@@ -148,12 +148,7 @@ namespace Xten
             std::atomic<int> _read_error_code;
 
             // 黑名单
-            struct BlacklistEntry
-            {
-                uint64_t expiry_ms = 0; // 到期时间（ms）
-            };
-
-            std::unordered_map<std::string, BlacklistEntry> _blacklist; // key: remote addr string
+            std::unordered_set<std::string> _blacklist; // key: remote addr string
             MutexType _blacklist_mtx;
 
             // 黑名单策略参数（可调整）

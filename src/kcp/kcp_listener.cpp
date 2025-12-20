@@ -75,6 +75,13 @@ namespace Xten
                 // 调度send协程
                 _iom->Schedule(std::bind(&KcpListener::doSendLoop, this, shared_from_this(), _udp_sockets[i]));
             }
+            // 2min清除一次黑名单
+            auto wklistener = std::weak_ptr<KcpListener>(shared_from_this());
+            _iom->addTimer(2 * 60 * 1000, [wklistener]()
+                           {
+                auto lis=wklistener.lock();
+                if(lis)
+                    lis->cleanupBlacklist(); }, true);
             return true;
         }
 
@@ -157,7 +164,6 @@ namespace Xten
                 // 循环读取
                 for (;;)
                 {
-                    // XTEN_LOG_INFO(g_logger) << "running";
                     ba->SetPosition(0);
                     // // 读取裸数据包 -----> 批量读取提高性能
                     std::vector<iovec> iovs;                                // 缓冲区指针+len
@@ -165,21 +171,11 @@ namespace Xten
                     std::vector<std::pair<Address::ptr, size_t>> infos;
                     infos.resize(maxBatchSize);
                     int ret = udpChannel->RecvFromBatch(iovs, maxBatchSize, infos);
-                    // if (ret >= 2)
-                    // {
-                    //     XTEN_LOG_INFO(g_logger) << "recv,ret=" << ret;
-                    //     for (int i = 0; i < ret; i++)
-                    //     {
-                    //         std::cout << "addr=" << i << infos[i].first->toString() << std::endl;
-                    //     }
-                    // }
-                    // Xten::Address::ptr addr=std::make_shared<IPv4Address>();
-                    // int ret=udpChannel->RecvFrom(ba->GetBeginNodePtr(),ba->GetNodeSize(),addr);
-                    // 注意：ba里面的读写位置并没有改变
                     if (ret <= 0)
                     {
                         // 错误----通知读错误
                         self->notifyReadError(errno);
+                        XTEN_LOG_ERROR(g_logger) << "recv fiber catch error=" << errno << " strerr=" << strerror(errno) << "socket=" << udpChannel->GetSockFd();
                         break;
                     }
                     else
@@ -199,35 +195,19 @@ namespace Xten
             XTEN_LOG_INFO(g_logger) << "KcpListener doRecvLoop fiber exit";
         }
 
-        // 获取当前时间（毫秒）
-        static uint64_t now_ms()
-        {
-            using namespace std::chrono;
-            return (uint64_t)duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
-        }
-
         bool KcpListener::isBlacklisted(const std::string &addr)
         {
             MutexType::Lock lock(_blacklist_mtx);
             auto it = _blacklist.find(addr);
             if (it == _blacklist.end())
                 return false;
-            uint64_t now = now_ms();
-            if (it->second.expiry_ms > now)
-            {
-                return true;
-            }
-            // 已过期，移除
-            _blacklist.erase(it);
-            return false;
+            return true;
         }
 
         void KcpListener::reportInvalidPacket(const std::string &addr)
         {
-            uint64_t now = now_ms();
             MutexType::Lock lock(_blacklist_mtx);
-            auto &entry = _blacklist[addr];
-            entry.expiry_ms = now + 60 * 2 * 1000; // 加入黑名单2min
+            _blacklist.insert(addr);
             XTEN_LOG_WARN(g_logger) << "Blacklisted " << addr << " ttl=2000*2*60" << "ms";
         }
 
@@ -262,7 +242,6 @@ namespace Xten
                     }
                     // 间隔一段时间--每10ms调用一次
                     usleep(1000 * _interval / 2);
-                    // XTEN_LOG_DEBUG(g_logger)<<"update"<<TimeUitl::GetCurrentMS();
                 }
             }
             catch (...)
@@ -278,7 +257,6 @@ namespace Xten
             std::string remote = from->toString();
             if (isBlacklisted(remote))
             {
-                // XTEN_LOG_INFO(g_logger) << "Drop packet from blacklisted " << remote;
                 // 对方已经在黑名单中了
                 return;
             }
@@ -326,7 +304,6 @@ namespace Xten
                     // 1.给客户端发送连接响应包文
                     uint32_t local_convid = _convid++;
                     std::string backpacket = KcpUtil::making_connect_backpacket() + std::to_string(local_convid);
-                    XTEN_LOG_DEBUG(g_logger) << "from=" << from->toString() << "convid" << local_convid;
                     udpChannel->SendTo(backpacket.c_str(), backpacket.length(), from);
                     // 2.创建并保存连接
                     // KcpSession::ptr newss = std::make_shared<KcpSession>(udpChannel,shared_from_this(),from,local_convid) ; // todo 参数
@@ -350,7 +327,7 @@ namespace Xten
                     if (len < 4)
                     {
                         // len 不足4字节 convid读不到
-                        XTEN_LOG_INFO(g_logger) << "" << "len=" << len;
+                        XTEN_LOG_INFO(g_logger) <<"invaild len=" << len;
                         break;
                     }
                     uint32_t id = ikcp_getconv(data);
@@ -362,12 +339,7 @@ namespace Xten
                     }
                     else
                     {
-                        XTEN_LOG_INFO(g_logger) << "id" << id << "serverid=" << session->GetConvId();
-                        std::cout << "from" << from->toString() << std::endl;
-                        for (auto &session : _sessions[udpChannel->GetSockFd()])
-                        {
-                            std::cout << "idkey=" << session.first << "id=" << session.second->GetConvId() << "from=" << session.second->_remote_addr->toString() << std::endl;
-                        }
+                        XTEN_LOG_INFO(g_logger) << "invaild convid clientid=" << id << ",serverid=" << session->GetConvId();
                         break;
                     }
                 } while (false);

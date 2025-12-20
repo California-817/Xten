@@ -6,7 +6,7 @@ kcpservers:
       accept_timeout_ms: 0       # accept超时时间
       listen_backlog_size: 128        # 连接队列长度
       max_conn_num: 10000            # 服务器最大连接数量
-      recv_timeout_ms: 120000     # 读超时时间
+      recv_timeout_ms: 12000    # 读超时时间
       io_worker: io  # io操作的调度器
       msghanler:  kcp_msghandler # 消息处理系统      
       timewheel: 0

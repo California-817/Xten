@@ -948,7 +948,7 @@ int ikcp_input(ikcpcb *kcp, const char *data, long size)
 
 		// kcp包头一共24个字节, size减去IKCP_OVERHEAD即24个字节应该不小于len
 		size -= IKCP_OVERHEAD;
-		if ((long)size < (long)len) return -2;
+		if ((long)size < (long)len) {printf("size=%ld,len=%ld\n",size,len); return -2;}
 
 		if (cmd != IKCP_CMD_PUSH && cmd != IKCP_CMD_ACK &&
 			cmd != IKCP_CMD_WASK && cmd != IKCP_CMD_WINS) 

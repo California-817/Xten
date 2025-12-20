@@ -229,6 +229,10 @@ namespace Xten
             const char *formSessionId(const KcpSession::ptr &session);
             virtual void startAccept(std::shared_ptr<KcpServer> self);
             virtual void handleClient(std::shared_ptr<KcpServer> self, KcpSession::ptr client);
+            //default cbs
+            static uint32_t defaultOnConnCb(KcpSession::ptr sess);
+            static uint32_t defaultOnCloseCb(KcpSession::ptr sess);
+            static uint32_t defaultOnTimeoutCb(KcpSession::ptr sess);
 
         private:
             IOManager *_io_worker; // io worker

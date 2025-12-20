@@ -21,10 +21,14 @@ namespace Xten
                 _recvTimeout = config->recv_timeout_ms;
                 _maxConnNum = config->max_conn_num;
                 _coroutine_num = config->internal_coroutine_num;
-                _name=config->name;
+                _name = config->name;
                 if (config->timewheel)
                     _timewheel = std::make_shared<Xten::TimerWheelManager>();
             }
+            //set default cbs
+            _connectCb=KcpServer::defaultOnConnCb;
+            _closeCb=KcpServer::defaultOnCloseCb;
+            _timeoutCb=KcpServer::defaultOnTimeoutCb;
         }
 
         KcpServer::~KcpServer()
@@ -105,7 +109,7 @@ namespace Xten
         const char *KcpServer::formSessionId(const KcpSession::ptr &session)
         {
             static thread_local char buffer[64] = {0};
-            snprintf(buffer, 63, "%s-%s#%ld",_name, _listener->_udp_sockets[0]->GetLocalAddress()->toString().c_str(), _sn++);
+            snprintf(buffer, 63, "%s-%s#%ld", _name.c_str(), _listener->_udp_sockets[0]->GetLocalAddress()->toString().c_str(), _sn++);
             session->SetInServerContainerId(buffer);
             return buffer;
         }
@@ -115,7 +119,7 @@ namespace Xten
             // 设置服务器
             session->SetKcpServer(self);
             // 加入map进行链接管理
-            _connsMap.add(formSessionId(session),session);
+            _connsMap.add(formSessionId(session), session);
             //  1.开启发送协程
             session->Start();
             // 2.启动连接开始函数
@@ -128,6 +132,15 @@ namespace Xten
                 if (msg && error == KcpSession::READ_ERRNO::SUCCESS)
                 {
                     // 交给msghandler处理---todo
+                    //=============test==============
+                    auto req=std::dynamic_pointer_cast<KcpRequest>(msg);
+                    auto rsp=req->CreateKcpResponse();
+                    rsp->SetResult(0);
+                    rsp->SetResultStr("success");
+                    rsp->SetData(req->GetData()+"server");
+                    session->SendMessage(rsp);
+                    //==============================
+
                     if (_msgHandler)
                         _msgHandler->handleMessage(msg);
                 }
@@ -170,5 +183,21 @@ namespace Xten
             // 关闭 once
             session->Close();
         }
+
+         uint32_t KcpServer::defaultOnConnCb(KcpSession::ptr sess)
+         {
+            XTEN_LOG_INFO(g_logger)<<"on sess connectcb id="<<sess->GetInServerContainerId();
+            return 0;
+         }
+         uint32_t KcpServer::defaultOnCloseCb(KcpSession::ptr sess)
+         {
+            XTEN_LOG_INFO(g_logger)<<"on sess closecb id="<<sess->GetInServerContainerId();
+            return 0;
+         }
+         uint32_t KcpServer::defaultOnTimeoutCb(KcpSession::ptr sess)
+         {
+            XTEN_LOG_INFO(g_logger)<<"on sess recv timeoutcb id="<<sess->GetInServerContainerId();
+            return 0;
+         }
     }
 }
