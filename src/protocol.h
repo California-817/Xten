@@ -10,6 +10,7 @@ namespace Xten
         typedef std::shared_ptr<Message> ptr;
         enum MessageType
         {
+            COMMON = 0,   //通用消息
             REQUEST = 1,  // 请求消息
             RESPONSE = 2, // 响应消息
             NOTIFY = 3,   // 通知消息

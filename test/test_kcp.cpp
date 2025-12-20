@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     /* 1. UDP socket */
     g_sock = socket(AF_INET, SOCK_DGRAM, 0);
     g_serv.sin_family = AF_INET;
-    g_serv.sin_port = htons(8080);
+    g_serv.sin_port = htons(8008);
     inet_pton(AF_INET, "127.0.0.1", &g_serv.sin_addr);
 
     sendto(g_sock, KcpUtil::making_connect_packet().c_str(), KcpUtil::making_connect_packet().length(), 0, (const sockaddr *)&g_serv, sizeof(g_serv));

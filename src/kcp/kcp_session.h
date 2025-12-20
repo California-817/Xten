@@ -10,6 +10,7 @@ namespace Xten
     namespace kcp
     {
         class KcpListener;
+        class KcpServer;
         class KcpSession : public std::enable_shared_from_this<KcpSession>
         {
         protected:
@@ -23,6 +24,7 @@ namespace Xten
         public:
             enum READ_ERRNO
             {
+                SUCCESS = 0,              // 成功
                 READ_TIMEOUT = (1 << 0),  // 读超时
                 READ_ERROR = (1 << 1),    // 读错误
                 SESSION_CLOSE = (1 << 2), // 连接关闭
@@ -45,11 +47,25 @@ namespace Xten
             void WaitSender() { _sem.wait(); }
             // 强制关闭连接
             void ForceClose();
-
             // 设置read超时时间[0表示不超时]
             void SetReadTimeout(uint64_t v = 0) { _read_timeout_ms = v; }
             // 获取accept超时时间
             uint64_t GetReadTimeout() const { return _read_timeout_ms; }
+            // 设置当前服务器
+            void SetKcpServer(std::shared_ptr<KcpServer> serv)
+            {
+                _server = std::weak_ptr<KcpServer>(serv);
+            }
+            // 获取当前服务器
+            std::shared_ptr<KcpServer> GetKcpServer()
+            {
+                auto serv = _server.lock();
+                if (serv)
+                    return serv;
+                return nullptr;
+            }
+            void SetInServerContainerId(const char *id) { _in_server_container_id = id; }
+            std::string GetInServerContainerId() const { return _in_server_container_id; }
 
         private:
             // 获取kcpcb的convid
@@ -73,12 +89,15 @@ namespace Xten
             void notifyWriteError(int code);
 
         private:
+            std::weak_ptr<KcpServer> _server;     // server
             std::weak_ptr<Socket> _udp_channel;   // socket
             std::weak_ptr<KcpListener> _listener; // 监听er
             Address::ptr _remote_addr;            // 远端地址
 
             uint32_t _convid;          // convid
             IKCPCB *_kcp_cb = nullptr; // kcp控制块
+
+            std::string _in_server_container_id; // 在server管理中的id
 
             uint64_t _read_timeout_ms;                 // 读超时时间
             std::atomic<bool> _b_read_timeout = false; // 超时
@@ -87,8 +106,8 @@ namespace Xten
             CondType _kcpcb_cond; // 接收kcpcb数据条件变量
 
             std::list<Message::ptr> _sendque; // 发送队列
-            MutexType _sendque_mtx;               // 发送队列锁
-            CondType _sendque_cond;               // 发送队列条件变量
+            MutexType _sendque_mtx;           // 发送队列锁
+            CondType _sendque_cond;           // 发送队列条件变量
 
             SemType _sem; // 等待写协程退出
 

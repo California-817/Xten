@@ -295,43 +295,49 @@ namespace Xten
             // 解析出一个Server的所有Address
             //  address: ["0.0.0.0:8090", "127.0.0.1:0", "/tmp/test.sock"]
             Address::ptr address;
-            size_t pos = servConf.address.find(":");
-            if (pos == std::string::npos)
+            do
             {
-                // 没找到-->是一个Unix地址
-                address = std::make_shared<UnixAddress>(servConf.address);
-            }
-            // 找到了-->IP地址
-            uint16_t port = atoi(servConf.address.substr(pos + 1).c_str());
-            auto addr1 = IPAddress::Create(servConf.address.substr(0, pos).c_str(), port);
-            if (addr1)
-            {
-                address = addr1;
-            }
-            // 网卡地址 eth0
-            std::vector<std::pair<Address::ptr, uint32_t>> result;
-            if (Address::GetInterfaceAddresses(result, servConf.address.substr(0, pos)))
-            {
-                for (auto &ip : result)
+                size_t pos = servConf.address.find(":");
+                if (pos == std::string::npos)
                 {
-                    IPAddress::ptr ipaddr = std::dynamic_pointer_cast<IPAddress>(ip.first);
-                    if (ipaddr)
-                    {
-                        ipaddr->setPort(atoi(servConf.address.substr(pos + 1).c_str()));
-                    }
-                    address = ipaddr;
+                    // 没找到-->是一个Unix地址
+                    address = std::make_shared<UnixAddress>(servConf.address);
+                    break;
                 }
-            }
-            // 域名地址
-            auto addr2 = Address::LookupAny(servConf.address);
-            if (addr2)
-            {
-                address = addr2;
-                continue;
-            }
-            // 非法地址
-            XTEN_LOG_ERROR(g_logger) << "Invaild Address: " << servConf.address;
-            _exit(0);
+                // 找到了-->IP地址
+                uint16_t port = atoi(servConf.address.substr(pos + 1).c_str());
+                auto addr1 = IPAddress::Create(servConf.address.substr(0, pos).c_str(), port);
+                if (addr1)
+                {
+                    address = addr1;
+                    break;
+                }
+                // 网卡地址 eth0
+                std::vector<std::pair<Address::ptr, uint32_t>> result;
+                if (Address::GetInterfaceAddresses(result, servConf.address.substr(0, pos)))
+                {
+                    for (auto &ip : result)
+                    {
+                        IPAddress::ptr ipaddr = std::dynamic_pointer_cast<IPAddress>(ip.first);
+                        if (ipaddr)
+                        {
+                            ipaddr->setPort(atoi(servConf.address.substr(pos + 1).c_str()));
+                        }
+                        address = ipaddr;
+                    }
+                    break;
+                }
+                // 域名地址
+                auto addr2 = Address::LookupAny(servConf.address);
+                if (addr2)
+                {
+                    address = addr2;
+                    break;
+                }
+                // 非法地址
+                XTEN_LOG_ERROR(g_logger) << "Invaild Address: " << servConf.address;
+                _exit(0);
+            } while (false);
             IOManager *io_w = IOManager::GetThis();
             if (!servConf.ioworker.empty())
             {
@@ -351,7 +357,7 @@ namespace Xten
             KcpServerConfig::ptr p_servConf = std::make_shared<KcpServerConfig>(servConf);
             if (servConf.type == "kcp")
             {
-                server = std::make_shared<Xten::kcp::KcpServer>(nullptr, io_w, p_servConf);
+                server = std::make_shared<Xten::kcp::KcpServer>(nullptr, io_w, p_servConf); // todo msghandler
             }
             else
             {

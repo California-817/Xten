@@ -31,7 +31,7 @@ namespace Xten
                         int nc, int mtusize, int sndwnd, int rcvwnd);                                           // 0:normal congestion control(default), 1:disable congestion control 取消拥塞控制
         public:
             friend class KcpSession;
-
+            friend class KcpServer;
             typedef std::shared_ptr<KcpListener> ptr;
             typedef FiberMutex MutexType;
             typedef FiberCondition ConditionType;
@@ -67,16 +67,17 @@ namespace Xten
                     ss << "[KcpServer No Connection]";
                     return ss.str();
                 }
+                ss<<"\n======KcpConnectionsInfo======\n";
                 for (auto &sess : _sessions)
                 {
-                    ss << "\nKcpConnectionsInfo===>\n[fd=" << sess.first << "]==>{ ";
+                    ss << "[fd=" << sess.first << "]==>{ ";
                     for (auto &e : sess.second)
                     {
                         ss << "[convid=" << e.second->GetConvId() << "] ";
                     }
-                    ss << " }\n";
+                    ss << "}\n";
                 }
-                ss << "BlackListInfo===>{ ";
+                ss << "=======BlackListInfo=======\n{ ";
                 for (auto &entry : _blacklist)
                 {
                     ss << "[ip=" << entry.first << "] ";
@@ -150,8 +151,6 @@ namespace Xten
             struct BlacklistEntry
             {
                 uint64_t expiry_ms = 0; // 到期时间（ms）
-                uint32_t strikes = 0;   // 累计非法包计数
-                uint32_t level = 0;     // 惩罚等级（用于指数退避）
             };
 
             std::unordered_map<std::string, BlacklistEntry> _blacklist; // key: remote addr string

@@ -75,13 +75,6 @@ namespace Xten
                 // 调度send协程
                 _iom->Schedule(std::bind(&KcpListener::doSendLoop, this, shared_from_this(), _udp_sockets[i]));
             }
-            auto wklistener = std::weak_ptr<KcpListener>(shared_from_this());
-            _iom->addTimer(1000 * 60 * 60 * 24, [wklistener]()
-                           {
-                               auto lis = wklistener.lock();
-                               if (lis)
-                                   lis->cleanupBlacklist(); // 每天清空一次黑名单
-                           });
             return true;
         }
 
@@ -220,11 +213,6 @@ namespace Xten
             if (it == _blacklist.end())
                 return false;
             uint64_t now = now_ms();
-            if (it->second.expiry_ms == 0)
-            {
-                // 永久封禁
-                return true;
-            }
             if (it->second.expiry_ms > now)
             {
                 return true;
@@ -239,40 +227,14 @@ namespace Xten
             uint64_t now = now_ms();
             MutexType::Lock lock(_blacklist_mtx);
             auto &entry = _blacklist[addr];
-            entry.strikes += 1;
-            entry.level = std::min<uint32_t>(entry.level, 31);
-            if (entry.strikes >= _blacklist_threshold)
-            {
-                // 触发封禁：使用指数退避，且不超过最大 TTL
-                uint64_t ttl = _blacklist_base_ttl_ms << entry.level; // base * 2^level
-                if (ttl > _blacklist_max_ttl_ms)
-                    ttl = _blacklist_max_ttl_ms;
-                entry.expiry_ms = now + ttl;
-                entry.level += 1;  // 下次触发使用更长的 ttl
-                entry.strikes = 0; // 重置计数
-                XTEN_LOG_WARN(g_logger) << "Blacklisted " << addr << " ttl=" << ttl << "ms";
-            }
-            else
-            {
-                XTEN_LOG_DEBUG(g_logger) << "Reported invalid packet from " << addr << " strikes=" << entry.strikes;
-            }
+            entry.expiry_ms = now + 60 * 2 * 1000; // 加入黑名单2min
+            XTEN_LOG_WARN(g_logger) << "Blacklisted " << addr << " ttl=2000*2*60" << "ms";
         }
 
         void KcpListener::cleanupBlacklist()
         {
-            uint64_t now = now_ms();
             MutexType::Lock lock(_blacklist_mtx);
-            for (auto it = _blacklist.begin(); it != _blacklist.end();)
-            {
-                if (it->second.expiry_ms != 0 && it->second.expiry_ms <= now)
-                {
-                    it = _blacklist.erase(it);
-                }
-                else
-                {
-                    ++it;
-                }
-            }
+            _blacklist.clear();
         }
 
         // 发送数据协程函数
@@ -317,7 +279,7 @@ namespace Xten
             if (isBlacklisted(remote))
             {
                 // XTEN_LOG_INFO(g_logger) << "Drop packet from blacklisted " << remote;
-                //对方已经在黑名单中了
+                // 对方已经在黑名单中了
                 return;
             }
             // 1.看连接是否已经存在

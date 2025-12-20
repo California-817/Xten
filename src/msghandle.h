@@ -2,6 +2,7 @@
 #define __XTEN_MSGHANDLE_H__
 #include"nocopyable.hpp"
 #include<memory>
+#include"protocol.h"
 namespace Xten
 {
     //消息处理器
@@ -12,7 +13,7 @@ namespace Xten
         MsgHandler() {}
         virtual ~MsgHandler() {}
         //处理消息的接口
-        virtual void handleMessage(const char* msg, uint32_t len) = 0;
+        virtual void handleMessage(Message::ptr msg) = 0;
     };
 } // namespace Xten
 

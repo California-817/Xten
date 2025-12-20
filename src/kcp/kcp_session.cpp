@@ -38,6 +38,7 @@ namespace Xten
         KcpSession::~KcpSession()
         {
             Close();
+            _sendque.clear();
             if (_kcp_cb)
                 ikcp_release(_kcp_cb); // 防止内存泄露
         }
