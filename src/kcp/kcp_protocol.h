@@ -21,12 +21,19 @@ namespace Xten
             };
             typedef std::shared_ptr<KcpCommMsg> ptr;
             // 将消息结构体序列化成bytearray
-            virtual bool SerializeToByteArray(ByteArray::ptr ba) override;
+            virtual bool SerializeToByteArray(ByteArray::ptr ba) override
+            {
+                return true;
+            }
             // 从bytearray中反序列化出消息结构体
-            virtual bool ParseFromByteArray(ByteArray::ptr ba) override;
+            virtual bool ParseFromByteArray(ByteArray::ptr ba) override
+            {
+                return true;
+            }
             // 转字符串
             virtual std::string ToString() const override
             {
+                return "";
             }
             // 获取name
             virtual const std::string &GetName() const override

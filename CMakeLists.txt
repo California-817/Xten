@@ -55,6 +55,8 @@ file(GLOB EMAIL_SOURCES src/email/*.cpp)
 file(GLOB XFTP_SOURCES src/xftp/*.cpp)
 file(GLOB KCP_SOURCES src/kcp/*.cpp src/kcp/third_part/*.c)
 
+file(GLOB XORM_SOURCES src/orm/*.cpp)
+
 list(APPEND SOURCES 
                     ${HTTP_SOURCES} 
                     ${WEBSOCKET_SOURCES} 
@@ -83,9 +85,16 @@ set_target_properties(Xten PROPERTIES
                         ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 
 add_executable(XtenFrame src/system/main.cpp)
+add_executable(xorm ${XORM_SOURCES})
+set_target_properties(xorm PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/tools
+)
+
 add_executable(XftpClient test/xftp_client.cpp)
 add_executable(rockClient test/test_rock.cpp)
 add_executable(kcpClient test/test_kcp.cpp)
+
+
 set(COMMON_LIBS    
                 ssl
                 crypto
@@ -95,6 +104,8 @@ set(COMMON_LIBS
                 event
                 hiredis
                 mysqlclient
+                jsoncpp
+                tinyxml2
 )
 
 find_library(HIREDIS_CLUSTER_LIB
@@ -114,21 +125,21 @@ target_link_libraries(XtenFrame
                     ${YAML_CPP_LIBRARIES}
                     ${COMMON_LIBS}
 )
+target_link_libraries(xorm 
+                    Xten
+                    ${YAML_CPP_LIBRARIES}
+                    ${COMMON_LIBS}
+)
 
-target_link_libraries(XftpClient
-                    Xten
-                    ${YAML_CPP_LIBRARIES}
-                    ${COMMON_LIBS}
-)   
-target_link_libraries(kcpClient
-                    Xten
-                    ${YAML_CPP_LIBRARIES}
-                    ${COMMON_LIBS}
-)   
+macro(register_tool name)
+target_link_libraries(${name}
+        Xten
+        ${YAML_CPP_LIBRARIES}
+        ${COMMON_LIBS}
+    )
+endmacro()
 
-target_link_libraries(rockClient
-                    Xten
-                    ${YAML_CPP_LIBRARIES}
-                    ${COMMON_LIBS}
-)   
+register_tool(XftpClient)
+register_tool(kcpClient)
+register_tool(rockClient)
 

@@ -2,6 +2,7 @@
 #define __XTEN_UTIL_H__
 #include "const.h"
 #include <sys/syscall.h>
+#include <json/json.h>
 namespace Xten
 {
     class FileUtil
@@ -180,6 +181,20 @@ namespace Xten
         h ^= h << 5;
         return h;
     }
-
+    class JsonUtil
+    {
+        static std::string ToString(const Json::Value &json, bool emit_utf8 = true)
+        {
+            Json::StreamWriterBuilder builder;
+            builder["commentStyle"] = "None";
+            builder["indentation"] = "";
+            builder["emitUTF8"] = emit_utf8;
+            return Json::writeString(builder, json);
+        }
+    };
+    std::string ToLower(const std::string &name);
+    std::string ToUpper(const std::string &name);
+    std::vector<std::string> split(const std::string &str, char delim, size_t max = ~0);
+    std::vector<std::string> split(const std::string &str, const char *delims, size_t max = ~0);
 }
 #endif

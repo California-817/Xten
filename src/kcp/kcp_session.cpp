@@ -140,19 +140,17 @@ namespace Xten
                         free(buf);
                         ba->SetPosition(0);
                         Message::MessageType type = (Message::MessageType)ba->ReadFUint8();
-                        if (type == Message::MessageType::REQUEST)
+                        if (type == Message::MessageType::COMMON)
                         {
-                            KcpRequest::ptr req = std::make_shared<KcpRequest>();
-                            req->ParseFromByteArray(ba);
-                            return req;
-                        }
-                        else if (type == Message::MessageType::NOTIFY)
-                        {
-                            // todo
+                            KcpCommMsg::ptr msg = std::make_shared<KcpCommMsg>();
+                            msg->ParseFromByteArray(ba);
+                            return msg;
                         }
                         else
                         {
-                            // todo
+                            XTEN_LOG_DEBUG(g_logger) << "kcpsession recv invaild kcp msg type";
+                            notifyReadError(ret);
+                            break;
                         }
                     }
                 }

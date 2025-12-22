@@ -12,4 +12,6 @@ main
 /bin/XftpClient
 /bin/rockClient
 /bin/kcpClient
+/bin/tools/xorm
+/bin/tools/orm_out/
 /.vscode/

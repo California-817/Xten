@@ -545,4 +545,54 @@ time_t Str2Time(const char* str, const char* format) {
     }
     return mktime(&t);
 }
+
+std::string ToLower(const std::string& name) {
+    std::string rt = name;
+    std::transform(rt.begin(), rt.end(), rt.begin(), ::tolower);
+    return rt;
+}
+
+std::vector<std::string> split(const std::string &str, char delim, size_t max) {
+    std::vector<std::string> result;
+    if (str.empty()) {
+        return result;
+    }
+
+    size_t last = 0;
+    size_t pos = str.find(delim);
+    while (pos != std::string::npos) {
+        result.push_back(str.substr(last, pos - last));
+        last = pos + 1;
+        if (--max == 1)
+            break;
+        pos = str.find(delim, last);
+    }
+    result.push_back(str.substr(last));
+    return result;
+}
+
+std::vector<std::string> split(const std::string &str, const char *delims, size_t max) {
+    std::vector<std::string> result;
+    if (str.empty()) {
+        return result;
+    }
+
+    size_t last = 0;
+    size_t pos = str.find_first_of(delims);
+    while (pos != std::string::npos) {
+        result.push_back(str.substr(last, pos - last));
+        last = pos + 1;
+        if (--max == 1)
+            break;
+        pos = str.find_first_of(delims, last);
+    }
+    result.push_back(str.substr(last));
+    return result;
+}
+
+std::string ToUpper(const std::string& name) {
+    std::string rt = name;
+    std::transform(rt.begin(), rt.end(), rt.begin(), ::toupper);
+    return rt;
+}
 }
