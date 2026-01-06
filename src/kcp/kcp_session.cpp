@@ -133,6 +133,8 @@ namespace Xten
                             else
                                 continue;
                         }
+                        //unlock
+                        lock.unlock();
                         buf[ret] = 0;
                         // success---反序列化
                         ByteArray::ptr ba = std::make_shared<ByteArray>(ret);

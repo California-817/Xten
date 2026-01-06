@@ -57,18 +57,27 @@ namespace Xten
                 TYPE_SQLITE3 = 1,
                 TYPE_MYSQL = 2
             };
+            // 外键
+            struct ForeignKey
+            {
+                std::string name;
+                std::vector<std::string> cols;
+                std::string reftb;
+                std::vector<std::string> refcols;
+            };
 
         private:
-            std::string m_name; //表名
-            std::string m_namespace; //命名空间
-            std::string m_desc; //表描述
-            std::string m_subfix = "_info"; //后缀
-            DBType m_type = TYPE_SQLITE3; //数据库驱动类型
+            std::string m_name;             // 表名
+            std::string m_namespace;        // 命名空间
+            std::string m_desc;             // 表描述
+            std::string m_subfix = "_info"; // 后缀
+            DBType m_type = TYPE_SQLITE3;   // 数据库驱动类型
             std::string m_dbclass = "Xten::IDB";
             std::string m_queryclass = "Xten::IDB";
             std::string m_updateclass = "Xten::IDB";
-            std::vector<Column::ptr> m_cols; //所有列
-            std::vector<Index::ptr> m_idxs; //所有键值信息
+            std::vector<Column::ptr> m_cols; // 所有列
+            std::vector<Index::ptr> m_idxs;  // 所有索引信息
+            std::vector<ForeignKey> m_fks; //外键
         };
 
     }

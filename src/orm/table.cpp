@@ -126,6 +126,48 @@ namespace Xten
                 m_idxs.push_back(idx_ptr);
                 idx = idx->NextSiblingElement("index");
             } while (idx);
+            // 3.外键
+            const tinyxml2::XMLElement *fks = node.FirstChildElement("foreignkeys");
+            if (!fks)
+                return true;
+            // 有外键
+            const tinyxml2::XMLElement *fk = fks->FirstChildElement("foreignkey");
+            do
+            {
+                ForeignKey tmp;
+                auto name = fk->Attribute("name");
+                if (!name)
+                {
+                    XTEN_LOG_ERROR(g_logger) << "table name=" << m_name << " foreignkey name is null";
+                    return false;
+                }
+                tmp.name = name;
+                auto cols = fk->Attribute("cols");
+                if (!cols)
+                {
+                    XTEN_LOG_ERROR(g_logger) << "table name=" << m_name << " foreignkey cols is null";
+                    return false;
+                }
+                tmp.cols = Xten::split(cols, ',');
+                auto reftb = fk->Attribute("reftb");
+                if (!cols)
+                {
+                    XTEN_LOG_ERROR(g_logger) << "table name=" << m_name << " foreignkey reftb is null";
+
+                    return false;
+                }
+                tmp.reftb = reftb;
+                auto refcols = fk->Attribute("refcols");
+                if (!cols)
+                {
+                    XTEN_LOG_ERROR(g_logger) << "table name=" << m_name << " foreignkey refcols is null";
+
+                    return false;
+                }
+                tmp.refcols = Xten::split(refcols, ',');
+                m_fks.push_back(tmp);
+                fk = fk->NextSiblingElement("foreignkey");
+            } while (fk);
             return true;
         }
 
@@ -133,15 +175,15 @@ namespace Xten
         {
             std::string p = path + "/" + Xten::replace(m_namespace, ".", "/");
             Xten::FileUtil::MakeDir(p); // ./orm_out/nspart1/nspart2
-            gen_inc(p); // 生成头文件
-            gen_src(p); // 生成源文件
+            gen_inc(p);                 // 生成头文件
+            gen_src(p);                 // 生成源文件
         }
 
         void Table::gen_inc(const std::string &path)
         {
-            std::string filename = path + "/" + m_name + m_subfix + ".h"; //user_info.h
-            std::string class_name = m_name + m_subfix; //user_info ----表信息类
-            std::string class_name_dao = m_name + m_subfix + "_dao"; //user_info_dao ----数据库DAO类
+            std::string filename = path + "/" + m_name + m_subfix + ".h"; // user_info.h
+            std::string class_name = m_name + m_subfix;                   // user_info ----表信息类
+            std::string class_name_dao = m_name + m_subfix + "_dao";      // user_info_dao ----数据库DAO类
             std::ofstream ofs(filename);
             ofs << "#ifndef " << GetAsDefineMacro(m_namespace + class_name + ".h") << std::endl;
             ofs << "#define " << GetAsDefineMacro(m_namespace + class_name + ".h") << std::endl;
@@ -170,13 +212,13 @@ namespace Xten
             }
             // 1.生成数据库表的info结构体
             ofs << std::endl;
-            ofs << "class " << GetAsClassName(class_name_dao) << ";" << std::endl; //class UserInfoDao
-            ofs << "class " << GetAsClassName(class_name) << " {" << std::endl; //class UserInfo
+            ofs << "class " << GetAsClassName(class_name_dao) << ";" << std::endl; // class UserInfoDao
+            ofs << "class " << GetAsClassName(class_name) << " {" << std::endl;    // class UserInfo
             ofs << "friend class " << GetAsClassName(class_name_dao) << ";" << std::endl;
             ofs << "public:" << std::endl;
             ofs << "    typedef std::shared_ptr<" << GetAsClassName(class_name) << "> ptr;" << std::endl;
             ofs << std::endl;
-            ofs << "    " << GetAsClassName(class_name) << "();" << std::endl; //构造函数
+            ofs << "    " << GetAsClassName(class_name) << "();" << std::endl; // 构造函数
             ofs << std::endl;
 
             auto cols = m_cols;
@@ -188,20 +230,20 @@ namespace Xten
             return a->getIndex() < b->getIndex();
         } });
 
-            //定义所有列属性的set，get方法
+            // 定义所有列属性的set，get方法
             for (auto &i : m_cols)
             {
-                ofs << "    " << i->getGetFunDefine(); 
+                ofs << "    " << i->getGetFunDefine();
                 ofs << "    " << i->getSetFunDefine();
                 ofs << std::endl;
             }
-            //tojsonstring方法
+            // tojsonstring方法
             ofs << "    " << genToStringInc() << std::endl;
             // ofs << "    std::string toInsertSQL() const;" << std::endl;
             // ofs << "    std::string toUpdateSQL() const;" << std::endl;
             // ofs << "    std::string toDeleteSQL() const;" << std::endl;
             ofs << std::endl;
-            //所有成员变量
+            // 所有成员变量
             ofs << "private:" << std::endl;
             for (auto &i : cols)
             {
@@ -583,8 +625,8 @@ namespace Xten
                 }
             }
 
-            //建表方法
-            // ofs << "    static int CreateTableSQLite3(" << m_dbclass << "::ptr info);" << std::endl;
+            // 建表方法
+            //  ofs << "    static int CreateTableSQLite3(" << m_dbclass << "::ptr info);" << std::endl;
             ofs << "    static int CreateTableMySQL(" << m_dbclass << "::ptr info);" << std::endl;
             ofs << "};" << std::endl;
         }
@@ -1158,7 +1200,7 @@ namespace Xten
             //     << std::endl;
 
             ofs << "int " << GetAsClassName(class_name_dao) << "::CreateTableMySQL(" << m_dbclass << "::ptr conn) {" << std::endl;
-            ofs << "    return conn->execute(\"CREATE TABLE " << m_name << "(\"" << std::endl;
+            ofs << "    return conn->execute(\"CREATE TABLE IF NOT EXISTS " << m_name << "(\"" << std::endl;
             is_first = true;
             for (auto &i : m_cols)
             {
@@ -1174,7 +1216,11 @@ namespace Xten
                 }
                 else
                 {
-                    ofs << " NOT NULL DEFAULT " << i->getSQLite3Default();
+                    if(!i->getIsNull())
+                    {
+                        ofs<<" NOT NULL";
+                    }
+                    ofs << " DEFAULT " << i->getSQLite3Default();
                 }
 
                 if (!i->getUpdate().empty())
@@ -1232,6 +1278,36 @@ namespace Xten
                 }
                 ofs << ")";
             }
+            // foreign key
+            // FOREIGN KEY (cols) REFERENCES reftb(cols),
+            for (auto &fk : m_fks)
+            {
+                ofs << ",\"\n";
+                ofs << "            \"FOREIGN KEY (";
+                is_first = true;
+                for (auto &col : fk.cols)
+                {
+                    if (!is_first)
+                    {
+                        ofs << ",";
+                    }
+                    ofs << "`" << col << "`";
+                    is_first = false;
+                }
+                ofs << ") REFERENCES " << fk.reftb << "(";
+                is_first = true;
+                for (auto &col : fk.refcols)
+                {
+                    if (!is_first)
+                    {
+                        ofs << ",";
+                    }
+                    ofs << "`" << col << "`";
+                    is_first = false;
+                }
+                ofs << ")";
+            }
+
             ofs << ")";
             if (!m_desc.empty())
             {

@@ -226,8 +226,13 @@ bool Column::init(const tinyxml2::XMLElement& node) {
         m_length = node.IntAttribute("length");
     } else {
         m_length = 0;
+    }   
+    if(node.Attribute("bnull"))
+    {
+        int ret=strcasecmp(node.Attribute("bnull"),"yes");
+        if(!ret)
+            m_b_null=true; //可以为空
     }
-
     m_autoIncrement = node.BoolAttribute("auto_increment", false);
     return true;
 }

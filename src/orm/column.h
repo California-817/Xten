@@ -67,6 +67,8 @@ public:
     std::string getBindString();
     std::string getGetString();
     const std::string& getUpdate() const { return m_update;}
+
+    bool getIsNull() const {return m_b_null;}
 private:
     std::string m_name; //列名
     std::string m_type; //数据类型 string
@@ -78,6 +80,8 @@ private:
     bool m_autoIncrement; //是否自增
     Type m_dtype; //数据类型 Type
     int m_length; //string类型长度
+    
+    bool m_b_null=false; //是否可以为空
 };
 
 }
