@@ -12,8 +12,12 @@ include(cmake/utils.cmake)
 set(CMAKE_CXX_FLAGS "$ENV{CXXFLAGS} -rdynamic -Og -fPIC -ggdb -std=c++11 -Wall -Wno-deprecated  -Wno-unused-function -Wno-builtin-macro-redefined -Wno-deprecated-declarations")
 set(CMAKE_C_FLAGS "$ENV{CXXFLAGS} -rdynamic -Og -fPIC -ggdb -std=c11 -Wall -Wno-deprecated  -Wno-unused-function -Wno-builtin-macro-redefined -Wno-deprecated-declarations")
 
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+    set(FIBER_TYPE "FIBER_FCONTEXT" CACHE STRING "Fiber implementation type")
+else()
+    set(FIBER_TYPE "FIBER_UCONTEXT" CACHE STRING "Fiber implementation type")
+endif()
 
-set(FIBER_TYPE "FIBER_FCONTEXT" CACHE STRING "Fiber implementation type")
 set_property(CACHE FIBER_TYPE PROPERTY STRINGS "FIBER_UCONTEXT" "FIBER_FCONTEXT" "FIBER_COCTX")
 
 if(NOT FIBER_TYPE STREQUAL "FIBER_UCONTEXT" AND NOT FIBER_TYPE STREQUAL "FIBER_FCONTEXT"
@@ -40,7 +44,9 @@ include_directories(${PROJECT_SOURCE_DIR}/src
 )
 include_directories("/usr/local/include")
 
-link_directories("/usr/local/lib" "/usr/local/lib64")
+link_directories("/usr/local/lib" "/usr/local/lib64"
+		 "/usr/lib/aarch64-linux-gnu"		
+)
 
 file(GLOB SOURCES src/*.cpp)
 file(GLOB HTTP_SOURCES src/http/*.cpp)
@@ -69,17 +75,27 @@ list(APPEND SOURCES
                     ${EMAIL_SOURCES}
                     ${XFTP_SOURCES}
                     ${KCP_SOURCES}
-                    "src/libco/coctx.cpp"
 )
 list(REMOVE_ITEM SOURCES ${PROJECT_SOURCE_DIR}/src/system/main.cpp)
 
 ragelmaker(src/http/http11_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/http)
 ragelmaker(src/http/httpclient_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/http)
 
-file(GLOB ASM_SOURCES "src/fcontext/*.S")
-list(APPEND ASM_SOURCES "src/libco/coctx_Swap.S")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+    message(STATUS "Building for x86_64 platform")
+    
+    file(GLOB ASM_SOURCES "src/fcontext/*.S")
+    list(APPEND ASM_SOURCES "src/libco/coctx_Swap.S")
+    list(APPEND SOURCES "src/libco/coctx.cpp")
 
-add_library(Xten STATIC ${SOURCES} ${ASM_SOURCES})
+    add_library(Xten STATIC ${SOURCES} ${ASM_SOURCES})
+else()
+    message(STATUS "Building for arm or other platform")
+
+    add_library(Xten STATIC ${SOURCES})
+endif()
+
+
 
 set_target_properties(Xten PROPERTIES
                         ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib)
@@ -131,7 +147,7 @@ target_link_libraries(xorm
                     ${COMMON_LIBS}
 )
 
-macro(register_tool name)
+macro(test_example name)
 target_link_libraries(${name}
         Xten
         ${YAML_CPP_LIBRARIES}
@@ -139,7 +155,7 @@ target_link_libraries(${name}
     )
 endmacro()
 
-register_tool(XftpClient)
-register_tool(kcpClient)
-register_tool(rockClient)
+test_example(XftpClient)
+test_example(kcpClient)
+test_example(rockClient)
 

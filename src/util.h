@@ -2,7 +2,13 @@
 #define __XTEN_UTIL_H__
 #include "const.h"
 #include <sys/syscall.h>
+
+#if defined(__linux__) && defined(__aarch64__)
+#include <jsoncpp/json/json.h>
+#elif defined(__linux__) && defined(__x86_64__)
 #include <json/json.h>
+#endif
+
 namespace Xten
 {
     class FileUtil

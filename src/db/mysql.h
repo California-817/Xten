@@ -1,7 +1,6 @@
 #ifndef __XTEN_DB_MYSQL_H__
 #define __XTEN_DB_MYSQL_H__
 
-#include <mysql.h>
 #include <memory>
 #include <functional>
 #include <map>
@@ -10,8 +9,15 @@
 #include "db.h"
 #include "../singleton.hpp"
 
-namespace Xten {
+#if defined(__linux__) && defined(__aarch64__)
+#include<mysql/mysql.h>
+typedef bool my_bool;
+#elif defined(__linux__) && defined(__x86_64__)
+#include<mysql.h>
+typedef char my_bool;
+#endif
 
+namespace Xten {
 
 class MySQL;
 class MySQLStmt;
