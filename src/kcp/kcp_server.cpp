@@ -133,16 +133,24 @@ namespace Xten
                 {
                     // 交给msghandler处理---todo
                     //=============test==============
-                    auto req=std::dynamic_pointer_cast<KcpRequest>(msg);
-                    auto rsp=req->CreateKcpResponse();
-                    rsp->SetResult(0);
-                    rsp->SetResultStr("success");
-                    rsp->SetData(req->GetData()+"server");
-                    session->SendMessage(rsp);
+                    auto id=msg->GetMsgId();
+                    if(id==Proto::MsgId::MI_TEST)
+                    {
+                        auto testbody=msg->GetMsgBodyAsPB<Proto::TestMsg>();
+                        auto data=testbody->data();
+                        auto index=testbody->index();
+                        Proto::TestMsg rsp;
+                        rsp.set_data(std::string(data+"_server"));
+                        rsp.set_index(index);
+                        KcpMessage::ptr kcprsp=std::make_shared<KcpMessage>();
+                        kcprsp->SetMsgId(Proto::MsgId::MI_TEST);
+                        kcprsp->SetMsgBodyAsPB<Proto::TestMsg>(rsp);
+                        session->SendMessage(kcprsp);
+                    }
                     //==============================
 
-                    if (_msgHandler)
-                        _msgHandler->handleMessage(msg);
+                    // if (_msgHandler) 
+                        // _msgHandler->handleMessage(msg);
                 }
                 else
                 {

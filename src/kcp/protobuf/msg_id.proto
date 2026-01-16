@@ -1,0 +1,7 @@
+syntax="proto3";
+package Proto;
+
+enum MsgId{
+    MI_NONE=0;
+    MI_TEST=1;
+}

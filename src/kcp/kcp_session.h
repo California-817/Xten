@@ -39,10 +39,10 @@ namespace Xten
             void Start();
             ~KcpSession();
             void Close();
-            // 读到一个message报文
-            Message::ptr ReadMessage(KcpSession::READ_ERRNO &error);
-            // 发送一个包文--->into queue [注意：包文大小最大不能超过1024+512字节]
-            void SendMessage(Message::ptr msg);
+            // 读到一个Kcpmessage报文
+            KcpMessage::ptr ReadMessage(KcpSession::READ_ERRNO &error);
+            // 发送一个包文--->into queue
+            void SendMessage(KcpMessage::ptr msg);
             // 等待写协程退出
             void WaitSender() { _sem.wait(); }
             // 强制关闭连接
@@ -73,7 +73,7 @@ namespace Xten
             // 发送协程
             void dopacketOutput(std::shared_ptr<KcpSession> self);
             // 发送协程调用: [发送队列--->kcpcb发送缓冲区区]
-            bool write(Message::ptr rsp);
+            bool write(KcpMessage::ptr rsp);
             // 传给kcpcb的内部输出回调函数 [kcpcb缓冲区--->socket]
             static int kcp_output_func(const char *buf, int len, struct IKCPCB *kcp, void *user);
             // 原始udp包处理 [data]
@@ -105,7 +105,7 @@ namespace Xten
             MutexType _kcpcb_mtx; // 访问kcpcb的互斥锁
             CondType _kcpcb_cond; // 接收kcpcb数据条件变量
 
-            std::list<Message::ptr> _sendque; // 发送队列
+            std::list<KcpMessage::ptr> _sendque; // 发送队列
             MutexType _sendque_mtx;           // 发送队列锁
             CondType _sendque_cond;           // 发送队列条件变量
 

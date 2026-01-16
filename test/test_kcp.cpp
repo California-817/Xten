@@ -66,20 +66,20 @@ void recv_thread(ikcpcb *kcp)
         }
         if (ret > 0)
         {
-            rcvbuf[ret] = 0;
-            ByteArray::ptr ba = std::make_shared<ByteArray>(ret);
-            ba->Write(rcvbuf, ret);
-            ba->SetPosition(0);
-            KcpResponse::ptr rsp = std::make_shared<KcpResponse>();
-            std::cout<<ba->ReadFUint8()<<std::endl; //type
-            rsp->ParseFromByteArray(ba);
-            if(sn>rsp->GetSn())
-            {
-                std::cout<<"error"<<std::endl;
-                exit(-1);
-            }
-            sn=rsp->GetSn();
-            std::cout << rsp->ToString() << std::endl;
+            // rcvbuf[ret] = 0;
+            // ByteArray::ptr ba = std::make_shared<ByteArray>(ret);
+            // ba->Write(rcvbuf, ret);
+            // ba->SetPosition(0);
+            // // KcpResponse::ptr rsp = std::make_shared<KcpResponse>();
+            // // std::cout<<ba->ReadFUint8()<<std::endl; //type
+            // // rsp->ParseFromByteArray(ba);
+            // if(sn>rsp->GetSn())
+            // {
+            //     std::cout<<"error"<<std::endl;
+            //     exit(-1);
+            // }
+            // sn=rsp->GetSn();
+            // std::cout << rsp->ToString() << std::endl;
         }
     }
 }
@@ -123,26 +123,26 @@ int main(int argc, char *argv[])
     std::string line;
     while (true)
     {
-        ByteArray::ptr ba = std::make_shared<ByteArray>();
-        char buffer[1024];
-        std::string str = "send kcp message,id=";
-        str += std::to_string(count++);
-        KcpRequest::ptr req = std::make_shared<KcpRequest>();
-        req->SetSn(count);
-        req->SetCmd(0);
-        req->SetData(str);
+        // ByteArray::ptr ba = std::make_shared<ByteArray>();
+        // char buffer[1024];
+        // std::string str = "send kcp message,id=";
+        // str += std::to_string(count++);
+        // KcpRequest::ptr req = std::make_shared<KcpRequest>();
+        // req->SetSn(count);
+        // req->SetCmd(0);
+        // req->SetData(str);
+        // // ba->SetPosition(0);
+        // // ba->SetSize(0);
+        // req->SerializeToByteArray(ba);
         // ba->SetPosition(0);
-        // ba->SetSize(0);
-        req->SerializeToByteArray(ba);
-        ba->SetPosition(0);
-        auto reqstr = ba->ToString();
-        std::cout<<reqstr.length()<<std::endl;
-        {
-            std::lock_guard<std::mutex> lk(g_kcp_mtx);
-            ikcp_send(kcp, reqstr.c_str(), reqstr.length());
-            // ikcp_send(kcp, line.data(), line.size());
-            ikcp_flush(kcp); // 立即尝试发出
-        }
+        // auto reqstr = ba->ToString();
+        // std::cout<<reqstr.length()<<std::endl;
+        // {
+        //     std::lock_guard<std::mutex> lk(g_kcp_mtx);
+        //     ikcp_send(kcp, reqstr.c_str(), reqstr.length());
+        //     // ikcp_send(kcp, line.data(), line.size());
+        //     ikcp_flush(kcp); // 立即尝试发出
+        // }
         usleep(10000);
     }
 

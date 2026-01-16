@@ -1,62 +1,33 @@
 #ifndef __XTEN_KCP_PROTOCOL_H__
 #define __XTEN_KCP_PROTOCOL_H__
-#include "../protocol.h"
+#include <memory>
 #include <sstream>
+#include <arpa/inet.h>
+#include "protobuf/msg_body.pb.h"
+#include "protobuf/msg_id.pb.h"
 namespace Xten
 {
     namespace kcp
     {
-        // common game protocol-----todo
-        class KcpCommMsg : public Message
+        typedef unsigned short int KcpMsgLenType;
+        typedef unsigned int KcpMsgIdType;
+        // common game protocol
+        class KcpMessage
         {
         public:
-            enum OPCODE
-            {
-                REQUEST = 0,
-                RESPONSE = 1,
-                NOTIFY = 2,
-                PING = 3,
-                PONG = 4,
-                CLOSE = 5
-            };
-            typedef std::shared_ptr<KcpCommMsg> ptr;
-            // 将消息结构体序列化成bytearray
-            virtual bool SerializeToByteArray(ByteArray::ptr ba) override
-            {
-                return true;
-            }
-            // 从bytearray中反序列化出消息结构体
-            virtual bool ParseFromByteArray(ByteArray::ptr ba) override
-            {
-                return true;
-            }
-            // 转字符串
-            virtual std::string ToString() const override
-            {
-                return "";
-            }
-            // 获取name
-            virtual const std::string &GetName() const override
-            {
-                static std::string name = "KcpCommMsg";
-                return name;
-            }
-
-            virtual uint8_t GetMessageType() const override
-            {
-                return Message::MessageType::COMMON;
-            }
-            // data interface
-            void SetData(const std::string &data) { _data = data; }
-            std::string GetData() const { return _data; }
-
-            // protobuf data
+            typedef std::shared_ptr<KcpMessage> ptr;
+            void SetMsgId(KcpMsgIdType id) { _id = id; }
+            KcpMsgIdType GetMsgId() const { return _id; }
+            /// @brief 获取body长度
+            /// @return len
+            KcpMsgLenType GetBodyLength() const {return _len;}
             template <class T>
-            bool SetDataAsPB(const T &pbData)
+            bool SetMsgBodyAsPB(T &pbData)
             {
                 try
                 {
-                    pbData.SerializeToString(&_data);
+                    pbData.SerializeToString(&_body);
+                    _len=_body.size();
                     return true;
                 }
                 catch (...)
@@ -65,236 +36,54 @@ namespace Xten
                 return false;
             }
             template <class T>
-            std::shared_ptr<T> GetDataAsPB()
+            std::shared_ptr<T> GetMsgBodyAsPB()
             {
-                try
+                if (_body.empty())
                 {
-                    if (_data.empty())
-                        return nullptr;
-                    std::shared_ptr<T> pbptr = std::make_shared<T>();
-                    pbptr->ParseFromString(_data);
-                    return pbptr;
+                    return nullptr;
                 }
-                catch (...)
+                std::shared_ptr<T> pbData = std::make_shared<T>();
+                pbData->ParseFromString(_body);
+                return pbData;
+            }
+            /// @brief 序列化到外部提供的buffer中
+            /// @param buffer 
+            /// @param len 
+            /// @return 空间不足-1 成功为真实大小
+            size_t SerializeToBuffer(char *buffer, size_t len)
+            {
+                size_t rl_size = sizeof(KcpMsgLenType) + sizeof(KcpMsgIdType) + _len;
+                if (rl_size >= len)
+                    return -1;
+                *(KcpMsgLenType *)buffer = htons(_len);
+                buffer += sizeof(KcpMsgLenType);
+                *(KcpMsgIdType *)buffer = htonl(_id);
+                buffer += sizeof(KcpMsgIdType);
+                memcpy(buffer, _body.c_str(), _body.size());
+                return rl_size;
+            }
+            /// @brief 从buffer中反序列化出msg
+            /// @param buf 
+            /// @return 是否成功
+            bool ParseFromBuffer(const char *buf)
+            {
+                _len = ntohs(*(KcpMsgLenType *)buf);
+                buf += sizeof(KcpMsgLenType);
+                _id = ntohl(*(KcpMsgIdType *)buf);
+                const google::protobuf::EnumDescriptor *descriptor = Proto::MsgId_descriptor();
+                if (descriptor->FindValueByNumber(_id) == nullptr)
                 {
+                    return false;
                 }
-                return nullptr;
+                buf += sizeof(KcpMsgIdType);
+                _body = std::string(buf);
+                return true;
             }
 
         private:
-            uint8_t _opcode; // 操作码
-            uint32_t _sn;    // 序列号
-            uint32_t _cmd;   // 操作类型--url路由
-
-            uint16_t _magic;  // 魔数
-            uint8_t _version; // 版本
-            uint16_t _remain; // 保留字段
-
-            std::string _data; // 正文数据
-        };
-        // kcp响应
-        class KcpRequest;
-        class KcpResponse : public Response
-        {
-        public:
-            typedef std::shared_ptr<KcpResponse> ptr;
-            friend class KcpRequest;
-            // 将消息结构体序列化成bytearray
-            virtual bool SerializeToByteArray(ByteArray::ptr ba)
-            {
-                Response::SerializeToByteArray(ba);
-                ba->WriteFUint16(_magic);
-                ba->WriteFUint8(_version);
-                ba->WriteFUint16(_remain);
-                ba->WriteStringF32(_data);
-                return true;
-            }
-            // 从bytearray中反序列化出消息结构体
-            virtual bool ParseFromByteArray(ByteArray::ptr ba)
-            {
-
-                Response::ParseFromByteArray(ba);
-                _magic = ba->ReadFUint16();
-                _version = ba->ReadFUint8();
-                _remain = ba->ReadFUint16();
-                _data = ba->ReadStringF32();
-                return true;
-            }
-            // 转字符串
-            virtual std::string ToString() const
-            {
-                std::stringstream ss;
-                ss << "[sn=" << _sn << "][cmd=" << _cmd << "]"
-                   << "[magic=" << _magic
-                   << "][version" << _version << "][result="
-                   << _result << "][resultstr=" << _resultString << "][data=" << _data;
-                return ss.str();
-            }
-            // 获取name
-            virtual const std::string &GetName() const
-            {
-                static std::string name = "KcpResponse";
-                return name;
-            }
-            // 获取消息类型
-            virtual uint8_t GetMessageType() const
-            {
-                return Message::MessageType::RESPONSE;
-            }
-
-            // data interface
-            void SetData(const std::string &data) { _data = data; }
-            std::string GetData() const { return _data; }
-
-            // protobuf data
-            template <class T>
-            bool SetDataAsPB(const T &pbData)
-            {
-                try
-                {
-                    pbData.SerializeToString(&_data);
-                    return true;
-                }
-                catch (...)
-                {
-                }
-                return false;
-            }
-            template <class T>
-            std::shared_ptr<T> GetDataAsPB()
-            {
-                try
-                {
-                    if (_data.empty())
-                        return nullptr;
-                    std::shared_ptr<T> pbptr = std::make_shared<T>();
-                    pbptr->ParseFromString(_data);
-                    return pbptr;
-                }
-                catch (...)
-                {
-                }
-                return nullptr;
-            }
-
-        private:
-            // uint32_t _sn;              // 与请求对应的序列号
-            // uint32_t _cmd;             // 与请求一致的操作类型
-            // uint32_t _result;          // 响应码
-            // std::string _resultString; // 响应码对应响应字符串
-
-            uint16_t _magic;  // 魔数
-            uint8_t _version; // 版本
-            uint16_t _remain; // 保留字段
-
-            std::string _data; // 正文数据
-        };
-
-        //  kcp请求
-        class KcpRequest : public Request
-        {
-        public:
-            typedef std::shared_ptr<KcpRequest> ptr;
-            std::shared_ptr<KcpResponse> CreateKcpResponse()
-            {
-                auto rsp = std::make_shared<KcpResponse>();
-                rsp->SetCmd(_cmd);
-                rsp->SetSn(_sn);
-                rsp->_magic = _magic;
-                rsp->_version = _version;
-                rsp->_remain = _remain;
-                return rsp;
-            }
-            // 将消息结构体序列化成bytearray
-            virtual bool SerializeToByteArray(ByteArray::ptr ba)
-            {
-                Request::SerializeToByteArray(ba);
-                ba->WriteFUint16(_magic);
-                ba->WriteFUint8(_version);
-                ba->WriteFUint16(_remain);
-                ba->WriteStringF32(_data);
-                return true;
-            }
-            // 从bytearray中反序列化出消息结构体
-            virtual bool ParseFromByteArray(ByteArray::ptr ba)
-            {
-                Request::ParseFromByteArray(ba);
-                _magic = ba->ReadFUint16();
-                _version = ba->ReadFUint8();
-                _remain = ba->ReadFUint16();
-                _data = ba->ReadStringF32();
-                return true;
-            }
-            // 转字符串
-            virtual std::string ToString() const
-            {
-                std::stringstream ss;
-                ss << "[sn=" << _sn << "]"
-                   << "[magic=" << _magic
-                   << "][version" << _version
-                   << "][cmd=" << _cmd << "][data=" << _data;
-                return ss.str();
-            }
-            // 获取name
-            virtual const std::string &GetName() const
-            {
-                static std::string name = "KcpRequest";
-                return name;
-            }
-            // 获取消息类型
-            virtual uint8_t GetMessageType() const
-            {
-                return Message::MessageType::REQUEST;
-            }
-
-            // data interface
-            void SetData(const std::string &data) { _data = data; }
-            std::string GetData() const { return _data; }
-
-            // protobuf data
-            template <class T>
-            bool SetDataAsPB(const T &pbData)
-            {
-                try
-                {
-                    pbData.SerializeToString(&_data);
-                    return true;
-                }
-                catch (...)
-                {
-                }
-                return false;
-            }
-            template <class T>
-            std::shared_ptr<T> GetDataAsPB()
-            {
-                try
-                {
-                    if (_data.empty())
-                        return nullptr;
-                    std::shared_ptr<T> pbptr = std::make_shared<T>();
-                    pbptr->ParseFromString(_data);
-                    return pbptr;
-                }
-                catch (...)
-                {
-                }
-                return nullptr;
-            }
-
-            void SetMagic(uint16_t magic) { _magic = magic; }
-            uint16_t GetMagic() const { return _magic; }
-
-            void SetVersion(uint8_t version) { _version = version; }
-            uint8_t GetVersion() const { return _version; }
-
-        private:
-            // uint32_t _sn;   // 请求的唯一序列号
-            // uint32_t _cmd;  // 用于标识这个请求的方法类型（不同方法类型对应不同处理）
-            uint16_t _magic = 0x0817; // 魔数
-            uint8_t _version = 1.0;   // 版本
-            uint16_t _remain;         // 保留字段
-            std::string _data;        // 正文数据
+            KcpMsgLenType _len;
+            KcpMsgIdType _id;
+            std::string _body;
         };
     }
 } // namespace Xten

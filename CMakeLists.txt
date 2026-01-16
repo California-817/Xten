@@ -59,9 +59,13 @@ file(GLOB SERVLETS_SOURCES src/http/servlets/*.cpp)
 file(GLOB DB_SOURCES src/db/*.cpp)
 file(GLOB EMAIL_SOURCES src/email/*.cpp)
 file(GLOB XFTP_SOURCES src/xftp/*.cpp)
-file(GLOB KCP_SOURCES src/kcp/*.cpp src/kcp/third_part/*.c)
-
+file(GLOB KCP_SOURCES src/kcp/*.cpp src/kcp/third_part/*.c
+                        src/kcp/protobuf/*.cc
+)
 file(GLOB XORM_SOURCES src/orm/*.cpp)
+
+ragelmaker(src/http/http11_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/http)
+ragelmaker(src/http/httpclient_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/http)
 
 list(APPEND SOURCES 
                     ${HTTP_SOURCES} 
@@ -78,8 +82,6 @@ list(APPEND SOURCES
 )
 list(REMOVE_ITEM SOURCES ${PROJECT_SOURCE_DIR}/src/system/main.cpp)
 
-ragelmaker(src/http/http11_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/http)
-ragelmaker(src/http/httpclient_parser.rl SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/http)
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
     message(STATUS "Building for x86_64 platform")
@@ -122,6 +124,7 @@ set(COMMON_LIBS
                 mysqlclient
                 jsoncpp
                 tinyxml2
+                protobuf
 )
 
 find_library(HIREDIS_CLUSTER_LIB
@@ -135,6 +138,7 @@ else()
     message(STATUS "hiredis cluster library not found during CMake configure. If you need Redis Cluster support, 
                         please install hiredis-vip / hiredis-cluster (providing redisCluster* symbols) and re-run CMake.")
 endif()
+
 
 target_link_libraries(XtenFrame
                     Xten

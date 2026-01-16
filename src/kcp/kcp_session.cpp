@@ -69,8 +69,8 @@ namespace Xten
             iom->Schedule(std::bind(&KcpSession::dopacketOutput, this, self));
         }
 
-        // 读到一个message报文
-        Message::ptr KcpSession::ReadMessage(KcpSession::READ_ERRNO &error)
+        // 读到一个Kcpmessage报文
+        KcpMessage::ptr KcpSession::ReadMessage(KcpSession::READ_ERRNO &error)
         {
             Timer::ptr timer;
             if (_read_timeout_ms > 0)
@@ -136,21 +136,16 @@ namespace Xten
                         //unlock
                         lock.unlock();
                         buf[ret] = 0;
-                        // success---反序列化
-                        ByteArray::ptr ba = std::make_shared<ByteArray>(ret);
-                        ba->Write(buf, ret);
+                        KcpMessage::ptr msg=std::make_shared<KcpMessage>();
+                        bool b_parse=msg->ParseFromBuffer(buf);
                         free(buf);
-                        ba->SetPosition(0);
-                        Message::MessageType type = (Message::MessageType)ba->ReadFUint8();
-                        if (type == Message::MessageType::COMMON)
+                        if (b_parse)
                         {
-                            KcpCommMsg::ptr msg = std::make_shared<KcpCommMsg>();
-                            msg->ParseFromByteArray(ba);
                             return msg;
                         }
                         else
                         {
-                            XTEN_LOG_DEBUG(g_logger) << "kcpsession recv invaild kcp msg type";
+                            XTEN_LOG_DEBUG(g_logger) << "kcpsession recv invaild kcp msg type"<<msg->GetMsgId();
                             notifyReadError(ret);
                             break;
                         }
@@ -184,7 +179,7 @@ namespace Xten
             SendMessage(nullptr);
         }
         // 发送一个包文--->into queue
-        void KcpSession::SendMessage(Message::ptr msg)
+        void KcpSession::SendMessage(KcpMessage::ptr msg)
         {
             {
                 MutexType::Lock _lock(_sendque_mtx);
@@ -201,7 +196,7 @@ namespace Xten
             {
                 do
                 {
-                    std::list<Message::ptr> tmp;
+                    std::list<KcpMessage::ptr> tmp;
                     {
                         MutexType::Lock lock(_sendque_mtx);
                         while (_sendque.empty() &&
@@ -301,15 +296,19 @@ namespace Xten
         }
 
         // 发送协程调用: [发送队列--->kcpcb发送缓冲区区]
-        bool KcpSession::write(Message::ptr rsp)
+        bool KcpSession::write(KcpMessage::ptr rsp)
         {
-            // 对包的大小有限制
-            ByteArray::ptr ba = std::make_shared<ByteArray>(1024 + 512);
-            rsp->SerializeToByteArray(ba);
-            ba->SetPosition(0); // 写操作移动了position
+            char* buffer=(char*)malloc(4096);
+            size_t b_serialize=rsp->SerializeToBuffer(buffer,4096);
+            if(b_serialize==(size_t)-1)
+            {
+                XTEN_LOG_WARN(g_logger)<<"send kcp message too big!!!";
+                free(buffer);
+                return false;
+            }
             // 涉及对kcpcb的访问---需要加锁
             MutexType::Lock lock(_kcpcb_mtx);
-            int ret = ikcp_send(_kcp_cb, (const char *)ba->GetBeginNodePtr(), ba->GetReadSize());
+            int ret = ikcp_send(_kcp_cb, (const char *)buffer,ret);
             if (ret < 0)
             {
                 // send error

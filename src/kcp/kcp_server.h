@@ -164,7 +164,7 @@ namespace Xten
                 }
                 return nullptr;
             }
-            void sendmsg(const std::string &key, Message::ptr msg)
+            void sendmsg(const std::string &key, KcpMessage::ptr msg)
             {
                 MutexType::Lock lock(_mtx);
                 auto iter = _connsMap.find(key);
@@ -175,7 +175,7 @@ namespace Xten
                     temp->SendMessage(msg);
                 }
             }
-            void broadcastmsg(Message::ptr msg)
+            void broadcastmsg(KcpMessage::ptr msg)
             {
                 std::unordered_map<std::string, KcpSession::ptr> temp;
                 {
