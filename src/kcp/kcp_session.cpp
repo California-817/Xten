@@ -308,7 +308,8 @@ namespace Xten
             }
             // 涉及对kcpcb的访问---需要加锁
             MutexType::Lock lock(_kcpcb_mtx);
-            int ret = ikcp_send(_kcp_cb, (const char *)buffer,ret);
+            int ret = ikcp_send(_kcp_cb, (const char *)buffer,b_serialize);
+            free(buffer);
             if (ret < 0)
             {
                 // send error

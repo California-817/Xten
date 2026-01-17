@@ -35,5 +35,11 @@ command_error_exit sed -i "s/project_name/${project_name}/g" `ls .`
 command_error_exit cd ../bin/conf
 command_error_exit sed -i "s/name_space/${namespace}/g" `ls .`
 command_error_exit sed -i "s/project_name/${project_name}/g" `ls .`
+command_error_exit cd ../..
+cat > ./.gitmodules <<'EOF'
+[submodule "Xten"]
+	path = Xten
+	url = https://github.com/California-817/Xten.git
+EOF
 
 echo "create module ${project_name} -- ${namespace} ok" 
